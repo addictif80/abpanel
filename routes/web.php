@@ -1,8 +1,10 @@
 <?php
 
 use App\Http\Controllers\Admin;
+use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\Auth\ResetPasswordController;
 use App\Http\Controllers\Client;
 use App\Http\Controllers\Install\InstallController;
 use App\Http\Controllers\NewsletterController;
@@ -28,6 +30,14 @@ Route::middleware('installed')->group(function () {
     Route::get('/register', [RegisterController::class, 'showRegisterForm'])->name('register')->middleware('guest');
     Route::post('/register', [RegisterController::class, 'register'])->middleware('guest');
 
+    // Password reset
+    Route::middleware('guest')->group(function () {
+        Route::get('/forgot-password', [ForgotPasswordController::class, 'showLinkRequestForm'])->name('password.request');
+        Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLinkEmail'])->name('password.email');
+        Route::get('/reset-password/{token}', [ResetPasswordController::class, 'showResetForm'])->name('password.reset');
+        Route::post('/reset-password', [ResetPasswordController::class, 'reset'])->name('password.update');
+    });
+
     // Client portal
     Route::middleware(['auth', 'active.user'])->prefix('client')->name('client.')->group(function () {
         Route::get('/dashboard', [Client\DashboardController::class, 'index'])->name('dashboard');
@@ -42,6 +52,15 @@ Route::middleware('installed')->group(function () {
             Route::post('/{vm}/resume', [Client\VmController::class, 'resume'])->name('resume');
             Route::post('/{vm}/reboot', [Client\VmController::class, 'reboot'])->name('reboot');
             Route::get('/{vm}/terminal', [Client\VmController::class, 'terminal'])->name('terminal');
+            Route::post('/{vm}/domain', [Client\VmController::class, 'updateDomain'])->name('domain');
+        });
+
+        // Plans & Checkout
+        Route::prefix('checkout')->name('checkout.')->group(function () {
+            Route::get('/plans', [Client\CheckoutController::class, 'plans'])->name('plans');
+            Route::get('/plans/{plan}', [Client\CheckoutController::class, 'checkout'])->name('checkout');
+            Route::post('/plans/{plan}/intent', [Client\CheckoutController::class, 'createIntent'])->name('intent');
+            Route::get('/success', [Client\CheckoutController::class, 'success'])->name('success');
         });
 
         // Billing
@@ -104,6 +123,13 @@ Route::middleware('installed')->group(function () {
             Route::resource('campaigns', Admin\NewsletterCampaignController::class);
             Route::post('/campaigns/{campaign}/send', [Admin\NewsletterController::class, 'send'])->name('campaigns.send');
         });
+
+        // Plans
+        Route::resource('plans', Admin\PlanController::class);
+
+        // Invoices
+        Route::resource('invoices', Admin\InvoiceController::class)->only(['index', 'show', 'create', 'store', 'destroy']);
+        Route::post('/invoices/{invoice}/mark-paid', [Admin\InvoiceController::class, 'markPaid'])->name('invoices.mark-paid');
 
         // Tickets
         Route::prefix('tickets')->name('tickets.')->group(function () {

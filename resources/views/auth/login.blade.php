@@ -30,6 +30,7 @@
             <input type="checkbox" name="remember" class="rounded border-gray-300 text-indigo-600">
             Se souvenir de moi
         </label>
+        <a href="{{ route('password.request') }}" class="text-sm text-indigo-600 hover:underline">Mot de passe oublié ?</a>
     </div>
 
     <button type="submit"

@@ -105,6 +105,19 @@ class VmController extends Controller
         return view('client.vms.terminal', compact('vm', 'vncData', 'proxmoxHost'));
     }
 
+    public function updateDomain(Request $request, VirtualMachine $vm)
+    {
+        $this->authorizeVm($vm);
+
+        $request->validate([
+            'custom_domain' => 'nullable|string|max:255|regex:/^[a-zA-Z0-9\-\.]+$/',
+        ]);
+
+        $vm->update(['custom_domain' => $request->custom_domain ?: null]);
+
+        return back()->with('success', 'Domaine personnalisé mis à jour.');
+    }
+
     private function authorizeVm(VirtualMachine $vm): void
     {
         if ($vm->user_id !== auth()->id()) {

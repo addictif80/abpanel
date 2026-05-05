@@ -136,8 +136,8 @@
             <div class="bg-gray-50 rounded-lg p-3 font-mono text-xs text-gray-600 mb-3">
                 IP NPM publique : <strong>{{ gethostbyname(parse_url(\App\Models\Setting::get('npm_host', ''), PHP_URL_HOST)) }}</strong>
             </div>
-            <form method="POST" action="{{ route('admin.vms.update', $vm) }}" class="flex gap-2">
-                @csrf @method('PUT')
+            <form method="POST" action="{{ route('client.vms.domain', $vm) }}" class="flex gap-2">
+                @csrf
                 <input type="text" name="custom_domain" value="{{ $vm->custom_domain }}" placeholder="mondomaine.com"
                     class="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none font-mono">
                 <button type="submit" class="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition">
