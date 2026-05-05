@@ -1,0 +1,41 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+class VirtualMachine extends Model
+{
+    protected $fillable = [
+        'user_id', 'name', 'proxmox_vmid', 'proxmox_node',
+        'status', 'cores', 'memory_mb', 'disk_gb',
+        'os_template', 'ip_address', 'tailscale_ip',
+        'subdomain', 'custom_domain', 'domain_active',
+        'plan', 'monthly_price', 'next_renewal_at',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'domain_active' => 'boolean',
+            'monthly_price' => 'decimal:2',
+            'next_renewal_at' => 'datetime',
+        ];
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function isRunning(): bool
+    {
+        return $this->status === 'running';
+    }
+
+    public function isHibernated(): bool
+    {
+        return $this->status === 'hibernated';
+    }
+}
