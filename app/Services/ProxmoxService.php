@@ -118,6 +118,50 @@ class ProxmoxService
         return $this->request('delete', "/nodes/{$node}/qemu/{$vmid}");
     }
 
+    // ── Storage & ISO management ─────────────────────────────────────────────
+
+    public function getStorages(string $node, string $contentFilter = 'iso'): array
+    {
+        $storages = $this->request('get', "/nodes/{$node}/storage");
+        if (!$contentFilter) {
+            return $storages;
+        }
+        return array_values(array_filter($storages, function ($s) use ($contentFilter) {
+            $content = $s['content'] ?? '';
+            return str_contains($content, $contentFilter);
+        }));
+    }
+
+    public function downloadISO(string $node, string $storage, string $url, string $filename): string
+    {
+        // Returns UPID (task ID)
+        $result = $this->request('post', "/nodes/{$node}/storage/{$storage}/download-url", [
+            'url'      => $url,
+            'filename' => $filename,
+            'content'  => 'iso',
+        ]);
+        return is_string($result) ? $result : ($result['upid'] ?? $result[0] ?? '');
+    }
+
+    public function getTaskStatus(string $node, string $upid): array
+    {
+        return $this->request('get', "/nodes/{$node}/tasks/" . urlencode($upid) . "/status");
+    }
+
+    public function listISOs(string $node, string $storage): array
+    {
+        return $this->request('get', "/nodes/{$node}/storage/{$storage}/content", ['content' => 'iso']);
+    }
+
+    public function deleteISO(string $node, string $storage, string $volume): array
+    {
+        // volume is the full path, e.g. local:iso/debian-12.iso
+        $encoded = urlencode($volume);
+        return $this->request('delete', "/nodes/{$node}/storage/{$storage}/content/{$encoded}");
+    }
+
+    // ── VM Config ────────────────────────────────────────────────────────────
+
     public function getVMConfig(string $node, int $vmid): array
     {
         return $this->request('get', "/nodes/{$node}/qemu/{$vmid}/config");

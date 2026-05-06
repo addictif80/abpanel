@@ -132,6 +132,16 @@ Route::middleware('installed')->group(function () {
         // Plans
         Route::resource('plans', Admin\PlanController::class);
 
+        // OS Templates
+        Route::prefix('os-templates')->name('os-templates.')->group(function () {
+            Route::get('/', [Admin\OsTemplateController::class, 'index'])->name('index');
+            Route::post('/', [Admin\OsTemplateController::class, 'store'])->name('store');
+            Route::get('/storages', [Admin\OsTemplateController::class, 'storages'])->name('storages');
+            Route::get('/{osTemplate}/status', [Admin\OsTemplateController::class, 'taskStatus'])->name('status');
+            Route::post('/{osTemplate}/toggle', [Admin\OsTemplateController::class, 'toggle'])->name('toggle');
+            Route::delete('/{osTemplate}', [Admin\OsTemplateController::class, 'destroy'])->name('destroy');
+        });
+
         // Invoices
         Route::resource('invoices', Admin\InvoiceController::class)->only(['index', 'show', 'create', 'store', 'destroy']);
         Route::post('/invoices/{invoice}/mark-paid', [Admin\InvoiceController::class, 'markPaid'])->name('invoices.mark-paid');
