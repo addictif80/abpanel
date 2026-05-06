@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class OsTemplate extends Model
 {
     protected $fillable = [
-        'name', 'description', 'url', 'filename',
+        'name', 'description', 'url', 'filename', 'template_type',
         'proxmox_node', 'proxmox_storage', 'proxmox_volume',
         'proxmox_task_id', 'status', 'error_message',
         'size_bytes', 'is_active',

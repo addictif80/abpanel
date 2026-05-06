@@ -27,9 +27,10 @@ class OsTemplateController extends Controller
 
     public function storages(Request $request)
     {
-        $request->validate(['node' => 'required|string']);
+        $request->validate(['node' => 'required|string', 'template_type' => 'nullable|in:iso,ct']);
+        $contentFilter = $request->input('template_type') === 'ct' ? 'vztmpl' : 'iso';
         try {
-            $storages = app(ProxmoxService::class)->getStorages($request->node, 'iso');
+            $storages = app(ProxmoxService::class)->getStorages($request->node, $contentFilter);
             return response()->json(collect($storages)->map(fn($s) => [
                 'id'   => $s['storage'],
                 'name' => $s['storage'] . ' (' . ($s['type'] ?? '?') . ')',
@@ -41,11 +42,15 @@ class OsTemplateController extends Controller
 
     public function store(Request $request)
     {
+        $isCt = $request->input('template_type') === 'ct';
+        $filenameRegex = $isCt ? '/^[\w\-\.]+\.(tar\.gz|tar\.xz|tar\.zst)$/i' : '/^[\w\-\.]+\.iso$/i';
+
         $request->validate([
             'name'             => 'required|string|max:100',
             'description'      => 'nullable|string',
+            'template_type'    => 'required|in:iso,ct',
             'url'              => 'required|url',
-            'filename'         => ['required', 'string', 'max:100', 'regex:/^[\w\-\.]+\.iso$/i'],
+            'filename'         => ['required', 'string', 'max:150', 'regex:' . $filenameRegex],
             'proxmox_node'     => 'required|string',
             'proxmox_storage'  => 'required|string',
         ]);
@@ -53,6 +58,7 @@ class OsTemplateController extends Controller
         $template = OsTemplate::create([
             'name'            => $request->name,
             'description'     => $request->description,
+            'template_type'   => $request->template_type,
             'url'             => $request->url,
             'filename'        => $request->filename,
             'proxmox_node'    => $request->proxmox_node,
@@ -61,11 +67,13 @@ class OsTemplateController extends Controller
         ]);
 
         try {
-            $upid = app(ProxmoxService::class)->downloadISO(
+            $content = $template->template_type === 'ct' ? 'vztmpl' : 'iso';
+            $upid = app(ProxmoxService::class)->downloadTemplate(
                 $request->proxmox_node,
                 $request->proxmox_storage,
                 $request->url,
                 $request->filename,
+                $content,
             );
 
             $template->update([
@@ -135,7 +143,7 @@ class OsTemplateController extends Controller
     {
         if ($osTemplate->proxmox_volume) {
             try {
-                app(ProxmoxService::class)->deleteISO(
+                app(ProxmoxService::class)->deleteStorageContent(
                     $osTemplate->proxmox_node,
                     $osTemplate->proxmox_storage,
                     $osTemplate->proxmox_volume,
@@ -153,15 +161,21 @@ class OsTemplateController extends Controller
 
     private function resolveVolume(OsTemplate $template): ?string
     {
+        $content = $template->template_type === 'ct' ? 'vztmpl' : 'iso';
         try {
-            $isos = app(ProxmoxService::class)->listISOs($template->proxmox_node, $template->proxmox_storage);
-            foreach ($isos as $iso) {
-                if (str_ends_with((string) ($iso['volid'] ?? ''), $template->filename)) {
-                    return $iso['volid'];
+            $items = app(ProxmoxService::class)->listStorageContent(
+                $template->proxmox_node,
+                $template->proxmox_storage,
+                $content,
+            );
+            foreach ($items as $item) {
+                if (str_ends_with((string) ($item['volid'] ?? ''), $template->filename)) {
+                    return $item['volid'];
                 }
             }
         } catch (\Exception) {}
-        // Fallback: compose it manually
-        return "{$template->proxmox_storage}:iso/{$template->filename}";
+        // Fallback
+        $subdir = $content === 'vztmpl' ? 'template/cache' : 'iso';
+        return "{$template->proxmox_storage}:{$subdir}/{$template->filename}";
     }
 }

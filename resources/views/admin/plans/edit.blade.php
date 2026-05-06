@@ -17,7 +17,8 @@
 </div>
 @endif
 
-<form method="POST" action="{{ route('admin.plans.update', $plan) }}" class="max-w-2xl space-y-5">
+<form method="POST" action="{{ route('admin.plans.update', $plan) }}" class="max-w-2xl space-y-5"
+      x-data="{ planType: '{{ old('type', $plan->type) }}' }">
     @csrf @method('PUT')
 
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
@@ -29,9 +30,34 @@
                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
         </div>
 
-        <div class="grid grid-cols-2 gap-4 text-sm text-gray-500">
-            <div>Type : <strong class="text-gray-700">{{ strtoupper($plan->type) }}</strong></div>
-            <div>Slug : <strong class="text-gray-700 font-mono">{{ $plan->slug }}</strong></div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
+                <select name="type" x-model="planType"
+                    class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    <option value="vm" {{ old('type', $plan->type) === 'vm' ? 'selected' : '' }}>VPS / Serveur virtuel</option>
+                    <option value="hosting" {{ old('type', $plan->type) === 'hosting' ? 'selected' : '' }}>Hébergement web</option>
+                </select>
+            </div>
+            <div class="text-sm text-gray-500 flex items-center">Slug : <strong class="text-gray-700 font-mono ml-1">{{ $plan->slug }}</strong></div>
+        </div>
+
+        <div x-show="planType === 'vm'">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Type de virtualisation</label>
+            <div class="grid grid-cols-2 gap-3">
+                <label class="cursor-pointer">
+                    <input type="radio" name="vm_type" value="qemu" class="sr-only peer" {{ old('vm_type', $plan->vm_type ?? 'qemu') === 'qemu' ? 'checked' : '' }}>
+                    <div class="rounded-lg border-2 p-3 transition peer-checked:border-indigo-500 peer-checked:bg-indigo-50 border-gray-200 hover:border-gray-300">
+                        <div class="font-semibold text-sm text-gray-800">Machine virtuelle (KVM)</div>
+                    </div>
+                </label>
+                <label class="cursor-pointer">
+                    <input type="radio" name="vm_type" value="lxc" class="sr-only peer" {{ old('vm_type', $plan->vm_type) === 'lxc' ? 'checked' : '' }}>
+                    <div class="rounded-lg border-2 p-3 transition peer-checked:border-indigo-500 peer-checked:bg-indigo-50 border-gray-200 hover:border-gray-300">
+                        <div class="font-semibold text-sm text-gray-800">Conteneur (LXC)</div>
+                    </div>
+                </label>
+            </div>
         </div>
 
         <div>

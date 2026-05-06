@@ -58,10 +58,14 @@ class ProxmoxService
         return $response->json('data') ?? [];
     }
 
+    // ── Nodes ─────────────────────────────────────────────────────────────────
+
     public function getNodes(): array
     {
         return $this->request('get', '/nodes');
     }
+
+    // ── QEMU (KVM) VMs ───────────────────────────────────────────────────────
 
     public function getVMs(string $node): array
     {
@@ -118,27 +122,148 @@ class ProxmoxService
         return $this->request('delete', "/nodes/{$node}/qemu/{$vmid}");
     }
 
-    // ── Storage & ISO management ─────────────────────────────────────────────
+    public function getVMConfig(string $node, int $vmid): array
+    {
+        return $this->request('get', "/nodes/{$node}/qemu/{$vmid}/config");
+    }
 
-    public function getStorages(string $node, string $contentFilter = 'iso'): array
+    // ── LXC Containers ───────────────────────────────────────────────────────
+
+    public function getCTs(string $node): array
+    {
+        return $this->request('get', "/nodes/{$node}/lxc");
+    }
+
+    public function getCTStatus(string $node, int $vmid): array
+    {
+        return $this->request('get', "/nodes/{$node}/lxc/{$vmid}/status/current");
+    }
+
+    public function startCT(string $node, int $vmid): array
+    {
+        return $this->request('post', "/nodes/{$node}/lxc/{$vmid}/status/start");
+    }
+
+    public function stopCT(string $node, int $vmid): array
+    {
+        return $this->request('post', "/nodes/{$node}/lxc/{$vmid}/status/stop");
+    }
+
+    public function shutdownCT(string $node, int $vmid): array
+    {
+        return $this->request('post', "/nodes/{$node}/lxc/{$vmid}/status/shutdown");
+    }
+
+    public function suspendCT(string $node, int $vmid): array
+    {
+        return $this->request('post', "/nodes/{$node}/lxc/{$vmid}/status/suspend");
+    }
+
+    public function resumeCT(string $node, int $vmid): array
+    {
+        return $this->request('post', "/nodes/{$node}/lxc/{$vmid}/status/resume");
+    }
+
+    public function rebootCT(string $node, int $vmid): array
+    {
+        return $this->request('post', "/nodes/{$node}/lxc/{$vmid}/status/reboot");
+    }
+
+    public function createCT(string $node, array $config): array
+    {
+        return $this->request('post', "/nodes/{$node}/lxc", $config);
+    }
+
+    public function deleteCT(string $node, int $vmid): array
+    {
+        return $this->request('delete', "/nodes/{$node}/lxc/{$vmid}");
+    }
+
+    public function getCTConfig(string $node, int $vmid): array
+    {
+        return $this->request('get', "/nodes/{$node}/lxc/{$vmid}/config");
+    }
+
+    // ── Unified dispatch by vm_type ───────────────────────────────────────────
+
+    public function getStatus(string $node, int $vmid, string $type = 'qemu'): array
+    {
+        return $type === 'lxc'
+            ? $this->getCTStatus($node, $vmid)
+            : $this->getVMStatus($node, $vmid);
+    }
+
+    public function action(string $node, int $vmid, string $action, string $type = 'qemu'): array
+    {
+        if ($type === 'lxc') {
+            return match($action) {
+                'start'    => $this->startCT($node, $vmid),
+                'stop'     => $this->stopCT($node, $vmid),
+                'shutdown' => $this->shutdownCT($node, $vmid),
+                'suspend'  => $this->suspendCT($node, $vmid),
+                'resume'   => $this->resumeCT($node, $vmid),
+                'reboot'   => $this->rebootCT($node, $vmid),
+                default    => throw new \InvalidArgumentException("Unknown action: {$action}"),
+            };
+        }
+
+        return match($action) {
+            'start'    => $this->startVM($node, $vmid),
+            'stop'     => $this->stopVM($node, $vmid),
+            'shutdown' => $this->shutdownVM($node, $vmid),
+            'suspend'  => $this->suspendVM($node, $vmid),
+            'resume'   => $this->resumeVM($node, $vmid),
+            'reboot'   => $this->rebootVM($node, $vmid),
+            default    => throw new \InvalidArgumentException("Unknown action: {$action}"),
+        };
+    }
+
+    public function deleteInstance(string $node, int $vmid, string $type = 'qemu'): array
+    {
+        return $type === 'lxc' ? $this->deleteCT($node, $vmid) : $this->deleteVM($node, $vmid);
+    }
+
+    public function getConfig(string $node, int $vmid, string $type = 'qemu'): array
+    {
+        return $type === 'lxc' ? $this->getCTConfig($node, $vmid) : $this->getVMConfig($node, $vmid);
+    }
+
+    // ── Storage & templates ───────────────────────────────────────────────────
+
+    public function getStorages(string $node, string $contentFilter = ''): array
     {
         $storages = $this->request('get', "/nodes/{$node}/storage");
         if (!$contentFilter) {
             return $storages;
         }
-        return array_values(array_filter($storages, function ($s) use ($contentFilter) {
-            $content = $s['content'] ?? '';
-            return str_contains($content, $contentFilter);
-        }));
+        return array_values(array_filter($storages, fn($s) => str_contains($s['content'] ?? '', $contentFilter)));
     }
 
-    public function downloadISO(string $node, string $storage, string $url, string $filename): string
+    /** Storages that can hold ISOs (for QEMU) */
+    public function getIsoStorages(string $node): array
     {
-        // Returns UPID (task ID)
+        return $this->getStorages($node, 'iso');
+    }
+
+    /** Storages that can hold CT templates (for LXC) */
+    public function getCtTemplateStorages(string $node): array
+    {
+        return $this->getStorages($node, 'vztmpl');
+    }
+
+    /** Storages that can hold VM disk images */
+    public function getDiskStorages(string $node, string $type = 'qemu'): array
+    {
+        $content = $type === 'lxc' ? 'rootdir' : 'images';
+        return $this->getStorages($node, $content);
+    }
+
+    public function downloadTemplate(string $node, string $storage, string $url, string $filename, string $content = 'iso'): string
+    {
         $result = $this->request('post', "/nodes/{$node}/storage/{$storage}/download-url", [
             'url'      => $url,
             'filename' => $filename,
-            'content'  => 'iso',
+            'content'  => $content,
         ]);
         return is_string($result) ? $result : ($result['upid'] ?? $result[0] ?? '');
     }
@@ -148,24 +273,17 @@ class ProxmoxService
         return $this->request('get', "/nodes/{$node}/tasks/" . urlencode($upid) . "/status");
     }
 
-    public function listISOs(string $node, string $storage): array
+    public function listStorageContent(string $node, string $storage, string $content): array
     {
-        return $this->request('get', "/nodes/{$node}/storage/{$storage}/content", ['content' => 'iso']);
+        return $this->request('get', "/nodes/{$node}/storage/{$storage}/content", compact('content'));
     }
 
-    public function deleteISO(string $node, string $storage, string $volume): array
+    public function deleteStorageContent(string $node, string $storage, string $volume): array
     {
-        // volume is the full path, e.g. local:iso/debian-12.iso
-        $encoded = urlencode($volume);
-        return $this->request('delete', "/nodes/{$node}/storage/{$storage}/content/{$encoded}");
+        return $this->request('delete', "/nodes/{$node}/storage/{$storage}/content/" . urlencode($volume));
     }
 
-    // ── VM Config ────────────────────────────────────────────────────────────
-
-    public function getVMConfig(string $node, int $vmid): array
-    {
-        return $this->request('get', "/nodes/{$node}/qemu/{$vmid}/config");
-    }
+    // ── Import helpers ────────────────────────────────────────────────────────
 
     public function getAllVMs(): array
     {
@@ -174,24 +292,26 @@ class ProxmoxService
 
         foreach ($nodes as $node) {
             $nodeName = $node['node'];
-            try {
-                $vms = $this->getVMs($nodeName);
-                foreach ($vms as $vm) {
-                    $vm['node'] = $nodeName;
-                    $all[] = $vm;
-                }
-            } catch (\Exception) {
-                // Skip unreachable nodes
+            foreach (['qemu', 'lxc'] as $type) {
+                try {
+                    $items = $type === 'lxc' ? $this->getCTs($nodeName) : $this->getVMs($nodeName);
+                    foreach ($items as $vm) {
+                        $vm['node']    = $nodeName;
+                        $vm['vm_type'] = $type;
+                        $all[] = $vm;
+                    }
+                } catch (\Exception) {}
             }
         }
 
         return $all;
     }
 
+    // ── Cluster ───────────────────────────────────────────────────────────────
+
     public function getNextVMID(): int
     {
-        $data = $this->request('get', '/cluster/nextid');
-        return (int) $data;
+        return (int) $this->request('get', '/cluster/nextid');
     }
 
     public function testConnection(): bool

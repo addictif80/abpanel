@@ -38,7 +38,14 @@
             @forelse($vms as $vm)
             <tr class="hover:bg-gray-50">
                 <td class="px-5 py-3">
-                    <div class="font-medium text-gray-800">{{ $vm->name }}</div>
+                    <div class="flex items-center gap-2">
+                        <span class="font-medium text-gray-800">{{ $vm->name }}</span>
+                        @if(($vm->vm_type ?? 'qemu') === 'lxc')
+                        <span class="px-1.5 py-0.5 rounded text-xs font-medium bg-teal-100 text-teal-700">LXC</span>
+                        @else
+                        <span class="px-1.5 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700">KVM</span>
+                        @endif
+                    </div>
                     <div class="text-xs text-gray-400">VMID {{ $vm->proxmox_vmid }} — {{ $vm->proxmox_node }}</div>
                 </td>
                 <td class="px-5 py-3">

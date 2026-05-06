@@ -8,7 +8,7 @@ use Illuminate\Support\Str;
 class Plan extends Model
 {
     protected $fillable = [
-        'name', 'slug', 'type', 'description', 'price', 'currency',
+        'name', 'slug', 'type', 'vm_type', 'description', 'price', 'currency',
         'billing_period', 'stripe_price_id', 'features',
         'cores', 'memory_mb', 'disk_gb', 'is_active', 'sort_order',
     ];

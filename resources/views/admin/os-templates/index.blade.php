@@ -21,7 +21,7 @@
 
     {{-- Add form --}}
     <div class="xl:col-span-2"
-         x-data="osForm({{ json_encode($nodes) }})"
+         x-data="osForm({{ json_encode($nodes) }}, '{{ old('template_type', 'iso') }}')"
          x-init="init()">
 
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4 sticky top-6">
@@ -37,8 +37,29 @@
                 @csrf
 
                 <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Type de template <span class="text-red-500">*</span></label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <label class="cursor-pointer">
+                            <input type="radio" name="template_type" value="iso" x-model="templateType" @change="loadStorages()" class="sr-only peer">
+                            <div class="rounded-lg border-2 p-2.5 text-center transition peer-checked:border-indigo-500 peer-checked:bg-indigo-50 border-gray-200 text-sm">
+                                <div class="font-semibold text-gray-800">ISO</div>
+                                <div class="text-xs text-gray-500">Machine virtuelle (QEMU)</div>
+                            </div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="template_type" value="ct" x-model="templateType" @change="loadStorages()" class="sr-only peer">
+                            <div class="rounded-lg border-2 p-2.5 text-center transition peer-checked:border-indigo-500 peer-checked:bg-indigo-50 border-gray-200 text-sm">
+                                <div class="font-semibold text-gray-800">CT Template</div>
+                                <div class="text-xs text-gray-500">Conteneur LXC</div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Nom affiché <span class="text-red-500">*</span></label>
-                    <input type="text" name="name" value="{{ old('name') }}" required placeholder="Debian 12 Bookworm"
+                    <input type="text" name="name" value="{{ old('name') }}" required
+                        :placeholder="templateType === 'ct' ? 'Debian 12 LXC' : 'Debian 12 Bookworm'"
                         class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                 </div>
 
@@ -49,9 +70,9 @@
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">URL de l'ISO <span class="text-red-500">*</span></label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">URL du fichier <span class="text-red-500">*</span></label>
                     <input type="url" name="url" value="{{ old('url') }}" required
-                        placeholder="https://cdimage.debian.org/.../debian-12.iso"
+                        :placeholder="templateType === 'ct' ? 'https://images.linuxcontainers.org/.../debian-12.tar.zst' : 'https://cdimage.debian.org/.../debian-12.iso'"
                         @input="guessFilename($event.target.value)"
                         class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none font-mono text-xs">
                 </div>
@@ -59,10 +80,10 @@
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Nom du fichier <span class="text-red-500">*</span></label>
                     <input type="text" name="filename" value="{{ old('filename') }}" required
-                        placeholder="debian-12-amd64.iso"
+                        :placeholder="templateType === 'ct' ? 'debian-12-standard_12.0-1_amd64.tar.zst' : 'debian-12-amd64.iso'"
                         x-model="filename"
                         class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none font-mono">
-                    <p class="text-xs text-gray-400 mt-0.5">Doit se terminer par .iso</p>
+                    <p class="text-xs text-gray-400 mt-0.5" x-text="templateType === 'ct' ? 'Extensions : .tar.gz, .tar.xz, .tar.zst' : 'Doit se terminer par .iso'"></p>
                 </div>
 
                 <div>
@@ -216,9 +237,10 @@
 
 @push('scripts')
 <script>
-function osForm(nodes) {
+function osForm(nodes, initialType) {
     return {
         nodes,
+        templateType: initialType || 'iso',
         selectedNode: '{{ old('proxmox_node', '') }}',
         storages: [],
         loadingStorages: false,
@@ -233,7 +255,10 @@ function osForm(nodes) {
             try {
                 const parts = new URL(url).pathname.split('/');
                 const last = parts[parts.length - 1];
-                if (last.toLowerCase().endsWith('.iso')) this.filename = last;
+                const valid = this.templateType === 'ct'
+                    ? /\.(tar\.gz|tar\.xz|tar\.zst)$/i.test(last)
+                    : last.toLowerCase().endsWith('.iso');
+                if (valid) this.filename = last;
             } catch {}
         },
 
@@ -243,16 +268,14 @@ function osForm(nodes) {
             this.storages = [];
             this.storageError = '';
             try {
-                const res = await fetch('{{ route('admin.os-templates.storages') }}?node=' + encodeURIComponent(this.selectedNode), {
+                const url = '{{ route('admin.os-templates.storages') }}?node=' + encodeURIComponent(this.selectedNode) + '&template_type=' + this.templateType;
+                const res = await fetch(url, {
                     headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' }
                 });
                 const data = await res.json();
-                if (data.error) {
-                    this.storageError = data.error;
-                } else {
-                    this.storages = data;
-                }
-            } catch (e) {
+                if (data.error) this.storageError = data.error;
+                else this.storages = data;
+            } catch {
                 this.storageError = 'Erreur de communication.';
             } finally {
                 this.loadingStorages = false;

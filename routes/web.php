@@ -107,6 +107,7 @@ Route::middleware('installed')->group(function () {
 
         // VMs
         Route::resource('vms', Admin\VmController::class);
+        Route::get('/vms/disk-storages', [Admin\VmController::class, 'diskStorages'])->name('vms.disk-storages');
         Route::prefix('vms/import')->name('vms.import.')->group(function () {
             Route::get('/', [Admin\VmController::class, 'importIndex'])->name('index');
             Route::get('/{node}/{vmid}', [Admin\VmController::class, 'importShow'])->name('show');
