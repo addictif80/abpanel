@@ -107,6 +107,11 @@ Route::middleware('installed')->group(function () {
 
         // VMs
         Route::resource('vms', Admin\VmController::class);
+        Route::prefix('vms/import')->name('vms.import.')->group(function () {
+            Route::get('/', [Admin\VmController::class, 'importIndex'])->name('index');
+            Route::get('/{node}/{vmid}', [Admin\VmController::class, 'importShow'])->name('show');
+            Route::post('/{node}/{vmid}', [Admin\VmController::class, 'importStore'])->name('store');
+        });
 
         // Mail templates
         Route::prefix('mail-templates')->name('mail-templates.')->group(function () {

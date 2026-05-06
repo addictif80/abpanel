@@ -119,4 +119,124 @@ class VmController extends Controller
         $vm->delete();
         return redirect()->route('admin.vms.index')->with('success', 'VM supprimée.');
     }
+
+    // ── Import existing Proxmox VMs ──────────────────────────────────────────
+
+    public function importIndex()
+    {
+        $proxmoxVms = [];
+        $error = null;
+
+        try {
+            $proxmoxVms = app(ProxmoxService::class)->getAllVMs();
+        } catch (\Exception $e) {
+            $error = $e->getMessage();
+        }
+
+        // VMIDs already in the panel DB
+        $alreadyImported = VirtualMachine::pluck('proxmox_vmid')->map(fn($id) => (int) $id)->flip();
+
+        // Annotate each VM with its import status
+        $proxmoxVms = array_map(function ($vm) use ($alreadyImported) {
+            $vm['imported'] = $alreadyImported->has((int) $vm['vmid']);
+            return $vm;
+        }, $proxmoxVms);
+
+        // Sort: not-imported first, then by node+vmid
+        usort($proxmoxVms, fn($a, $b) => $a['imported'] <=> $b['imported'] ?: strcmp($a['node'], $b['node']) ?: $a['vmid'] <=> $b['vmid']);
+
+        return view('admin.vms.import-index', compact('proxmoxVms', 'error'));
+    }
+
+    public function importShow(string $node, int $vmid)
+    {
+        // Block if already imported
+        if (VirtualMachine::where('proxmox_vmid', $vmid)->exists()) {
+            return redirect()->route('admin.vms.import.index')
+                ->with('error', "La VM {$vmid} est déjà importée dans le panel.");
+        }
+
+        $proxmox = app(ProxmoxService::class);
+
+        try {
+            $config = $proxmox->getVMConfig($node, $vmid);
+            $status = $proxmox->getVMStatus($node, $vmid);
+        } catch (\Exception $e) {
+            return redirect()->route('admin.vms.import.index')
+                ->with('error', 'Impossible de récupérer les infos Proxmox : ' . $e->getMessage());
+        }
+
+        // Parse disk size from config (e.g. "local-lvm:vm-100-disk-0,size=30G")
+        $diskGb = 0;
+        foreach ($config as $key => $value) {
+            if (preg_match('/^(scsi|virtio|ide|sata)\d+$/', $key) && is_string($value)) {
+                if (preg_match('/size=(\d+)G/i', $value, $m)) {
+                    $diskGb = max($diskGb, (int) $m[1]);
+                }
+            }
+        }
+
+        $vmInfo = [
+            'vmid'      => $vmid,
+            'node'      => $node,
+            'name'      => $config['name'] ?? "vm-{$vmid}",
+            'cores'     => (int) ($config['cores'] ?? $config['sockets'] ?? 1),
+            'memory_mb' => (int) ($config['memory'] ?? 512),
+            'disk_gb'   => $diskGb ?: null,
+            'status'    => $status['status'] ?? 'stopped',
+            'os_type'   => $config['ostype'] ?? null,
+            'description' => $config['description'] ?? null,
+        ];
+
+        $clients = User::where('is_admin', false)->where('is_active', true)->orderBy('last_name')->get();
+
+        return view('admin.vms.import-show', compact('vmInfo', 'clients'));
+    }
+
+    public function importStore(Request $request, string $node, int $vmid)
+    {
+        if (VirtualMachine::where('proxmox_vmid', $vmid)->exists()) {
+            return redirect()->route('admin.vms.import.index')
+                ->with('error', "La VM {$vmid} est déjà importée.");
+        }
+
+        $request->validate([
+            'user_id'       => 'required|exists:users,id',
+            'name'          => 'required|string|max:50',
+            'cores'         => 'required|integer|min:1',
+            'memory_mb'     => 'required|integer|min:128',
+            'disk_gb'       => 'nullable|integer|min:1',
+            'monthly_price' => 'required|numeric|min:0',
+            'tailscale_ip'  => 'nullable|ip',
+            'status'        => 'required|in:running,stopped,hibernated',
+        ]);
+
+        $baseDomain = \App\Models\Setting::get('vms_base_domain');
+        $subdomain = $baseDomain ? "vm{$vmid}.{$baseDomain}" : null;
+
+        if ($subdomain && $request->tailscale_ip) {
+            try {
+                app(NginxProxyManagerService::class)->createProxyHost($subdomain, $request->tailscale_ip);
+            } catch (\Exception) {
+                // Non-blocking
+            }
+        }
+
+        $vm = VirtualMachine::create([
+            'user_id'       => $request->user_id,
+            'name'          => $request->name,
+            'proxmox_vmid'  => $vmid,
+            'proxmox_node'  => $node,
+            'status'        => $request->status,
+            'cores'         => $request->cores,
+            'memory_mb'     => $request->memory_mb,
+            'disk_gb'       => $request->disk_gb,
+            'tailscale_ip'  => $request->tailscale_ip,
+            'subdomain'     => $subdomain,
+            'monthly_price' => $request->monthly_price,
+        ]);
+
+        return redirect()->route('admin.vms.edit', $vm)
+            ->with('success', "VM \"{$vm->name}\" (VMID {$vmid}) importée et assignée à {$vm->user->full_name}.");
+    }
 }

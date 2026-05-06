@@ -118,6 +118,32 @@ class ProxmoxService
         return $this->request('delete', "/nodes/{$node}/qemu/{$vmid}");
     }
 
+    public function getVMConfig(string $node, int $vmid): array
+    {
+        return $this->request('get', "/nodes/{$node}/qemu/{$vmid}/config");
+    }
+
+    public function getAllVMs(): array
+    {
+        $nodes = $this->getNodes();
+        $all = [];
+
+        foreach ($nodes as $node) {
+            $nodeName = $node['node'];
+            try {
+                $vms = $this->getVMs($nodeName);
+                foreach ($vms as $vm) {
+                    $vm['node'] = $nodeName;
+                    $all[] = $vm;
+                }
+            } catch (\Exception) {
+                // Skip unreachable nodes
+            }
+        }
+
+        return $all;
+    }
+
     public function getNextVMID(): int
     {
         $data = $this->request('get', '/cluster/nextid');
