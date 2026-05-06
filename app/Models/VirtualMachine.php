@@ -8,8 +8,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class VirtualMachine extends Model
 {
     protected $fillable = [
-        'user_id', 'name', 'proxmox_vmid', 'proxmox_node', 'vm_type',
-        'status', 'cores', 'memory_mb', 'swap_mb', 'disk_gb', 'disk_storage',
+        'user_id', 'plan_id', 'name', 'proxmox_vmid', 'proxmox_node', 'vm_type',
+        'status', 'root_password', 'provisioning_status', 'provisioning_error',
+        'cores', 'memory_mb', 'swap_mb', 'disk_gb', 'disk_storage',
         'os_template', 'ip_address', 'tailscale_ip',
         'subdomain', 'custom_domain', 'domain_active',
         'plan', 'monthly_price', 'next_renewal_at',
@@ -18,9 +19,10 @@ class VirtualMachine extends Model
     protected function casts(): array
     {
         return [
-            'domain_active' => 'boolean',
-            'monthly_price' => 'decimal:2',
+            'domain_active'   => 'boolean',
+            'monthly_price'   => 'decimal:2',
             'next_renewal_at' => 'datetime',
+            'root_password'   => 'encrypted',
         ];
     }
 

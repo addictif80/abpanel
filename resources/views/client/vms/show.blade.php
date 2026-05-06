@@ -95,6 +95,70 @@
         </div>
     </div>
 
+    {{-- Credentials --}}
+    <div class="lg:col-span-3 space-y-4">
+        @if($vm->root_password || $vm->provisioning_status === 'provisioning')
+        <div class="bg-amber-50 rounded-xl border border-amber-200 p-5" x-data="{ show: false, showForm: false }">
+            <div class="flex items-center justify-between mb-3">
+                <h2 class="font-semibold text-amber-900 text-sm">Accès root</h2>
+                @if($vm->provisioning_status === 'provisioning')
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
+                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                    Provisionnement en cours…
+                </span>
+                @endif
+            </div>
+
+            @if($vm->root_password)
+            <div class="space-y-3">
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                    <div>
+                        <span class="text-amber-700 text-xs">Utilisateur</span>
+                        <div class="font-mono font-bold text-gray-900 mt-0.5">root</div>
+                    </div>
+                    <div class="sm:col-span-2">
+                        <span class="text-amber-700 text-xs">Mot de passe</span>
+                        <div class="flex items-center gap-2 mt-0.5">
+                            <span class="font-mono font-bold text-gray-900" x-text="show ? '{{ $vm->root_password }}' : '••••••••••••••••'"></span>
+                            <button type="button" @click="show = !show"
+                                class="text-xs text-amber-700 underline hover:no-underline" x-text="show ? 'Masquer' : 'Afficher'"></button>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-xs text-amber-700">Changez ce mot de passe dès votre première connexion.</p>
+
+                <div>
+                    <button type="button" @click="showForm = !showForm"
+                        class="text-sm font-semibold text-amber-800 underline hover:no-underline">
+                        Changer le mot de passe root
+                    </button>
+
+                    <div x-show="showForm" x-collapse class="mt-3">
+                        <form method="POST" action="{{ route('client.vms.password', $vm) }}" class="space-y-3 max-w-sm">
+                            @csrf
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Nouveau mot de passe</label>
+                                <input type="password" name="password" required minlength="8"
+                                    class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Confirmer</label>
+                                <input type="password" name="password_confirmation" required
+                                    class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                            </div>
+                            <button type="submit"
+                                class="px-4 py-2 bg-amber-600 text-white text-sm font-semibold rounded-lg hover:bg-amber-700 transition">
+                                Mettre à jour
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            @endif
+        </div>
+        @endif
+    </div>
+
     {{-- Console status --}}
     <div class="lg:col-span-2 space-y-4">
         @if($status)

@@ -47,6 +47,7 @@ class CheckoutController extends Controller
 
             $invoice = Invoice::create([
                 'user_id'                  => auth()->id(),
+                'plan_id'                  => $plan->id,
                 'number'                   => Invoice::generateNumber(),
                 'status'                   => 'pending',
                 'items'                    => [[

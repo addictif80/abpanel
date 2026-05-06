@@ -53,6 +53,7 @@ Route::middleware('installed')->group(function () {
             Route::post('/{vm}/reboot', [Client\VmController::class, 'reboot'])->name('reboot');
             Route::get('/{vm}/terminal', [Client\VmController::class, 'terminal'])->name('terminal');
             Route::post('/{vm}/domain', [Client\VmController::class, 'updateDomain'])->name('domain');
+            Route::post('/{vm}/password', [Client\VmController::class, 'changeRootPassword'])->name('password');
         });
 
         // Plans & Checkout

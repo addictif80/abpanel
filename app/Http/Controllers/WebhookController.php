@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Invoice;
 use App\Models\User;
 use App\Services\MailService;
+use App\Services\ProvisioningService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Stripe\Webhook;
@@ -43,6 +44,13 @@ class WebhookController extends Controller
         if (!$invoice) return;
 
         $invoice->update(['status' => 'paid', 'paid_at' => now()]);
+
+        // Provision VM/container if the plan requires it
+        try {
+            app(ProvisioningService::class)->provisionFromInvoice($invoice);
+        } catch (\Exception $e) {
+            Log::error("ProvisioningService failed for invoice {$invoice->id}: " . $e->getMessage());
+        }
 
         try {
             app(MailService::class)->sendFromTemplate('invoice_paid', $invoice->user->email, [

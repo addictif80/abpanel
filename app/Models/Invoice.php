@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Invoice extends Model
 {
     protected $fillable = [
-        'user_id', 'number', 'stripe_invoice_id', 'stripe_payment_intent_id',
+        'user_id', 'plan_id', 'number', 'stripe_invoice_id', 'stripe_payment_intent_id',
         'status', 'subtotal', 'tax', 'total', 'currency',
         'items', 'paid_at', 'due_at',
     ];
@@ -28,6 +28,11 @@ class Invoice extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function plan(): BelongsTo
+    {
+        return $this->belongsTo(Plan::class);
     }
 
     public function isPaid(): bool

@@ -307,6 +307,23 @@ class ProxmoxService
         return $all;
     }
 
+    // ── Credentials ──────────────────────────────────────────────────────────
+
+    public function setRootPassword(string $node, int $vmid, string $password, string $type = 'qemu'): void
+    {
+        if ($type === 'lxc') {
+            $this->request('post', "/nodes/{$node}/lxc/{$vmid}/config", [
+                'password' => $password,
+            ]);
+        } else {
+            // Requires qemu-guest-agent to be running inside the VM
+            $this->request('post', "/nodes/{$node}/qemu/{$vmid}/agent/set-user-password", [
+                'username' => 'root',
+                'password' => $password,
+            ]);
+        }
+    }
+
     // ── Cluster ───────────────────────────────────────────────────────────────
 
     public function getNextVMID(): int

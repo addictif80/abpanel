@@ -7,6 +7,7 @@ use App\Models\VirtualMachine;
 use App\Services\ProxmoxService;
 use Illuminate\Http\Request;
 
+
 class VmController extends Controller
 {
     public function index()
@@ -107,6 +108,31 @@ class VmController extends Controller
         $proxmoxHost = rtrim(\App\Models\Setting::get('proxmox_host'), '/');
 
         return view('client.vms.terminal', compact('vm', 'vncData', 'proxmoxHost'));
+    }
+
+    public function changeRootPassword(Request $request, VirtualMachine $vm)
+    {
+        $this->authorizeVm($vm);
+
+        $request->validate([
+            'password'              => 'required|string|min:8|confirmed',
+            'password_confirmation' => 'required|string',
+        ]);
+
+        try {
+            app(ProxmoxService::class)->setRootPassword(
+                $vm->proxmox_node,
+                (int) $vm->proxmox_vmid,
+                $request->password,
+                $vm->vm_type ?? 'qemu'
+            );
+
+            $vm->update(['root_password' => $request->password]);
+
+            return back()->with('success', 'Mot de passe root mis à jour.');
+        } catch (\Exception $e) {
+            return back()->with('error', 'Impossible de changer le mot de passe : ' . $e->getMessage());
+        }
     }
 
     public function updateDomain(Request $request, VirtualMachine $vm)

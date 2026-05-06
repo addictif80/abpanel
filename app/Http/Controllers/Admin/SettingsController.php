@@ -43,15 +43,16 @@ class SettingsController extends Controller
     public function saveProxmox(Request $request)
     {
         $request->validate([
-            'proxmox_host'     => 'required|url',
-            'proxmox_user'     => 'required|string',
-            'proxmox_password' => 'required|string',
-            'proxmox_realm'    => 'required|string',
-            'proxmox_node'     => 'required|string',
+            'proxmox_host'            => 'required|url',
+            'proxmox_user'            => 'required|string',
+            'proxmox_password'        => 'required|string',
+            'proxmox_realm'           => 'required|string',
+            'proxmox_node'            => 'required|string',
+            'proxmox_default_storage' => 'nullable|string',
         ]);
 
-        foreach (['proxmox_host', 'proxmox_user', 'proxmox_password', 'proxmox_realm', 'proxmox_node'] as $key) {
-            Setting::set($key, $request->input($key), 'proxmox');
+        foreach (['proxmox_host', 'proxmox_user', 'proxmox_password', 'proxmox_realm', 'proxmox_node', 'proxmox_default_storage'] as $key) {
+            Setting::set($key, $request->input($key, ''), 'proxmox');
         }
 
         return back()->with('success', 'Configuration Proxmox enregistrée.');
