@@ -43,6 +43,9 @@ class WebhookController extends Controller
 
         if (!$invoice) return;
 
+        // Idempotency guard: ignore if already processed
+        if ($invoice->status === 'paid') return;
+
         $invoice->update(['status' => 'paid', 'paid_at' => now()]);
 
         // Provision VM/container if the plan requires it
