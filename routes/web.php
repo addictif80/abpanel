@@ -16,6 +16,11 @@ Route::middleware('not.installed')->prefix('install')->name('install.')->group(f
     Route::get('/', [InstallController::class, 'index'])->name('index');
     Route::get('/database', [InstallController::class, 'database'])->name('database');
     Route::post('/database', [InstallController::class, 'saveDatabase'])->name('database.save');
+    Route::get('/mail', [InstallController::class, 'mail'])->name('mail');
+    Route::post('/mail', [InstallController::class, 'saveMail'])->name('mail.save');
+    Route::post('/mail/test', [InstallController::class, 'testSmtp'])->name('mail.test');
+    Route::get('/stripe', [InstallController::class, 'stripe'])->name('stripe');
+    Route::post('/stripe', [InstallController::class, 'saveStripe'])->name('stripe.save');
     Route::get('/admin', [InstallController::class, 'admin'])->name('admin');
     Route::post('/admin', [InstallController::class, 'saveAdmin'])->name('admin.save');
     Route::get('/complete', [InstallController::class, 'complete'])->name('complete');

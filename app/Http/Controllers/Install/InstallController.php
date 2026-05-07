@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
 
 class InstallController extends Controller
@@ -16,6 +17,8 @@ class InstallController extends Controller
     {
         return view('install.welcome', ['currentStep' => 0]);
     }
+
+    // ── Step 1 : Database ──────────────────────────────────────────────────────
 
     public function database()
     {
@@ -40,20 +43,23 @@ class InstallController extends Controller
 
         // Test DB connection
         try {
-            $pdo = new \PDO(
+            new \PDO(
                 "mysql:host={$request->db_host};port={$request->db_port};dbname={$request->db_name}",
                 $request->db_username,
                 $request->db_password ?? '',
                 [\PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION, \PDO::ATTR_TIMEOUT => 5]
             );
         } catch (\PDOException $e) {
-            return back()->withErrors(['db_host' => 'Impossible de se connecter à la base de données : ' . $e->getMessage()])->withInput();
+            return back()->withErrors(['db_host' => 'Impossible de se connecter : ' . $e->getMessage()])->withInput();
         }
 
-        // Write .env
+        // Write .env with DB + production defaults
         $this->writeEnv([
             'APP_NAME'      => '"' . $request->app_name . '"',
             'APP_URL'       => $request->app_url,
+            'APP_ENV'       => 'production',
+            'APP_DEBUG'     => 'false',
+            'LOG_LEVEL'     => 'error',
             'DB_CONNECTION' => 'mysql',
             'DB_HOST'       => $request->db_host,
             'DB_PORT'       => $request->db_port,
@@ -62,7 +68,7 @@ class InstallController extends Controller
             'DB_PASSWORD'   => $request->db_password ?? '',
         ]);
 
-        // Reconfigure DB connection with new credentials
+        // Reconfigure DB connection live
         config([
             'database.connections.mysql.host'     => $request->db_host,
             'database.connections.mysql.port'     => $request->db_port,
@@ -74,7 +80,7 @@ class InstallController extends Controller
         DB::purge('mysql');
         DB::reconnect('mysql');
 
-        // Run migrations
+        // Run migrations + seeds
         try {
             Artisan::call('migrate', ['--force' => true, '--no-interaction' => true]);
             Artisan::call('db:seed', ['--force' => true, '--no-interaction' => true]);
@@ -89,22 +95,143 @@ class InstallController extends Controller
 
         session(['install_db_done' => true]);
 
-        return redirect()->route('install.admin');
+        return redirect()->route('install.mail');
     }
 
-    public function admin()
+    // ── Step 2 : Mail ─────────────────────────────────────────────────────────
+
+    public function mail()
     {
         if (!session('install_db_done')) {
             return redirect()->route('install.database');
         }
 
-        return view('install.admin', ['currentStep' => 2]);
+        return view('install.mail', ['currentStep' => 2]);
+    }
+
+    public function saveMail(Request $request)
+    {
+        if (!session('install_db_done')) {
+            return redirect()->route('install.database');
+        }
+
+        $request->validate([
+            'mail_mailer'       => 'required|in:smtp,log',
+            'mail_from_address' => 'required|email',
+            'mail_from_name'    => 'required|string|max:100',
+            'mail_host'         => 'required_if:mail_mailer,smtp|nullable|string',
+            'mail_port'         => 'required_if:mail_mailer,smtp|nullable|integer',
+            'mail_username'     => 'nullable|string',
+            'mail_password'     => 'nullable|string',
+        ]);
+
+        $port = (int) ($request->mail_port ?? 587);
+
+        $this->writeEnv([
+            'MAIL_MAILER'       => $request->mail_mailer,
+            'MAIL_HOST'         => $request->mail_host ?? '127.0.0.1',
+            'MAIL_PORT'         => $port,
+            'MAIL_SCHEME'       => $port === 465 ? 'ssl' : 'tls',
+            'MAIL_USERNAME'     => $request->mail_username ?? '',
+            'MAIL_PASSWORD'     => $request->mail_password ?? '',
+            'MAIL_FROM_ADDRESS' => $request->mail_from_address,
+            'MAIL_FROM_NAME'    => '"' . $request->mail_from_name . '"',
+        ]);
+
+        session(['install_mail_done' => true]);
+
+        return redirect()->route('install.stripe');
+    }
+
+    public function testSmtp(Request $request)
+    {
+        $request->validate([
+            'mail_host'         => 'required|string',
+            'mail_port'         => 'required|integer',
+            'mail_username'     => 'nullable|string',
+            'mail_password'     => 'nullable|string',
+            'mail_from_address' => 'required|email',
+            'mail_from_name'    => 'required|string',
+        ]);
+
+        try {
+            $port = (int) $request->mail_port;
+
+            config([
+                'mail.default'                        => 'smtp',
+                'mail.mailers.smtp.host'              => $request->mail_host,
+                'mail.mailers.smtp.port'              => $port,
+                'mail.mailers.smtp.encryption'        => $port === 465 ? 'ssl' : 'tls',
+                'mail.mailers.smtp.username'          => $request->mail_username,
+                'mail.mailers.smtp.password'          => $request->mail_password,
+                'mail.from.address'                   => $request->mail_from_address,
+                'mail.from.name'                      => $request->mail_from_name,
+            ]);
+
+            Mail::raw('Test de connexion SMTP depuis ABPanel — installation réussie.', function ($msg) use ($request) {
+                $msg->to($request->mail_from_address)
+                    ->subject('Test SMTP — ABPanel');
+            });
+
+            return response()->json(['success' => true]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'error' => $e->getMessage()]);
+        }
+    }
+
+    // ── Step 3 : Stripe ───────────────────────────────────────────────────────
+
+    public function stripe()
+    {
+        if (!session('install_mail_done')) {
+            return redirect()->route('install.mail');
+        }
+
+        return view('install.stripe', ['currentStep' => 3]);
+    }
+
+    public function saveStripe(Request $request)
+    {
+        if (!session('install_mail_done')) {
+            return redirect()->route('install.mail');
+        }
+
+        $request->validate([
+            'stripe_key'            => 'nullable|string',
+            'stripe_secret'         => 'nullable|string',
+            'stripe_webhook_secret' => 'nullable|string',
+        ]);
+
+        $values = array_filter([
+            'STRIPE_KEY'            => $request->stripe_key,
+            'STRIPE_SECRET'         => $request->stripe_secret,
+            'STRIPE_WEBHOOK_SECRET' => $request->stripe_webhook_secret,
+        ]);
+
+        if (!empty($values)) {
+            $this->writeEnv($values);
+        }
+
+        session(['install_stripe_done' => true]);
+
+        return redirect()->route('install.admin');
+    }
+
+    // ── Step 4 : Admin account ────────────────────────────────────────────────
+
+    public function admin()
+    {
+        if (!session('install_stripe_done')) {
+            return redirect()->route('install.stripe');
+        }
+
+        return view('install.admin', ['currentStep' => 4]);
     }
 
     public function saveAdmin(Request $request)
     {
-        if (!session('install_db_done')) {
-            return redirect()->route('install.database');
+        if (!session('install_stripe_done')) {
+            return redirect()->route('install.stripe');
         }
 
         $validator = Validator::make($request->all(), [
@@ -131,15 +258,19 @@ class InstallController extends Controller
         // Mark as installed
         file_put_contents(storage_path('installed'), date('Y-m-d H:i:s'));
 
-        session()->forget('install_db_done');
+        session()->forget(['install_db_done', 'install_mail_done', 'install_stripe_done']);
 
         return redirect()->route('install.complete');
     }
 
+    // ── Step 5 : Complete ─────────────────────────────────────────────────────
+
     public function complete()
     {
-        return view('install.complete', ['currentStep' => 3]);
+        return view('install.complete', ['currentStep' => 5]);
     }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
 
     private function writeEnv(array $values): void
     {
@@ -147,7 +278,10 @@ class InstallController extends Controller
         $content = file_exists($envPath) ? file_get_contents($envPath) : file_get_contents(base_path('.env.example'));
 
         foreach ($values as $key => $value) {
-            $value = str_contains($value, ' ') && !str_starts_with($value, '"') ? '"' . $value . '"' : $value;
+            $value = (string) $value;
+            if (str_contains($value, ' ') && !str_starts_with($value, '"')) {
+                $value = '"' . $value . '"';
+            }
 
             if (preg_match("/^{$key}=/m", $content)) {
                 $content = preg_replace("/^{$key}=.*/m", "{$key}={$value}", $content);

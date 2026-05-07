@@ -16,18 +16,19 @@
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8 text-left">
         <div class="bg-gray-50 rounded-xl p-4 border border-gray-100">
             <div class="text-gray-700 font-semibold text-sm mb-2">Prochaines étapes</div>
-            <ul class="text-gray-500 text-xs space-y-1">
-                <li>✓ Configurer les APIs (Proxmox, CyberPanel, NPM)</li>
-                <li>✓ Configurer Stripe pour les paiements</li>
-                <li>✓ Configurer le serveur SMTP</li>
-                <li>✓ Personnaliser les templates mails</li>
+            <ul class="text-gray-500 text-xs space-y-1.5">
+                <li class="flex items-start gap-1.5"><span class="text-green-500 mt-0.5">✓</span> Email configuré</li>
+                <li class="flex items-start gap-1.5"><span class="text-green-500 mt-0.5">✓</span> Stripe configuré</li>
+                <li class="flex items-start gap-1.5"><span class="text-amber-500 mt-0.5">→</span> Connecter Proxmox (nœud, stockage)</li>
+                <li class="flex items-start gap-1.5"><span class="text-amber-500 mt-0.5">→</span> Connecter Nginx Proxy Manager</li>
+                <li class="flex items-start gap-1.5"><span class="text-amber-500 mt-0.5">→</span> Créer vos premiers plans</li>
             </ul>
         </div>
         <div class="bg-indigo-50 rounded-xl p-4 border border-indigo-100">
             <div class="text-indigo-700 font-semibold text-sm mb-2">Accès rapide</div>
             <ul class="text-indigo-600 text-xs space-y-2">
                 <li><a href="{{ route('admin.dashboard') }}" class="hover:underline">→ Panel d'administration</a></li>
-                <li><a href="{{ route('admin.settings.index') }}" class="hover:underline">→ Paramètres (APIs, SMTP...)</a></li>
+                <li><a href="{{ route('admin.settings.index') }}" class="hover:underline">→ Paramètres (Proxmox, NPM…)</a></li>
             </ul>
         </div>
     </div>

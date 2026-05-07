@@ -18,7 +18,7 @@
 
         {{-- Steps indicator --}}
         <div class="flex items-center justify-center mb-8">
-            @php $steps = ['Bienvenue', 'Base de données', 'Administrateur', 'Terminé']; @endphp
+            @php $steps = ['Bienvenue', 'Base de données', 'Email', 'Stripe', 'Administrateur', 'Terminé']; @endphp
             @foreach($steps as $i => $step)
                 <div class="flex items-center">
                     <div class="flex flex-col items-center">
@@ -29,7 +29,7 @@
                         <span class="mt-1 text-xs text-gray-500 hidden sm:block">{{ $step }}</span>
                     </div>
                     @if(!$loop->last)
-                        <div class="h-0.5 w-12 sm:w-24 mx-2 {{ ($currentStep ?? 0) > $i ? 'bg-indigo-600' : 'bg-gray-200' }}"></div>
+                        <div class="h-0.5 w-8 sm:w-16 mx-1 {{ ($currentStep ?? 0) > $i ? 'bg-indigo-600' : 'bg-gray-200' }}"></div>
                     @endif
                 </div>
             @endforeach
