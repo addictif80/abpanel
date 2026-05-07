@@ -21,6 +21,7 @@ return new class extends Migration
 
         DB::table('mail_templates')->insert([
             'key'          => 'vm_provisioned',
+            'name'         => 'VM/Container provisionné',
             'subject'      => 'Votre {{type}} est prêt(e) — {{vm_name}}',
             'html_content' => $base('
 <h2 style="margin:0 0 8px;color:#111827;font-size:20px;">Votre {{type}} est prêt(e) !</h2>
