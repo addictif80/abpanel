@@ -139,7 +139,7 @@ class InstallController extends Controller
             'MAIL_MAILER'       => $request->mail_mailer,
             'MAIL_HOST'         => $request->mail_host ?? '127.0.0.1',
             'MAIL_PORT'         => $port,
-            'MAIL_SCHEME'       => $port === 465 ? 'ssl' : 'tls',
+            'MAIL_SCHEME'       => $port === 465 ? 'smtps' : '',
             'MAIL_USERNAME'     => $request->mail_username ?? '',
             'MAIL_PASSWORD'     => $request->mail_password ?? '',
             'MAIL_FROM_ADDRESS' => $request->mail_from_address,
@@ -166,14 +166,14 @@ class InstallController extends Controller
             $port = (int) $request->mail_port;
 
             config([
-                'mail.default'                        => 'smtp',
-                'mail.mailers.smtp.host'              => $request->mail_host,
-                'mail.mailers.smtp.port'              => $port,
-                'mail.mailers.smtp.encryption'        => $port === 465 ? 'ssl' : 'tls',
-                'mail.mailers.smtp.username'          => $request->mail_username,
-                'mail.mailers.smtp.password'          => $request->mail_password,
-                'mail.from.address'                   => $request->mail_from_address,
-                'mail.from.name'                      => $request->mail_from_name,
+                'mail.default'                    => 'smtp',
+                'mail.mailers.smtp.host'          => $request->mail_host,
+                'mail.mailers.smtp.port'          => $port,
+                'mail.mailers.smtp.scheme'        => $port === 465 ? 'smtps' : null,
+                'mail.mailers.smtp.username'      => $request->mail_username,
+                'mail.mailers.smtp.password'      => $request->mail_password,
+                'mail.from.address'               => $request->mail_from_address,
+                'mail.from.name'                  => $request->mail_from_name,
             ]);
 
             Mail::raw('Test de connexion SMTP depuis ABPanel — installation réussie.', function ($msg) use ($request) {
