@@ -80,12 +80,20 @@ class InstallController extends Controller
         DB::purge('mysql');
         DB::reconnect('mysql');
 
-        // Run migrations + seeds
+        // Run migrations only if needed, seed only if mail_templates is empty
         try {
             Artisan::call('migrate', ['--force' => true, '--no-interaction' => true]);
-            Artisan::call('db:seed', ['--force' => true, '--no-interaction' => true]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return back()->withErrors(['db_host' => 'Erreur lors des migrations : ' . $e->getMessage()])->withInput();
+        }
+
+        try {
+            if (\DB::table('mail_templates')->count() === 0) {
+                Artisan::call('db:seed', ['--force' => true, '--no-interaction' => true]);
+            }
+        } catch (\Throwable $e) {
+            // Non-blocking — seed failure doesn't prevent installation
+            \Illuminate\Support\Facades\Log::warning('Seeder failed during install: ' . $e->getMessage());
         }
 
         // Generate app key if missing
