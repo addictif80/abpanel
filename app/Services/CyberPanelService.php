@@ -24,7 +24,7 @@ class CyberPanelService
         return 'Basic ' . hash('sha256', $this->adminUser . ':' . $this->adminPassword);
     }
 
-    private function request(string $controller, string $function, array $data = []): array
+    private function request(string $controller, array $data = []): array
     {
         $response = Http::withoutVerifying()
             ->timeout(15)
@@ -35,11 +35,10 @@ class CyberPanelService
             ->post("{$this->host}/cloudAPI/", array_merge([
                 'serverUserName' => $this->adminUser,
                 'controller'     => $controller,
-                'function'       => $function,
             ], $data));
 
         if ($response->failed()) {
-            Log::error("CyberPanel API error [{$controller}/{$function}]: " . $response->body());
+            Log::error("CyberPanel API error [{$controller}]: " . $response->body());
             throw new \RuntimeException("HTTP {$response->status()} — " . $response->body());
         }
 
@@ -47,64 +46,60 @@ class CyberPanelService
 
         if (isset($result['status']) && $result['status'] === 0) {
             $msg = $result['error_message'] ?? 'Erreur inconnue';
-            Log::error("CyberPanel error [{$controller}/{$function}]: {$msg}");
+            Log::error("CyberPanel error [{$controller}]: {$msg}");
             throw new \RuntimeException("CyberPanel : {$msg}");
         }
 
         return $result;
     }
 
-    public function createUser(string $username, string $email, string $password, string $package = 'Default'): array
-    {
-        return $this->request('WebsiteFunctions', 'createWebsite', [
-            'domainName'    => $username,
-            'ownerEmail'    => $email,
-            'ownerPassword' => $password,
-            'package'       => $package,
-            'websiteOwner'  => $username,
-        ]);
-    }
-
-    public function changeUserPassword(string $username, string $newPassword): array
-    {
-        return $this->request('UsersFunctions', 'changeUserPassAPI', [
-            'websiteOwner' => $username,
-            'newPassword'  => $newPassword,
+    /**
+     * Create a CyberPanel user + website in one call.
+     * UserAccountName becomes both the login and the domain owner.
+     */
+    public function createWebsite(
+        string $domain,
+        string $username,
+        string $password,
+        string $email,
+        string $fullName = '',
+        string $package = 'Default'
+    ): array {
+        return $this->request('submitWebsiteCreation', [
+            'domainName'      => $domain,
+            'ownerEmail'      => $email,
+            'adminEmail'      => $email,
+            'websiteOwner'    => $username,
+            'package'         => $package,
+            'UserAccountName' => $username,
+            'UserPassword'    => $password,
+            'FullName'        => $fullName ?: $username,
+            'websitesLimit'   => 1,
         ]);
     }
 
     public function deleteWebsite(string $domain): array
     {
-        return $this->request('WebsiteFunctions', 'deleteWebsite', [
+        return $this->request('submitWebsiteDeletion', [
             'domainName' => $domain,
-        ]);
-    }
-
-    public function createWebsite(string $domain, string $ownerUsername, string $package = 'Default'): array
-    {
-        return $this->request('WebsiteFunctions', 'createWebsite', [
-            'domainName'   => $domain,
-            'ownerEmail'   => '',
-            'package'      => $package,
-            'websiteOwner' => $ownerUsername,
         ]);
     }
 
     public function listWebsites(): array
     {
-        return $this->request('WebsiteFunctions', 'listWebsitesJson');
+        return $this->request('fetchWebsites');
     }
 
-    public function getWebsiteUsage(string $domain): array
+    public function getWebsiteData(string $domain): array
     {
-        return $this->request('WebsiteFunctions', 'getDomainDiskUsage', [
+        return $this->request('fetchWebsiteDataJSON', [
             'domainName' => $domain,
         ]);
     }
 
     public function createDatabase(string $domain, string $dbName, string $dbUser, string $dbPassword): array
     {
-        return $this->request('DatabaseFunctions', 'createDatabase', [
+        return $this->request('submitDBCreation', [
             'domainName' => $domain,
             'dbName'     => $dbName,
             'dbUsername' => $dbUser,
@@ -114,7 +109,7 @@ class CyberPanelService
 
     public function testConnection(): bool
     {
-        $this->request('WebsiteFunctions', 'listWebsitesJson');
+        $this->request('fetchWebsites');
         return true;
     }
 }
