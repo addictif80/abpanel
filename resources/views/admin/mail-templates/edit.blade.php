@@ -35,7 +35,7 @@
                             @foreach($template->variables ?? [] as $var)
                             <button type="button" @click="insertVar('{{ $var }}')"
                                 class="px-1.5 py-0.5 bg-indigo-50 text-indigo-600 rounded hover:bg-indigo-100 font-mono">
-                                {{ '{{' . $var . '}}' }}
+                                &#123;&#123;{{ $var }}&#125;&#125;
                             </button>
                             @endforeach
                         </div>

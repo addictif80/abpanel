@@ -24,7 +24,7 @@
         @if($template->variables)
         <div class="flex flex-wrap gap-1 mb-4">
             @foreach($template->variables as $var)
-            <code class="text-xs bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded">{{ '{{' . $var . '}}' }}</code>
+            <code class="text-xs bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded">&#123;&#123;{{ $var }}&#125;&#125;</code>
             @endforeach
         </div>
         @endif
