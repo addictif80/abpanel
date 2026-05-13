@@ -19,6 +19,7 @@ class QuoteController extends Controller
     {
         $quotes = auth()->user()->quotes()
             ->where('is_template', false)
+            ->whereNotIn('status', ['draft', 'cancelled'])
             ->latest()
             ->paginate(15);
 
@@ -29,6 +30,10 @@ class QuoteController extends Controller
     {
         if ($quote->user_id !== auth()->id()) {
             abort(403);
+        }
+
+        if (in_array($quote->status, ['draft', 'cancelled'])) {
+            abort(404);
         }
 
         $quote->load('items.product');
@@ -77,6 +82,10 @@ class QuoteController extends Controller
     {
         if ($quote->user_id !== auth()->id()) {
             abort(403);
+        }
+
+        if (in_array($quote->status, ['draft', 'cancelled'])) {
+            abort(404);
         }
 
         $pdf = $this->pdfService->generateQuotePdf($quote);
