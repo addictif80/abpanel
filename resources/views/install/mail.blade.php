@@ -125,8 +125,6 @@
             <div class="mt-2 rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
                 Les emails seront écrits dans <code class="font-mono">storage/logs/laravel.log</code>. À utiliser uniquement en développement.
             </div>
-            <input type="hidden" name="mail_host" value="127.0.0.1">
-            <input type="hidden" name="mail_port" value="2525">
         </div>
     </div>
 
