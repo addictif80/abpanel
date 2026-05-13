@@ -109,8 +109,7 @@ class CyberPanelService
 
     public function listPackages(): array
     {
-        $result = $this->request('fetchPackagesJson');
-        // Returns array of package names
+        $result = $this->request('fetchPackages');
         $raw = $result['packages'] ?? $result['data'] ?? [];
         if (is_string($raw)) {
             $raw = json_decode($raw, true) ?? [];
