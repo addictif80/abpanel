@@ -10,18 +10,19 @@ class Invoice extends Model
     protected $fillable = [
         'user_id', 'plan_id', 'number', 'stripe_invoice_id', 'stripe_payment_intent_id',
         'status', 'subtotal', 'tax', 'total', 'currency',
-        'items', 'paid_at', 'due_at',
+        'items', 'metadata', 'paid_at', 'due_at',
     ];
 
     protected function casts(): array
     {
         return [
-            'items' => 'array',
-            'paid_at' => 'datetime',
-            'due_at' => 'datetime',
+            'items'    => 'array',
+            'metadata' => 'array',
+            'paid_at'  => 'datetime',
+            'due_at'   => 'datetime',
             'subtotal' => 'decimal:2',
-            'tax' => 'decimal:2',
-            'total' => 'decimal:2',
+            'tax'      => 'decimal:2',
+            'total'    => 'decimal:2',
         ];
     }
 

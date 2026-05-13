@@ -15,6 +15,21 @@
 
             <div id="payment-error" class="hidden mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm"></div>
 
+            @if($plan->type === 'hosting')
+            <div class="mb-5">
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                    Domaine à héberger <span class="text-red-500">*</span>
+                </label>
+                <div class="flex rounded-lg border border-gray-300 overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500">
+                    <span class="px-3 py-2 bg-gray-50 text-gray-500 text-sm border-r border-gray-300 select-none">https://</span>
+                    <input type="text" id="domain-input" placeholder="monsite.fr"
+                        class="flex-1 px-3 py-2 text-sm focus:outline-none"
+                        autocomplete="off" spellcheck="false">
+                </div>
+                <p class="text-xs text-gray-400 mt-1">Saisissez le nom de domaine sans http:// ni www.</p>
+            </div>
+            @endif
+
             @if($stripeKey)
             <div id="payment-element" class="mb-5"></div>
 
@@ -74,12 +89,31 @@
 (async () => {
     const stripe = Stripe('{{ $stripeKey }}');
 
+    @if($plan->type === 'hosting')
+    const domainInput = document.getElementById('domain-input');
+    document.getElementById('pay-btn').addEventListener('click', () => {
+        if (!domainInput.value.trim()) {
+            const errEl = document.getElementById('payment-error');
+            errEl.textContent = 'Veuillez saisir le domaine à héberger.';
+            errEl.classList.remove('hidden');
+            return;
+        }
+    }, { capture: true });
+    @endif
+
+    const body = @if($plan->type === 'hosting')
+        JSON.stringify({ domain: domainInput?.value?.trim() })
+    @else
+        '{}'
+    @endif;
+
     const res = await fetch('{{ route('client.checkout.intent', $plan) }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'X-CSRF-TOKEN': '{{ csrf_token() }}'
-        }
+        },
+        body
     });
 
     const data = await res.json();

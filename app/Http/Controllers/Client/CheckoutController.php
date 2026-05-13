@@ -30,6 +30,12 @@ class CheckoutController extends Controller
     {
         abort_if(!$plan->is_active, 404);
 
+        if ($plan->type === 'hosting') {
+            $request->validate([
+                'domain' => ['required', 'string', 'max:253', 'regex:/^[a-zA-Z0-9][a-zA-Z0-9\-\.]+[a-zA-Z0-9]$/'],
+            ], ['domain.regex' => 'Le domaine saisi n\'est pas valide (ex: monsite.fr).']);
+        }
+
         $stripe = new StripeService();
 
         try {
@@ -58,6 +64,7 @@ class CheckoutController extends Controller
                 ]],
                 'total'                    => $plan->price,
                 'currency'                 => 'EUR',
+                'metadata'                 => $plan->type === 'hosting' ? ['domain' => strtolower(trim($request->domain))] : null,
                 'stripe_payment_intent_id' => $intent->id,
             ]);
 
