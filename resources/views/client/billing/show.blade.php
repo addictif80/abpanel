@@ -8,10 +8,17 @@
         <a href="{{ route('client.billing.index') }}" class="text-sm text-gray-400 hover:text-gray-600">← Facturation</a>
         <h1 class="text-2xl font-bold text-gray-900 mt-1">Facture {{ $invoice->number }}</h1>
     </div>
-    <a href="{{ route('client.billing.invoice.download', $invoice) }}" target="_blank"
-       class="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-200 transition">
-        Imprimer / PDF
-    </a>
+    <div class="flex gap-2">
+        <a href="{{ route('client.billing.invoice.download', $invoice) }}"
+           class="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition">
+            Télécharger PDF
+        </a>
+        <a href="{{ route('client.billing.invoice.facturx', $invoice) }}"
+           class="px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition"
+           title="Facture électronique structurée (Factur-X / EN 16931)">
+            XML Factur-X
+        </a>
+    </div>
 </div>
 
 <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 max-w-2xl">

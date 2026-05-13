@@ -17,6 +17,7 @@ class User extends Authenticatable
     protected $fillable = [
         'name', 'first_name', 'last_name', 'email', 'password',
         'phone', 'company', 'address', 'city', 'zip', 'country',
+        'siret', 'vat_number',
         'is_admin', 'is_active', 'cyberpanel_username', 'cyberpanel_password',
         'stripe_customer_id', 'newsletter_subscribed',
     ];
@@ -58,5 +59,20 @@ class User extends Authenticatable
     public function tickets(): HasMany
     {
         return $this->hasMany(Ticket::class);
+    }
+
+    public function quotes(): HasMany
+    {
+        return $this->hasMany(Quote::class);
+    }
+
+    public function creditNotes(): HasMany
+    {
+        return $this->hasMany(CreditNote::class);
+    }
+
+    public function isPro(): bool
+    {
+        return ! empty($this->siret);
     }
 }
