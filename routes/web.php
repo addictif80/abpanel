@@ -123,6 +123,8 @@ Route::middleware('installed')->group(function () {
         // Mail templates
         Route::prefix('mail-templates')->name('mail-templates.')->group(function () {
             Route::get('/', [Admin\MailTemplateController::class, 'index'])->name('index');
+            Route::get('/create', [Admin\MailTemplateController::class, 'create'])->name('create');
+            Route::post('/', [Admin\MailTemplateController::class, 'store'])->name('store');
             Route::get('/{template}/edit', [Admin\MailTemplateController::class, 'edit'])->name('edit');
             Route::put('/{template}', [Admin\MailTemplateController::class, 'update'])->name('update');
             Route::post('/{template}/test', [Admin\MailTemplateController::class, 'sendTest'])->name('test');

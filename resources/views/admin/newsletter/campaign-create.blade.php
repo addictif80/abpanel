@@ -34,9 +34,9 @@
                 <div class="flex items-center justify-between mb-1">
                     <label class="block text-sm font-medium text-gray-700">Contenu HTML *</label>
                     <div class="flex gap-2 text-xs text-gray-400">
-                        Variables : <code class="bg-gray-100 px-1 rounded">{{first_name}}</code>
-                        <code class="bg-gray-100 px-1 rounded">{{email}}</code>
-                        <code class="bg-gray-100 px-1 rounded">{{unsubscribe_url}}</code>
+                        Variables : <code class="bg-gray-100 px-1 rounded">@{{first_name}}</code>
+                        <code class="bg-gray-100 px-1 rounded">@{{email}}</code>
+                        <code class="bg-gray-100 px-1 rounded">@{{unsubscribe_url}}</code>
                     </div>
                 </div>
                 <textarea name="html_content" id="campaignHtml" x-model="html" rows="18" required

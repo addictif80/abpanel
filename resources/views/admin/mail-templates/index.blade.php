@@ -3,9 +3,15 @@
 @section('sidebar')<x-admin-sidebar />@endsection
 
 @section('content')
-<div class="mb-6">
-    <h1 class="text-2xl font-bold text-gray-900">Templates mails</h1>
-    <p class="text-gray-500 text-sm mt-1">Personnalisez les emails envoyés automatiquement.</p>
+<div class="mb-6 flex items-center justify-between">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-900">Templates mails</h1>
+        <p class="text-gray-500 text-sm mt-1">Personnalisez les emails envoyés automatiquement.</p>
+    </div>
+    <a href="{{ route('admin.mail-templates.create') }}"
+       class="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition">
+        + Nouveau template
+    </a>
 </div>
 
 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">

@@ -15,6 +15,35 @@ class MailTemplateController extends Controller
         return view('admin.mail-templates.index', compact('templates'));
     }
 
+    public function create()
+    {
+        return view('admin.mail-templates.create');
+    }
+
+    public function store(Request $request)
+    {
+        $request->validate([
+            'key'          => 'required|string|alpha_dash|unique:mail_templates,key',
+            'name'         => 'required|string|max:100',
+            'subject'      => 'required|string|max:200',
+            'html_content' => 'required|string',
+            'variables'    => 'nullable|string',
+        ]);
+
+        $variables = array_values(array_filter(array_map('trim', explode(',', $request->variables ?? ''))));
+
+        MailTemplate::create([
+            'key'          => $request->key,
+            'name'         => $request->name,
+            'subject'      => $request->subject,
+            'html_content' => $request->html_content,
+            'variables'    => !empty($variables) ? $variables : null,
+            'is_active'    => true,
+        ]);
+
+        return redirect()->route('admin.mail-templates.index')->with('success', 'Template créé.');
+    }
+
     public function edit(MailTemplate $template)
     {
         return view('admin.mail-templates.edit', compact('template'));
