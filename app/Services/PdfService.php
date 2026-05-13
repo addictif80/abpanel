@@ -12,7 +12,7 @@ class PdfService
     public function generateQuotePdf(Quote $quote): string
     {
         $quote->load('items.product', 'user');
-        $settings = Setting::group('company') + Setting::group('quotes');
+        $settings = Setting::group('general') + Setting::group('company') + Setting::group('quotes');
 
         $pdf = Pdf::loadView('pdf.quote', compact('quote', 'settings'))
             ->setPaper('a4');
@@ -23,7 +23,7 @@ class PdfService
     public function generateInvoicePdf(Invoice $invoice): string
     {
         $invoice->load('user', 'quote');
-        $settings = Setting::group('company') + Setting::group('quotes');
+        $settings = Setting::group('general') + Setting::group('company') + Setting::group('quotes');
 
         $pdf = Pdf::loadView('pdf.invoice', compact('invoice', 'settings'))
             ->setPaper('a4');
@@ -34,7 +34,7 @@ class PdfService
     public function generateFacturXXml(Invoice $invoice): string
     {
         $invoice->load('user');
-        $settings = Setting::group('company') + Setting::group('quotes');
+        $settings = Setting::group('general') + Setting::group('company') + Setting::group('quotes');
 
         $seller = [
             'name'      => $settings['app_name'] ?? config('app.name'),

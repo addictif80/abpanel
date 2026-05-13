@@ -166,9 +166,11 @@ class SettingsController extends Controller
             'company_rcs'        => 'nullable|string|max:100',
             'company_iban'       => 'nullable|string|max:34',
             'company_bic'        => 'nullable|string|max:11',
+            'company_phone'      => 'nullable|string|max:30',
+            'company_address'    => 'nullable|string|max:255',
         ]);
 
-        foreach (['company_siren', 'company_legal_form', 'company_rcs', 'company_iban', 'company_bic'] as $key) {
+        foreach (['company_siren', 'company_legal_form', 'company_rcs', 'company_iban', 'company_bic', 'company_phone', 'company_address'] as $key) {
             Setting::set($key, $request->input($key, ''), 'company');
         }
 
