@@ -16,6 +16,7 @@ class ProvisioningService
         private ProxmoxService $proxmox,
         private NginxProxyManagerService $npm,
         private MailService $mail,
+        private CyberPanelService $cyberPanel,
     ) {}
 
     /**
@@ -32,12 +33,65 @@ class ProvisioningService
             return;
         }
 
-        if ($plan->type !== 'vm') {
-            // Hosting plans provisioned differently (CyberPanel) — not yet implemented
+        if ($plan->type === 'hosting') {
+            $this->provisionHosting($user, $plan, $invoice);
             return;
         }
 
         $this->provisionVm($user, $plan, $invoice);
+    }
+
+    public function provisionHosting(User $user, Plan $plan, ?Invoice $invoice = null): void
+    {
+        $domain  = $invoice?->metadata['domain'] ?? null;
+        $package = $plan->cyberpanel_package ?? 'Default';
+
+        if (!$domain) {
+            Log::warning("ProvisioningService: no domain for hosting invoice {$invoice?->id}");
+            return;
+        }
+
+        try {
+            // Reuse existing CyberPanel account or create a new one
+            if ($user->cyberpanel_username) {
+                $username = $user->cyberpanel_username;
+                $password = $user->cyberpanel_password;
+            } else {
+                $username = $this->generateCyberPanelUsername($user);
+                $password = $this->generatePassword();
+            }
+
+            $this->cyberPanel->createWebsite(
+                domain:   $domain,
+                username: $username,
+                password: $password,
+                email:    $user->email,
+                fullName: $user->full_name,
+                package:  $package,
+            );
+
+            // Save credentials on first provisioning
+            if (!$user->cyberpanel_username) {
+                $user->update([
+                    'cyberpanel_username' => $username,
+                    'cyberpanel_password' => $password,
+                ]);
+            }
+
+            $panelUrl = Setting::get('cyberpanel_host', '');
+
+            $this->mail->sendFromTemplate('hosting_provisioned', $user->email, [
+                'first_name' => $user->first_name ?: $user->name,
+                'domain'     => $domain,
+                'username'   => $username,
+                'password'   => $password,
+                'panel_url'  => $panelUrl,
+                'app_name'   => config('app.name'),
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error("Hosting provisioning failed for user {$user->id}, domain {$domain}: " . $e->getMessage());
+        }
     }
 
     public function provisionVm(User $user, Plan $plan, ?Invoice $invoice = null): VirtualMachine
@@ -185,8 +239,16 @@ class ProvisioningService
 
     private function generatePassword(): string
     {
-        // 16 chars: letters + digits + special (shell-safe)
         $chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%&*';
         return substr(str_shuffle(str_repeat($chars, 4)), 0, 16);
+    }
+
+    private function generateCyberPanelUsername(User $user): string
+    {
+        // Sanitize: lowercase alphanumeric only, max 16 chars
+        $base = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $user->first_name . $user->last_name));
+        $base = substr($base ?: 'user', 0, 12);
+        // Add random suffix to avoid collisions
+        return $base . Str::lower(Str::random(4));
     }
 }

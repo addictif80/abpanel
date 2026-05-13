@@ -17,19 +17,20 @@ class User extends Authenticatable
     protected $fillable = [
         'name', 'first_name', 'last_name', 'email', 'password',
         'phone', 'company', 'address', 'city', 'zip', 'country',
-        'is_admin', 'is_active', 'cyberpanel_username',
+        'is_admin', 'is_active', 'cyberpanel_username', 'cyberpanel_password',
         'stripe_customer_id', 'newsletter_subscribed',
     ];
 
-    protected $hidden = ['password', 'remember_token'];
+    protected $hidden = ['password', 'remember_token', 'cyberpanel_password'];
 
     protected function casts(): array
     {
         return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-            'is_admin' => 'boolean',
-            'is_active' => 'boolean',
+            'email_verified_at'  => 'datetime',
+            'password'           => 'hashed',
+            'cyberpanel_password' => 'encrypted',
+            'is_admin'           => 'boolean',
+            'is_active'          => 'boolean',
             'newsletter_subscribed' => 'boolean',
         ];
     }
