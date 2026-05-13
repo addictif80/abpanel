@@ -17,6 +17,11 @@ class MailService
             return;
         }
 
+        $variables += [
+            'app_name'     => Setting::get('company_name', config('app.name')),
+            'company_name' => Setting::get('company_name', config('app.name')),
+        ];
+
         $subject = $template->renderSubject($variables);
         $html = $template->render($variables);
 

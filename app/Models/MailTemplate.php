@@ -20,19 +20,15 @@ class MailTemplate extends Model
 
     public function render(array $data = []): string
     {
-        $html = $this->html_content;
-        foreach ($data as $key => $value) {
-            $html = str_replace("{{" . $key . "}}", $value, $html);
-        }
-        return $html;
+        return preg_replace_callback('/\{\{\s*(\w+)\s*\}\}/', function ($m) use ($data) {
+            return $data[$m[1]] ?? $m[0];
+        }, $this->html_content);
     }
 
     public function renderSubject(array $data = []): string
     {
-        $subject = $this->subject;
-        foreach ($data as $key => $value) {
-            $subject = str_replace("{{" . $key . "}}", $value, $subject);
-        }
-        return $subject;
+        return preg_replace_callback('/\{\{\s*(\w+)\s*\}\}/', function ($m) use ($data) {
+            return $data[$m[1]] ?? $m[0];
+        }, $this->subject);
     }
 }
