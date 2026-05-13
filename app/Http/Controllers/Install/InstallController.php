@@ -176,6 +176,9 @@ class InstallController extends Controller
                 'mail.from.name'                  => $request->mail_from_name,
             ]);
 
+            // Force Mail to rebuild with updated config
+            Mail::forgetMailers();
+
             Mail::raw('Test de connexion SMTP depuis ABPanel — installation réussie.', function ($msg) use ($request) {
                 $msg->to($request->mail_from_address)
                     ->subject('Test SMTP — ABPanel');
