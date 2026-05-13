@@ -22,6 +22,7 @@ class CyberPanelService
     private function request(string $endpoint, array $data = []): array
     {
         $response = Http::withoutVerifying()
+            ->timeout(10)
             ->withHeaders(['Content-Type' => 'application/json'])
             ->post("{$this->host}/api/v1/{$endpoint}", array_merge([
                 'adminUser' => $this->adminUser,
@@ -30,13 +31,13 @@ class CyberPanelService
 
         if ($response->failed()) {
             Log::error("CyberPanel API error [{$endpoint}]: " . $response->body());
-            throw new \RuntimeException("CyberPanel API error: " . $response->status());
+            throw new \RuntimeException("HTTP {$response->status()} — " . $response->body());
         }
 
         $result = $response->json();
 
         if (isset($result['status']) && $result['status'] === 0) {
-            throw new \RuntimeException("CyberPanel error: " . ($result['error_message'] ?? 'Unknown error'));
+            throw new \RuntimeException($result['error_message'] ?? 'Authentification refusée');
         }
 
         return $result;
@@ -102,11 +103,7 @@ class CyberPanelService
 
     public function testConnection(): bool
     {
-        try {
-            $this->request('listWebsitesJson');
-            return true;
-        } catch (\Exception) {
-            return false;
-        }
+        $this->request('verifyConn');
+        return true;
     }
 }

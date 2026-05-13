@@ -25,13 +25,13 @@ class ProxmoxService
 
     private function authenticate(): void
     {
-        $response = Http::withoutVerifying()->post("{$this->host}/api2/json/access/ticket", [
+        $response = Http::withoutVerifying()->timeout(10)->post("{$this->host}/api2/json/access/ticket", [
             'username' => "{$this->user}@{$this->realm}",
             'password' => $this->password,
         ]);
 
         if ($response->failed()) {
-            throw new \RuntimeException('Proxmox authentication failed');
+            throw new \RuntimeException("HTTP {$response->status()} — " . ($response->json('errors') ? json_encode($response->json('errors')) : $response->body()));
         }
 
         $data = $response->json('data');
@@ -333,11 +333,7 @@ class ProxmoxService
 
     public function testConnection(): bool
     {
-        try {
-            $this->authenticate();
-            return true;
-        } catch (\Exception) {
-            return false;
-        }
+        $this->authenticate();
+        return true;
     }
 }

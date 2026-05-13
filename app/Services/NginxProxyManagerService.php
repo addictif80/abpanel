@@ -22,13 +22,13 @@ class NginxProxyManagerService
 
     private function authenticate(): void
     {
-        $response = Http::post("{$this->host}/api/tokens", [
+        $response = Http::timeout(10)->post("{$this->host}/api/tokens", [
             'identity' => $this->email,
             'secret' => $this->password,
         ]);
 
         if ($response->failed()) {
-            throw new \RuntimeException('NPM authentication failed');
+            throw new \RuntimeException("HTTP {$response->status()} — " . $response->body());
         }
 
         $this->token = $response->json('token');
@@ -108,11 +108,7 @@ class NginxProxyManagerService
 
     public function testConnection(): bool
     {
-        try {
-            $this->authenticate();
-            return true;
-        } catch (\Exception) {
-            return false;
-        }
+        $this->authenticate();
+        return true;
     }
 }
