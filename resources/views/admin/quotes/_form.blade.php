@@ -98,18 +98,27 @@
     </div>
 
     <div class="space-y-3">
+        {{-- En-tête des colonnes --}}
+        <div class="grid grid-cols-12 gap-2 px-3">
+            <div class="col-span-5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Description</div>
+            <div class="col-span-1 text-xs font-semibold text-gray-400 uppercase tracking-wide">Qté</div>
+            <div class="col-span-2 text-xs font-semibold text-gray-400 uppercase tracking-wide">Unité</div>
+            <div class="col-span-2 text-xs font-semibold text-gray-400 uppercase tracking-wide">Prix unit. (€)</div>
+            <div class="col-span-2 text-xs font-semibold text-gray-400 uppercase tracking-wide"></div>
+        </div>
+
         <template x-for="(line, index) in lines" :key="index">
             <div class="border border-gray-100 rounded-lg p-3 bg-gray-50 space-y-2">
                 <div class="grid grid-cols-12 gap-2 items-start">
                     <div class="col-span-5">
                         <input type="text" :name="`items[${index}][description]`" x-model="line.description"
-                            placeholder="Description de la prestation *" required
+                            placeholder="Ex : Création page d'accueil" required
                             class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                         <input type="hidden" :name="`items[${index}][product_id]`" x-model="line.product_id">
                     </div>
                     <div class="col-span-1">
                         <input type="number" :name="`items[${index}][quantity]`" x-model="line.quantity"
-                            placeholder="Qté" min="0.01" step="0.01" required
+                            placeholder="1" min="0.01" step="0.01" required
                             class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                     </div>
                     <div class="col-span-2">
@@ -125,7 +134,7 @@
                     </div>
                     <div class="col-span-2">
                         <input type="number" :name="`items[${index}][unit_price]`" x-model="line.unit_price"
-                            placeholder="Prix unitaire €" min="0" step="0.01" required
+                            placeholder="0.00" min="0" step="0.01" required
                             class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                     </div>
                     <div class="col-span-1 flex justify-end pt-1">
