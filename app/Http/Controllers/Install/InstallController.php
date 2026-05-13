@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Install;
 
 use App\Http\Controllers\Controller;
+use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
@@ -101,6 +102,10 @@ class InstallController extends Controller
             Artisan::call('key:generate', ['--force' => true]);
         }
 
+        // Also persist app settings to DB so admin panel reflects them
+        Setting::set('app_name', $request->app_name, 'general');
+        Setting::set('app_url', $request->app_url, 'general');
+
         session(['install_db_done' => true]);
 
         return redirect()->route('install.mail');
@@ -145,6 +150,14 @@ class InstallController extends Controller
             'MAIL_FROM_ADDRESS' => $request->mail_from_address,
             'MAIL_FROM_NAME'    => '"' . $request->mail_from_name . '"',
         ]);
+
+        // Also persist mail settings to DB so admin panel reflects them
+        Setting::set('mail_host',         $request->mail_host ?? '127.0.0.1', 'mail');
+        Setting::set('mail_port',         $port, 'mail');
+        Setting::set('mail_username',     $request->mail_username ?? '', 'mail');
+        Setting::set('mail_password',     $request->mail_password ?? '', 'mail');
+        Setting::set('mail_from_address', $request->mail_from_address, 'mail');
+        Setting::set('mail_from_name',    $request->mail_from_name, 'mail');
 
         session(['install_mail_done' => true]);
 
@@ -222,6 +235,11 @@ class InstallController extends Controller
         if (!empty($values)) {
             $this->writeEnv($values);
         }
+
+        // Also persist Stripe settings to DB (admin panel uses these keys)
+        if ($request->stripe_key)            Setting::set('stripe_public_key',     $request->stripe_key, 'stripe');
+        if ($request->stripe_secret)         Setting::set('stripe_secret_key',     $request->stripe_secret, 'stripe');
+        if ($request->stripe_webhook_secret) Setting::set('stripe_webhook_secret', $request->stripe_webhook_secret, 'stripe');
 
         session(['install_stripe_done' => true]);
 
