@@ -139,6 +139,7 @@ Route::middleware('installed')->group(function () {
         });
 
         // Plans
+        Route::get('/plans/cyberpanel-packages', [Admin\PlanController::class, 'cyberpanelPackages'])->name('plans.cyberpanel-packages');
         Route::resource('plans', Admin\PlanController::class);
 
         // OS Templates

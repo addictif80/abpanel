@@ -15,7 +15,7 @@
 @endif
 
 <form method="POST" action="{{ route('admin.plans.store') }}" class="max-w-2xl space-y-5"
-      x-data="{ planType: '{{ old('type', 'vm') }}' }">
+      x-data="planForm('{{ old('type', 'vm') }}', '{{ old('cyberpanel_package') }}')">
     @csrf
 
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
@@ -37,7 +37,7 @@
             </div>
         </div>
 
-        <div x-show="planType === 'vm'">
+        <div x-show="planType === 'vm'" x-cloak>
             <label class="block text-sm font-medium text-gray-700 mb-2">Type de virtualisation <span class="text-red-500">*</span></label>
             <div class="grid grid-cols-2 gap-3">
                 <label class="cursor-pointer">
@@ -88,8 +88,9 @@
         </div>
     </div>
 
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
-        <h2 class="font-semibold text-gray-800">Ressources (optionnel)</h2>
+    {{-- Ressources VM --}}
+    <div x-show="planType === 'vm'" x-cloak class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
+        <h2 class="font-semibold text-gray-800">Ressources</h2>
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">vCPU</label>
@@ -106,6 +107,36 @@
                 <input type="number" name="disk_gb" value="{{ old('disk_gb') }}" min="1"
                     class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
             </div>
+        </div>
+    </div>
+
+    {{-- Package CyberPanel --}}
+    <div x-show="planType === 'hosting'" x-cloak class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
+        <div class="flex items-center justify-between">
+            <h2 class="font-semibold text-gray-800">Package CyberPanel</h2>
+            <button type="button" @click="loadPackages()"
+                class="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
+                x-text="loadingPackages ? 'Chargement...' : '↻ Charger les packages'">
+            </button>
+        </div>
+        <div x-show="packageError" class="text-xs text-red-500" x-text="packageError"></div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Package <span class="text-red-500">*</span></label>
+            <template x-if="packages.length > 0">
+                <select name="cyberpanel_package"
+                    class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    <option value="">— Sélectionnez un package —</option>
+                    <template x-for="pkg in packages" :key="pkg">
+                        <option :value="pkg" :selected="pkg === selectedPackage" x-text="pkg"></option>
+                    </template>
+                </select>
+            </template>
+            <template x-if="packages.length === 0">
+                <input type="text" name="cyberpanel_package" x-model="selectedPackage"
+                    placeholder="Default"
+                    class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            </template>
+            <p class="text-xs text-gray-400 mt-1">Nom exact du package dans CyberPanel. Cliquez sur "Charger les packages" pour obtenir la liste.</p>
         </div>
     </div>
 
@@ -135,3 +166,32 @@
     </div>
 </form>
 @endsection
+
+@push('scripts')
+<script>
+function planForm(initialType, initialPackage) {
+    return {
+        planType: initialType,
+        packages: [],
+        selectedPackage: initialPackage || '',
+        loadingPackages: false,
+        packageError: '',
+        loadPackages() {
+            this.loadingPackages = true;
+            this.packageError = '';
+            fetch('{{ route('admin.plans.cyberpanel-packages') }}')
+                .then(r => r.json())
+                .then(d => {
+                    if (d.success && d.packages && d.packages.length > 0) {
+                        this.packages = d.packages;
+                    } else {
+                        this.packageError = d.message || 'Aucun package trouvé. Vérifiez la connexion CyberPanel dans les settings.';
+                    }
+                })
+                .catch(() => { this.packageError = 'Erreur de connexion.'; })
+                .finally(() => { this.loadingPackages = false; });
+        }
+    }
+}
+</script>
+@endpush

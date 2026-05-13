@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Plan;
 use App\Models\Setting;
+use App\Services\CyberPanelService;
 use Illuminate\Http\Request;
 use Stripe\Price;
 use Stripe\Product;
@@ -26,16 +27,17 @@ class PlanController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'name'           => 'required|string|max:100',
-            'type'           => 'required|in:vm,hosting',
-            'vm_type'        => 'nullable|in:qemu,lxc',
-            'price'          => 'required|numeric|min:0',
-            'billing_period' => 'required|in:monthly,yearly',
-            'description'    => 'nullable|string',
-            'features'       => 'nullable|string',
-            'cores'          => 'nullable|integer|min:1',
-            'memory_mb'      => 'nullable|integer|min:128',
-            'disk_gb'        => 'nullable|integer|min:1',
+            'name'               => 'required|string|max:100',
+            'type'               => 'required|in:vm,hosting',
+            'vm_type'            => 'nullable|in:qemu,lxc',
+            'price'              => 'required|numeric|min:0',
+            'billing_period'     => 'required|in:monthly,yearly',
+            'description'        => 'nullable|string',
+            'features'           => 'nullable|string',
+            'cores'              => 'nullable|integer|min:1',
+            'memory_mb'          => 'nullable|integer|min:128',
+            'disk_gb'            => 'nullable|integer|min:1',
+            'cyberpanel_package' => 'nullable|string|max:100',
         ]);
 
         $features = array_filter(array_map('trim', explode("\n", $request->features ?? '')));
@@ -56,18 +58,19 @@ class PlanController extends Controller
         }
 
         Plan::create([
-            'name'            => $request->name,
-            'type'            => $request->type,
-            'vm_type'         => $request->type === 'vm' ? ($request->vm_type ?? 'qemu') : null,
-            'price'           => $request->price,
-            'billing_period'  => $request->billing_period,
-            'description'     => $request->description,
-            'features'        => $features,
-            'cores'           => $request->cores,
-            'memory_mb'       => $request->memory_mb,
-            'disk_gb'         => $request->disk_gb,
-            'stripe_price_id' => $stripePrice,
-            'is_active'       => $request->boolean('is_active', true),
+            'name'               => $request->name,
+            'type'               => $request->type,
+            'vm_type'            => $request->type === 'vm' ? ($request->vm_type ?? 'qemu') : null,
+            'price'              => $request->price,
+            'billing_period'     => $request->billing_period,
+            'description'        => $request->description,
+            'features'           => $features,
+            'cores'              => $request->type === 'vm' ? $request->cores : null,
+            'memory_mb'          => $request->type === 'vm' ? $request->memory_mb : null,
+            'disk_gb'            => $request->type === 'vm' ? $request->disk_gb : null,
+            'cyberpanel_package' => $request->type === 'hosting' ? $request->cyberpanel_package : null,
+            'stripe_price_id'    => $stripePrice,
+            'is_active'          => $request->boolean('is_active', true),
         ]);
 
         return redirect()->route('admin.plans.index')->with('success', 'Plan créé.');
@@ -81,33 +84,35 @@ class PlanController extends Controller
     public function update(Request $request, Plan $plan)
     {
         $request->validate([
-            'name'           => 'required|string|max:100',
-            'type'           => 'required|in:vm,hosting',
-            'vm_type'        => 'nullable|in:qemu,lxc',
-            'price'          => 'required|numeric|min:0',
-            'description'    => 'nullable|string',
-            'features'       => 'nullable|string',
-            'cores'          => 'nullable|integer|min:1',
-            'memory_mb'      => 'nullable|integer|min:128',
-            'disk_gb'        => 'nullable|integer|min:1',
-            'sort_order'     => 'integer|min:0',
+            'name'               => 'required|string|max:100',
+            'type'               => 'required|in:vm,hosting',
+            'vm_type'            => 'nullable|in:qemu,lxc',
+            'price'              => 'required|numeric|min:0',
+            'description'        => 'nullable|string',
+            'features'           => 'nullable|string',
+            'cores'              => 'nullable|integer|min:1',
+            'memory_mb'          => 'nullable|integer|min:128',
+            'disk_gb'            => 'nullable|integer|min:1',
+            'cyberpanel_package' => 'nullable|string|max:100',
+            'sort_order'         => 'integer|min:0',
         ]);
 
         $features = array_filter(array_map('trim', explode("\n", $request->features ?? '')));
 
         $plan->update([
-            'name'            => $request->name,
-            'type'            => $request->type,
-            'vm_type'         => $request->type === 'vm' ? ($request->vm_type ?? 'qemu') : null,
-            'price'           => $request->price,
-            'description'     => $request->description,
-            'features'        => $features,
-            'cores'           => $request->cores,
-            'memory_mb'       => $request->memory_mb,
-            'disk_gb'         => $request->disk_gb,
-            'stripe_price_id' => $request->stripe_price_id ?: $plan->stripe_price_id,
-            'is_active'       => $request->boolean('is_active'),
-            'sort_order'      => $request->sort_order ?? 0,
+            'name'               => $request->name,
+            'type'               => $request->type,
+            'vm_type'            => $request->type === 'vm' ? ($request->vm_type ?? 'qemu') : null,
+            'price'              => $request->price,
+            'description'        => $request->description,
+            'features'           => $features,
+            'cores'              => $request->type === 'vm' ? $request->cores : null,
+            'memory_mb'          => $request->type === 'vm' ? $request->memory_mb : null,
+            'disk_gb'            => $request->type === 'vm' ? $request->disk_gb : null,
+            'cyberpanel_package' => $request->type === 'hosting' ? $request->cyberpanel_package : null,
+            'stripe_price_id'    => $request->stripe_price_id ?: $plan->stripe_price_id,
+            'is_active'          => $request->boolean('is_active'),
+            'sort_order'         => $request->sort_order ?? 0,
         ]);
 
         return back()->with('success', 'Plan mis à jour.');
@@ -117,5 +122,15 @@ class PlanController extends Controller
     {
         $plan->delete();
         return redirect()->route('admin.plans.index')->with('success', 'Plan supprimé.');
+    }
+
+    public function cyberpanelPackages()
+    {
+        try {
+            $packages = app(CyberPanelService::class)->listPackages();
+            return response()->json(['success' => true, 'packages' => $packages]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()]);
+        }
     }
 }

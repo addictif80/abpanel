@@ -107,6 +107,20 @@ class CyberPanelService
         ]);
     }
 
+    public function listPackages(): array
+    {
+        $result = $this->request('fetchPackagesJson');
+        // Returns array of package names
+        $raw = $result['packages'] ?? $result['data'] ?? [];
+        if (is_string($raw)) {
+            $raw = json_decode($raw, true) ?? [];
+        }
+        return array_values(array_filter(array_map(
+            fn($p) => is_array($p) ? ($p['packageName'] ?? $p['name'] ?? null) : $p,
+            $raw
+        )));
+    }
+
     public function testConnection(): bool
     {
         $this->request('fetchWebsites', ['page' => 1]);

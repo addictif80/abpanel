@@ -10,7 +10,7 @@ class Plan extends Model
     protected $fillable = [
         'name', 'slug', 'type', 'vm_type', 'description', 'price', 'currency',
         'billing_period', 'stripe_price_id', 'features',
-        'cores', 'memory_mb', 'disk_gb', 'is_active', 'sort_order',
+        'cores', 'memory_mb', 'disk_gb', 'cyberpanel_package', 'is_active', 'sort_order',
     ];
 
     protected function casts(): array
