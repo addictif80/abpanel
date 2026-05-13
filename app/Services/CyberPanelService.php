@@ -85,9 +85,9 @@ class CyberPanelService
         ]);
     }
 
-    public function listWebsites(): array
+    public function listWebsites(int $page = 1): array
     {
-        return $this->request('fetchWebsites');
+        return $this->request('fetchWebsites', ['page' => $page]);
     }
 
     public function getWebsiteData(string $domain): array
@@ -109,7 +109,7 @@ class CyberPanelService
 
     public function testConnection(): bool
     {
-        $this->request('fetchWebsites');
+        $this->request('fetchWebsites', ['page' => 1]);
         return true;
     }
 }
