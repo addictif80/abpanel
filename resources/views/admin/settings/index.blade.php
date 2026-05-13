@@ -317,7 +317,7 @@ function testConnection(service) {
             this.loading = true;
             this.message = '';
             try {
-                const res = await fetch('{{ route('admin.settings.test', '') }}/' + service, {
+                const res = await fetch('{{ route('admin.settings.test', '__SERVICE__') }}'.replace('__SERVICE__', service), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
