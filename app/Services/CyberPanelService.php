@@ -74,7 +74,7 @@ class CyberPanelService
             'UserAccountName' => $username,
             'UserPassword'    => $password,
             'FullName'        => $fullName ?: $username,
-            'websitesLimit'   => 1,
+            'websitesLimit'   => 0, // unlimited — ABPanel handles billing
         ]);
     }
 
