@@ -6,15 +6,15 @@
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: DejaVu Sans, Arial, sans-serif; font-size: 12px; color: #111; padding: 40px; }
-.header { display: flex; justify-content: space-between; margin-bottom: 36px; }
+.header { display: flex; justify-content: space-between; margin-bottom: 28px; }
 .brand { font-size: 22px; font-weight: bold; color: #4f46e5; }
-.label { font-size: 9px; font-weight: bold; text-transform: uppercase; color: #9ca3af; margin-bottom: 3px; }
+.company-meta { font-size: 10px; color: #6b7280; margin-top: 3px; line-height: 1.6; }
 .doc-title { font-size: 20px; font-weight: bold; color: #111; }
 .doc-ref { font-size: 11px; color: #555; margin-top: 4px; }
-.parties { display: flex; justify-content: space-between; margin-bottom: 28px; }
-.party { width: 45%; }
-.party-name { font-weight: bold; font-size: 13px; margin-bottom: 3px; }
-.party-detail { color: #555; font-size: 11px; line-height: 1.6; }
+.client-block { margin-bottom: 22px; }
+.label { font-size: 9px; font-weight: bold; text-transform: uppercase; color: #9ca3af; margin-bottom: 3px; }
+.client-name { font-weight: bold; font-size: 13px; margin-bottom: 3px; }
+.client-detail { color: #555; font-size: 11px; line-height: 1.6; }
 table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
 th { background: #f3f4f6; text-align: left; padding: 8px 10px; font-size: 9px; text-transform: uppercase; color: #6b7280; border-bottom: 2px solid #e5e7eb; }
 td { padding: 9px 10px; border-bottom: 1px solid #f3f4f6; font-size: 11px; vertical-align: top; }
@@ -37,12 +37,14 @@ td.bold { font-weight: bold; }
 <div class="header">
     <div>
         <div class="brand">{{ $settings['app_name'] ?? config('app.name') }}</div>
-        @if(!empty($settings['company_siren']))
-        <div style="font-size:10px;color:#6b7280;margin-top:3px;">
-            {{ $settings['company_legal_form'] ?? '' }} — SIREN {{ $settings['company_siren'] }}
-            @if(!empty($settings['company_rcs'])) — {{ $settings['company_rcs'] }} @endif
+        <div class="company-meta">
+            @if(!empty($settings['company_legal_form'])){{ $settings['company_legal_form'] }}@endif
+            @if(!empty($settings['company_siren'])) — SIREN {{ $settings['company_siren'] }}@endif
+            @if(!empty($settings['company_rcs']))<br>{{ $settings['company_rcs'] }}@endif
+            @if(!empty($settings['company_address']))<br>{{ $settings['company_address'] }}@endif
+            @if(!empty($settings['company_phone']))<br>Tél. {{ $settings['company_phone'] }}@endif
+            @if(!empty($settings['support_email']))<br>{{ $settings['support_email'] }}@endif
         </div>
-        @endif
     </div>
     <div style="text-align:right;">
         <div class="doc-title">DEVIS</div>
@@ -55,24 +57,15 @@ td.bold { font-weight: bold; }
     </div>
 </div>
 
-<div class="parties">
-    <div class="party">
-        <div class="label">Émetteur</div>
-        <div class="party-name">{{ $settings['app_name'] ?? config('app.name') }}</div>
-        @if(!empty($settings['company_siren']))
-        <div class="party-detail">{{ $settings['company_legal_form'] ?? 'Micro-entreprise' }}<br>SIREN : {{ $settings['company_siren'] }}</div>
-        @endif
-    </div>
-    <div class="party">
-        <div class="label">Client</div>
-        <div class="party-name">{{ $quote->user->full_name }}</div>
-        <div class="party-detail">
-            {{ $quote->user->email }}
-            @if($quote->user->company)<br>{{ $quote->user->company }}@endif
-            @if($quote->user->address)<br>{{ $quote->user->address }}@endif
-            @if($quote->user->zip || $quote->user->city)<br>{{ $quote->user->zip }} {{ $quote->user->city }}@endif
-            @if($quote->user->siret)<br>SIRET : {{ $quote->user->siret }}@endif
-        </div>
+<div class="client-block">
+    <div class="label">Destinataire</div>
+    <div class="client-name">{{ $quote->user->full_name }}</div>
+    <div class="client-detail">
+        {{ $quote->user->email }}
+        @if($quote->user->company)<br>{{ $quote->user->company }}@endif
+        @if($quote->user->address)<br>{{ $quote->user->address }}@endif
+        @if($quote->user->zip || $quote->user->city)<br>{{ $quote->user->zip }} {{ $quote->user->city }}@endif
+        @if($quote->user->siret)<br>SIRET : {{ $quote->user->siret }}@endif
     </div>
 </div>
 

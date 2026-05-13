@@ -65,6 +65,19 @@
                             class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                             placeholder="RCS Ville 123456789">
                     </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Téléphone</label>
+                        <input type="text" name="company_phone" value="{{ $settings['company_phone'] ?? '' }}"
+                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                            placeholder="01 23 45 67 89">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Adresse postale</label>
+                        <input type="text" name="company_address" value="{{ $settings['company_address'] ?? '' }}"
+                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                            placeholder="12 rue de la Paix, 75001 Paris">
+                        <p class="text-xs text-gray-400 mt-1">Apparaît sur les devis et factures PDF.</p>
+                    </div>
                 </div>
 
                 <div class="border-t border-gray-100 pt-4">
