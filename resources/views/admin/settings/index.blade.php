@@ -19,6 +19,8 @@
         <nav class="space-y-1">
             @foreach([
                 ['general',    '⚙️', 'Général'],
+                ['company',    '🏢', 'Société'],
+                ['quotes',     '📋', 'Devis & Fact.'],
                 ['proxmox',    '🖥️', 'Proxmox'],
                 ['cyberpanel', '🌐', 'CyberPanel'],
                 ['npm',        '🔀', 'Nginx PM'],
@@ -36,6 +38,124 @@
 
     {{-- Tab content --}}
     <div class="flex-1 min-w-0">
+
+        {{-- Company --}}
+        <div x-show="tab === 'company'">
+            <form method="POST" action="{{ route('admin.settings.company') }}" class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
+                @csrf
+                <h2 class="font-semibold text-gray-800 mb-4">Informations société</h2>
+                <p class="text-sm text-gray-500 -mt-2">Ces informations apparaissent sur les devis et factures.</p>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">SIREN / SIRET</label>
+                        <input type="text" name="company_siren" value="{{ $settings['company_siren'] ?? '' }}"
+                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                            placeholder="123456789 ou 12345678900012">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Forme juridique</label>
+                        <input type="text" name="company_legal_form" value="{{ $settings['company_legal_form'] ?? 'Micro-entreprise' }}"
+                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                            placeholder="Micro-entreprise, SARL, SAS...">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">N° RCS / RM</label>
+                        <input type="text" name="company_rcs" value="{{ $settings['company_rcs'] ?? '' }}"
+                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                            placeholder="RCS Ville 123456789">
+                    </div>
+                </div>
+
+                <div class="border-t border-gray-100 pt-4">
+                    <h3 class="text-sm font-medium text-gray-700 mb-3">Coordonnées bancaires (RIB)</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">IBAN</label>
+                            <input type="text" name="company_iban" value="{{ $settings['company_iban'] ?? '' }}"
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                                placeholder="FR76 XXXX XXXX XXXX XXXX XXXX XXX">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">BIC / SWIFT</label>
+                            <input type="text" name="company_bic" value="{{ $settings['company_bic'] ?? '' }}"
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                                placeholder="XXXXFRXXXX">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pt-4 border-t border-gray-100">
+                    <button type="submit" class="px-5 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition">
+                        Enregistrer
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        {{-- Quotes & Invoicing --}}
+        <div x-show="tab === 'quotes'">
+            <form method="POST" action="{{ route('admin.settings.quotes') }}" enctype="multipart/form-data" class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
+                @csrf
+                <h2 class="font-semibold text-gray-800 mb-4">Devis & Facturation</h2>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Validité devis (jours)</label>
+                        <input type="number" name="quote_validity_days" value="{{ $settings['quote_validity_days'] ?? 30 }}"
+                            min="1" max="365"
+                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Délai de paiement (jours)</label>
+                        <input type="number" name="invoice_payment_days" value="{{ $settings['invoice_payment_days'] ?? 30 }}"
+                            min="1" max="365"
+                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Taux pénalités retard (% annuel)</label>
+                        <input type="number" name="invoice_late_penalty" value="{{ $settings['invoice_late_penalty'] ?? 10 }}"
+                            min="0" max="100" step="0.5"
+                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <p class="text-xs text-gray-400 mt-1">Mention légale obligatoire sur les factures B2B</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Indemnité forfaitaire de recouvrement (€)</label>
+                        <input type="number" name="invoice_recovery_fee" value="{{ $settings['invoice_recovery_fee'] ?? 40 }}"
+                            min="0" step="1"
+                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <p class="text-xs text-gray-400 mt-1">Minimum légal : 40 € pour les B2B</p>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Mention TVA</label>
+                    <input type="text" name="vat_mention" value="{{ $settings['vat_mention'] ?? 'TVA non applicable, art. 293 B du CGI' }}"
+                        class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Notes par défaut sur les devis</label>
+                    <textarea name="quote_default_notes" rows="3"
+                        class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">{{ $settings['quote_default_notes'] ?? '' }}</textarea>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Conditions Générales de Vente (PDF)</label>
+                    <input type="file" name="cgv_file" accept=".pdf"
+                        class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+                    @if(!empty($settings['cgv_path']))
+                    <p class="text-xs text-green-600 mt-1">CGV actuelles : {{ basename($settings['cgv_path']) }}</p>
+                    @endif
+                </div>
+
+                <div class="pt-4 border-t border-gray-100">
+                    <button type="submit" class="px-5 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition">
+                        Enregistrer
+                    </button>
+                </div>
+            </form>
+        </div>
 
         {{-- General --}}
         <div x-show="tab === 'general'">

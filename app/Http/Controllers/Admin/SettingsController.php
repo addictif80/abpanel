@@ -158,6 +158,47 @@ class SettingsController extends Controller
         }
     }
 
+    public function saveCompany(Request $request)
+    {
+        $request->validate([
+            'company_siren'      => 'nullable|string|max:20',
+            'company_legal_form' => 'nullable|string|max:100',
+            'company_rcs'        => 'nullable|string|max:100',
+            'company_iban'       => 'nullable|string|max:34',
+            'company_bic'        => 'nullable|string|max:11',
+        ]);
+
+        foreach (['company_siren', 'company_legal_form', 'company_rcs', 'company_iban', 'company_bic'] as $key) {
+            Setting::set($key, $request->input($key, ''), 'company');
+        }
+
+        return back()->with('success', 'Informations société enregistrées.');
+    }
+
+    public function saveQuotes(Request $request)
+    {
+        $request->validate([
+            'quote_validity_days'  => 'required|integer|min:1|max:365',
+            'invoice_payment_days' => 'required|integer|min:1|max:365',
+            'invoice_late_penalty' => 'required|numeric|min:0|max:100',
+            'invoice_recovery_fee' => 'required|numeric|min:0',
+            'vat_mention'          => 'nullable|string|max:200',
+            'quote_default_notes'  => 'nullable|string',
+        ]);
+
+        foreach (['quote_validity_days', 'invoice_payment_days', 'invoice_late_penalty', 'invoice_recovery_fee', 'vat_mention', 'quote_default_notes'] as $key) {
+            Setting::set($key, $request->input($key, ''), 'quotes');
+        }
+
+        if ($request->hasFile('cgv_file')) {
+            $request->validate(['cgv_file' => 'file|mimes:pdf|max:5120']);
+            $path = $request->file('cgv_file')->store('cgv', 'public');
+            Setting::set('cgv_path', $path, 'quotes');
+        }
+
+        return back()->with('success', 'Paramètres devis & facturation enregistrés.');
+    }
+
     private function testMail(string $to): bool
     {
         Mail::raw('Test de connexion SMTP depuis ABPanel.', function ($msg) use ($to) {

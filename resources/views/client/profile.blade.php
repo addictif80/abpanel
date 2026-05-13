@@ -81,6 +81,29 @@
                 </div>
             </div>
 
+            <div class="border-t border-gray-100 pt-4">
+                <h3 class="text-sm font-semibold text-gray-700 mb-3">Informations professionnelles</h3>
+                <p class="text-xs text-gray-400 mb-3">
+                    Si vous exercez une activité professionnelle, renseignez votre SIRET.
+                    Certains produits destinés aux particuliers ne seront plus disponibles pour les clients professionnels.
+                </p>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Numéro SIRET</label>
+                        <input type="text" name="siret" value="{{ old('siret', $user->siret) }}"
+                            maxlength="14" placeholder="14 chiffres"
+                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none @error('siret') border-red-400 @enderror">
+                        @error('siret')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">N° TVA intracommunautaire</label>
+                        <input type="text" name="vat_number" value="{{ old('vat_number', $user->vat_number) }}"
+                            placeholder="FR12345678901"
+                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+                </div>
+            </div>
+
             <div class="pt-4 border-t border-gray-100">
                 <button type="submit" class="px-5 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition">
                     Enregistrer

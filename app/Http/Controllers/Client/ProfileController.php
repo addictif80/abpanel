@@ -28,6 +28,8 @@ class ProfileController extends Controller
             'city'       => 'nullable|string|max:80',
             'zip'        => 'nullable|string|max:10',
             'country'    => 'nullable|string|max:2',
+            'siret'      => 'nullable|string|size:14|regex:/^[0-9]{14}$/',
+            'vat_number' => 'nullable|string|max:20',
         ]);
 
         $user->update([
@@ -40,6 +42,8 @@ class ProfileController extends Controller
             'city'       => $request->city,
             'zip'        => $request->zip,
             'country'    => $request->country ?? 'FR',
+            'siret'      => $request->siret ?: null,
+            'vat_number' => $request->vat_number ?: null,
         ]);
 
         return back()->with('success', 'Profil mis à jour.');

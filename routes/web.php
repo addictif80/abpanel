@@ -8,6 +8,7 @@ use App\Http\Controllers\Auth\ResetPasswordController;
 use App\Http\Controllers\Client;
 use App\Http\Controllers\Install\InstallController;
 use App\Http\Controllers\NewsletterController;
+use App\Http\Controllers\PublicQuoteController;
 use App\Http\Controllers\WebhookController;
 use Illuminate\Support\Facades\Route;
 
@@ -43,6 +44,14 @@ Route::middleware('installed')->group(function () {
         Route::post('/reset-password', [ResetPasswordController::class, 'reset'])->name('password.update');
     });
 
+    // Public quote access (token-based, no auth required)
+    Route::prefix('quotes')->name('quotes.')->group(function () {
+        Route::get('/{token}', [PublicQuoteController::class, 'show'])->name('public');
+        Route::post('/{token}/accept', [PublicQuoteController::class, 'accept'])->name('accept');
+        Route::post('/{token}/refuse', [PublicQuoteController::class, 'refuse'])->name('refuse');
+        Route::get('/{token}/download', [PublicQuoteController::class, 'downloadPdf'])->name('download-pdf');
+    });
+
     // Client portal
     Route::middleware(['auth', 'active.user'])->prefix('client')->name('client.')->group(function () {
         Route::get('/dashboard', [Client\DashboardController::class, 'index'])->name('dashboard');
@@ -74,6 +83,16 @@ Route::middleware('installed')->group(function () {
             Route::get('/', [Client\BillingController::class, 'index'])->name('index');
             Route::get('/invoices/{invoice}', [Client\BillingController::class, 'show'])->name('invoice');
             Route::get('/invoices/{invoice}/download', [Client\BillingController::class, 'download'])->name('invoice.download');
+            Route::get('/invoices/{invoice}/facturx.xml', [Client\BillingController::class, 'downloadXml'])->name('invoice.facturx');
+        });
+
+        // Quotes
+        Route::prefix('quotes')->name('quotes.')->group(function () {
+            Route::get('/', [Client\QuoteController::class, 'index'])->name('index');
+            Route::get('/{quote}', [Client\QuoteController::class, 'show'])->name('show');
+            Route::post('/{quote}/accept', [Client\QuoteController::class, 'accept'])->name('accept');
+            Route::post('/{quote}/refuse', [Client\QuoteController::class, 'refuse'])->name('refuse');
+            Route::get('/{quote}/download', [Client\QuoteController::class, 'downloadPdf'])->name('download-pdf');
         });
 
         // Tickets
@@ -99,6 +118,8 @@ Route::middleware('installed')->group(function () {
         Route::prefix('settings')->name('settings.')->group(function () {
             Route::get('/', [Admin\SettingsController::class, 'index'])->name('index');
             Route::post('/general', [Admin\SettingsController::class, 'saveGeneral'])->name('general');
+            Route::post('/company', [Admin\SettingsController::class, 'saveCompany'])->name('company');
+            Route::post('/quotes', [Admin\SettingsController::class, 'saveQuotes'])->name('quotes');
             Route::post('/proxmox', [Admin\SettingsController::class, 'saveProxmox'])->name('proxmox');
             Route::post('/cyberpanel', [Admin\SettingsController::class, 'saveCyberpanel'])->name('cyberpanel');
             Route::post('/npm', [Admin\SettingsController::class, 'saveNpm'])->name('npm');
@@ -110,6 +131,38 @@ Route::middleware('installed')->group(function () {
         // Clients
         Route::resource('clients', Admin\ClientController::class);
         Route::post('/clients/{client}/reset-password', [Admin\ClientController::class, 'resetPassword'])->name('clients.reset-password');
+
+        // Products catalog
+        Route::resource('products', Admin\ProductController::class)->except(['show']);
+
+        // Quotes
+        Route::prefix('quotes')->name('quotes.')->group(function () {
+            Route::get('/', [Admin\QuoteController::class, 'index'])->name('index');
+            Route::get('/templates', [Admin\QuoteController::class, 'templates'])->name('templates');
+            Route::get('/create', [Admin\QuoteController::class, 'create'])->name('create');
+            Route::post('/', [Admin\QuoteController::class, 'store'])->name('store');
+            Route::get('/{quote}', [Admin\QuoteController::class, 'show'])->name('show');
+            Route::get('/{quote}/edit', [Admin\QuoteController::class, 'edit'])->name('edit');
+            Route::put('/{quote}', [Admin\QuoteController::class, 'update'])->name('update');
+            Route::post('/{quote}/send', [Admin\QuoteController::class, 'send'])->name('send');
+            Route::post('/{quote}/reminder', [Admin\QuoteController::class, 'reminder'])->name('reminder');
+            Route::post('/{quote}/convert', [Admin\QuoteController::class, 'convert'])->name('convert');
+            Route::post('/{quote}/cancel', [Admin\QuoteController::class, 'cancel'])->name('cancel');
+            Route::post('/{quote}/save-template', [Admin\QuoteController::class, 'saveAsTemplate'])->name('save-template');
+            Route::get('/{quote}/download-pdf', [Admin\QuoteController::class, 'downloadPdf'])->name('download-pdf');
+            Route::delete('/{quote}', [Admin\QuoteController::class, 'destroy'])->name('destroy');
+        });
+
+        // Credit notes (avoirs)
+        Route::prefix('credit-notes')->name('credit-notes.')->group(function () {
+            Route::get('/', [Admin\CreditNoteController::class, 'index'])->name('index');
+            Route::get('/create', [Admin\CreditNoteController::class, 'create'])->name('create');
+            Route::post('/', [Admin\CreditNoteController::class, 'store'])->name('store');
+            Route::get('/{creditNote}', [Admin\CreditNoteController::class, 'show'])->name('show');
+            Route::post('/{creditNote}/issue', [Admin\CreditNoteController::class, 'issue'])->name('issue');
+            Route::post('/{creditNote}/apply', [Admin\CreditNoteController::class, 'apply'])->name('apply');
+            Route::get('/invoices', [Admin\CreditNoteController::class, 'getInvoices'])->name('invoices');
+        });
 
         // VMs
         Route::resource('vms', Admin\VmController::class);
