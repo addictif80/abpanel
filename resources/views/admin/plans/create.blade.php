@@ -123,13 +123,22 @@
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Package <span class="text-red-500">*</span></label>
             <template x-if="packages.length > 0">
-                <select name="cyberpanel_package"
-                    class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                    <option value="">— Sélectionnez un package —</option>
-                    <template x-for="pkg in packages" :key="pkg">
-                        <option :value="pkg" :selected="pkg === selectedPackage" x-text="pkg"></option>
+                <div>
+                    <select name="cyberpanel_package" x-model="selectedPackage"
+                        class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <option value="">— Sélectionnez un package —</option>
+                        <template x-for="pkg in packages" :key="pkg.packageName">
+                            <option :value="pkg.packageName" x-text="pkg.packageName"></option>
+                        </template>
+                    </select>
+                    <template x-if="selectedPackage">
+                        <div class="mt-2 p-3 bg-gray-50 rounded-lg text-xs text-gray-600 grid grid-cols-3 gap-2" x-show="selectedPackageData">
+                            <span>💾 <span x-text="selectedPackageData?.diskSpace ?? '—'"></span> MB disque</span>
+                            <span>🗄️ <span x-text="selectedPackageData?.dataBases ?? '—'"></span> bases de données</span>
+                            <span>🌐 <span x-text="selectedPackageData?.allowedDomains ?? '—'"></span> domaines</span>
+                        </div>
                     </template>
-                </select>
+                </div>
             </template>
             <template x-if="packages.length === 0">
                 <input type="text" name="cyberpanel_package" x-model="selectedPackage"
@@ -176,6 +185,9 @@ function planForm(initialType, initialPackage) {
         selectedPackage: initialPackage || '',
         loadingPackages: false,
         packageError: '',
+        get selectedPackageData() {
+            return this.packages.find(p => p.packageName === this.selectedPackage) ?? null;
+        },
         loadPackages() {
             this.loadingPackages = true;
             this.packageError = '';

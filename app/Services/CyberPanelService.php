@@ -110,14 +110,11 @@ class CyberPanelService
     public function listPackages(): array
     {
         $result = $this->request('fetchPackages');
-        $raw = $result['packages'] ?? $result['data'] ?? [];
+        $raw = $result['data'] ?? [];
         if (is_string($raw)) {
             $raw = json_decode($raw, true) ?? [];
         }
-        return array_values(array_filter(array_map(
-            fn($p) => is_array($p) ? ($p['packageName'] ?? $p['name'] ?? null) : $p,
-            $raw
-        )));
+        return array_values(array_filter($raw, fn($p) => isset($p['packageName'])));
     }
 
     public function testConnection(): bool
