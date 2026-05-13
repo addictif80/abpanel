@@ -103,7 +103,7 @@ class CyberPanelService
 
     public function testConnection(): bool
     {
-        $this->request('verifyConn');
+        $this->request('listWebsitesJson');
         return true;
     }
 }
