@@ -37,6 +37,32 @@
                     class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
             </div>
         </div>
+
+        {{-- Récurrence --}}
+        <div class="border-t border-gray-100 pt-4" x-data="{ recurring: {{ old('is_recurring') ? 'true' : 'false' }} }">
+            <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer mb-3">
+                <input type="checkbox" name="is_recurring" value="1" x-model="recurring"
+                    {{ old('is_recurring') ? 'checked' : '' }}
+                    class="rounded border-gray-300 text-indigo-600">
+                Facture récurrente (génération automatique)
+            </label>
+            <div x-show="recurring" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Période</label>
+                    <select name="recurrence_period" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <option value="monthly" {{ old('recurrence_period') === 'monthly' ? 'selected' : '' }}>Mensuelle</option>
+                        <option value="quarterly" {{ old('recurrence_period') === 'quarterly' ? 'selected' : '' }}>Trimestrielle</option>
+                        <option value="yearly" {{ old('recurrence_period') === 'yearly' ? 'selected' : '' }}>Annuelle</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Prochaine génération</label>
+                    <input type="date" name="next_billing_at" value="{{ old('next_billing_at') }}"
+                        class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    <p class="text-xs text-gray-400 mt-1">Date à laquelle la prochaine facture sera générée automatiquement.</p>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">

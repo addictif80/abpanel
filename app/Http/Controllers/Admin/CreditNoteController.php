@@ -91,15 +91,36 @@ class CreditNoteController extends Controller
         return back()->with('success', 'Avoir émis.');
     }
 
-    public function apply(CreditNote $creditNote)
+    public function apply(Request $request, CreditNote $creditNote)
     {
         if ($creditNote->status !== 'issued') {
             return back()->with('error', 'L\'avoir doit être émis avant d\'être appliqué.');
         }
 
+        $invoice = $creditNote->invoice;
+
+        if (! $invoice) {
+            return back()->with('error', 'Aucune facture associée à cet avoir.');
+        }
+
+        // Deduct credit from invoice total
+        $newTotal = max(0, (float) $invoice->total - (float) $creditNote->amount);
+        $updates  = ['total' => $newTotal];
+
+        // Auto-close if fully covered
+        if ($newTotal <= 0) {
+            $updates['status']  = 'paid';
+            $updates['paid_at'] = now();
+        }
+
+        $invoice->update($updates);
         $creditNote->update(['status' => 'applied']);
 
-        return back()->with('success', 'Avoir appliqué.');
+        $msg = $newTotal <= 0
+            ? 'Avoir appliqué — facture soldée.'
+            : 'Avoir appliqué — nouveau solde de la facture : ' . number_format($newTotal, 2) . ' ' . $invoice->currency . '.';
+
+        return back()->with('success', $msg);
     }
 
     public function getInvoices(Request $request)

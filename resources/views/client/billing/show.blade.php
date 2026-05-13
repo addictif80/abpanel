@@ -9,6 +9,12 @@
         <h1 class="text-2xl font-bold text-gray-900 mt-1">Facture {{ $invoice->number }}</h1>
     </div>
     <div class="flex gap-2">
+        @if(!$invoice->isPaid() && $stripeKey)
+        <a href="{{ route('client.billing.invoice.pay', $invoice) }}"
+           class="px-4 py-2 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700 transition">
+            Payer en ligne
+        </a>
+        @endif
         <a href="{{ route('client.billing.invoice.download', $invoice) }}"
            class="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition">
             Télécharger PDF
@@ -21,6 +27,13 @@
     </div>
 </div>
 
+@foreach(['success','error','info'] as $type)
+@if(session($type))
+@php $colors=['success'=>'bg-green-50 border-green-200 text-green-700','error'=>'bg-red-50 border-red-200 text-red-700','info'=>'bg-blue-50 border-blue-200 text-blue-700']; @endphp
+<div class="mb-4 px-4 py-3 {{ $colors[$type] }} border rounded-lg text-sm">{{ session($type) }}</div>
+@endif
+@endforeach
+
 <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 max-w-2xl">
     <div class="flex justify-between items-start mb-8">
         <div>
@@ -31,6 +44,11 @@
             <div class="text-sm text-gray-500">Émise le {{ $invoice->created_at->format('d/m/Y') }}</div>
             @if($invoice->paid_at)
             <div class="text-sm text-green-600">Payée le {{ $invoice->paid_at->format('d/m/Y') }}</div>
+            @endif
+            @if($invoice->due_at && !$invoice->isPaid())
+            <div class="text-sm {{ $invoice->due_at->isPast() ? 'text-red-500 font-medium' : 'text-gray-400' }}">
+                Échéance : {{ $invoice->due_at->format('d/m/Y') }}
+            </div>
             @endif
         </div>
     </div>
@@ -55,7 +73,7 @@
             @foreach($invoice->items ?? [] as $item)
             <tr>
                 <td class="px-3 py-2 text-gray-700">{{ $item['description'] ?? '—' }}</td>
-                <td class="px-3 py-2 text-right text-gray-800 font-medium">{{ number_format($item['amount'] ?? 0, 2) }}€</td>
+                <td class="px-3 py-2 text-right text-gray-800 font-medium">{{ number_format($item['total'] ?? $item['amount'] ?? 0, 2) }}€</td>
             </tr>
             @endforeach
         </tbody>
@@ -69,11 +87,17 @@
         </div>
     </div>
 
-    <div class="mt-6 pt-4 border-t border-gray-100">
+    <div class="mt-6 pt-4 border-t border-gray-100 flex items-center justify-between">
         <span class="inline-flex px-3 py-1 rounded-full text-sm font-semibold
             {{ $invoice->status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700' }}">
             {{ $invoice->isPaid() ? 'Payée' : 'En attente de paiement' }}
         </span>
+        @if(!$invoice->isPaid() && $stripeKey)
+        <a href="{{ route('client.billing.invoice.pay', $invoice) }}"
+           class="px-4 py-2 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700 transition">
+            Payer en ligne →
+        </a>
+        @endif
     </div>
 </div>
 @endsection

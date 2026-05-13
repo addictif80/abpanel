@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Invoice;
 use App\Models\Quote;
 use App\Models\QuoteItem;
+use App\Models\QuoteLog;
 use App\Models\Setting;
 
 class QuoteService
@@ -25,37 +26,53 @@ class QuoteService
             'sent_at' => now(),
         ]);
 
+        $this->log($quote, 'sent', 'admin');
         $this->sendQuoteEmail($quote);
     }
 
     public function sendReminder(Quote $quote): void
     {
         $this->mail->sendFromTemplate('quote_reminder', $quote->user->email, $this->quoteVars($quote));
+        $this->log($quote, 'reminded', 'admin');
     }
 
     public function markViewed(Quote $quote): void
     {
         $updates = ['last_viewed_at' => now()];
-        if (! $quote->opened_at) {
+        $isFirstView = ! $quote->opened_at;
+
+        if ($isFirstView) {
             $updates['opened_at'] = now();
         }
         if ($quote->status === 'sent') {
             $updates['status'] = 'viewed';
         }
         $quote->update($updates);
+
+        if ($isFirstView) {
+            $this->log($quote, 'viewed', 'client');
+        }
     }
 
-    public function accept(Quote $quote): Invoice
+    public function accept(Quote $quote, ?string $comment = null, bool $cgvAccepted = false): Invoice
     {
-        $quote->update([
+        $extra = [];
+        if ($comment) {
+            $extra['client_comment'] = $comment;
+        }
+        if ($cgvAccepted) {
+            $extra['cgv_accepted_at'] = now();
+        }
+
+        $quote->update(array_merge([
             'status'      => 'accepted',
             'accepted_at' => now(),
-        ]);
+        ], $extra));
 
-        $paymentDays = (int) Setting::get('invoice_payment_days', 30);
-        $dueAt       = now()->addDays($paymentDays);
-        $appName     = Setting::get('app_name', config('app.name'));
+        $this->log($quote, 'accepted', 'client', $comment);
 
+        $paymentDays   = (int) Setting::get('invoice_payment_days', 30);
+        $dueAt         = now()->addDays($paymentDays);
         $depositAmount = $quote->depositAmount();
 
         if ($depositAmount > 0) {
@@ -79,7 +96,7 @@ class QuoteService
             ]);
 
             $balanceAmount = $quote->balanceAmount();
-            $invoice = Invoice::create([
+            Invoice::create([
                 'user_id'            => $quote->user_id,
                 'quote_id'           => $quote->id,
                 'type'               => 'balance',
@@ -96,7 +113,7 @@ class QuoteService
             ]);
 
             $quote->update(['status' => 'invoiced']);
-
+            $this->log($quote, 'converted', 'system');
             $this->notifyQuoteAccepted($quote);
             $this->sendInvoiceCreatedEmail($depositInvoice);
 
@@ -119,28 +136,42 @@ class QuoteService
         ]);
 
         $quote->update(['status' => 'invoiced']);
-
+        $this->log($quote, 'converted', 'system');
         $this->notifyQuoteAccepted($quote);
         $this->sendInvoiceCreatedEmail($invoice);
 
         return $invoice;
     }
 
-    public function refuse(Quote $quote): void
+    public function refuse(Quote $quote, ?string $comment = null): void
     {
-        $quote->update([
+        $extra = $comment ? ['client_comment' => $comment] : [];
+
+        $quote->update(array_merge([
             'status'     => 'refused',
             'refused_at' => now(),
-        ]);
+        ], $extra));
+
+        $this->log($quote, 'refused', 'client', $comment);
+
+        // Confirmation email to client
+        $vars = $this->quoteVars($quote);
+        $vars['client_comment'] = $comment ?? '';
+        $this->mail->sendFromTemplate('quote_refused_client', $quote->user->email, $vars);
     }
 
     public function expireOverdue(): int
     {
-        $count = Quote::whereIn('status', ['sent', 'viewed'])
+        $quotes = Quote::whereIn('status', ['sent', 'viewed'])
             ->where('expires_at', '<', now())
-            ->update(['status' => 'expired']);
+            ->get();
 
-        return $count;
+        foreach ($quotes as $quote) {
+            $quote->update(['status' => 'expired']);
+            $this->log($quote, 'expired', 'system');
+        }
+
+        return $quotes->count();
     }
 
     public function duplicateAsTemplate(Quote $source, string $templateName): Quote
@@ -173,7 +204,6 @@ class QuoteService
 
         $validityDays = (int) Setting::get('quote_validity_days', 30);
         $quote->expires_at = now()->addDays($validityDays);
-
         $quote->save();
 
         foreach ($template->items as $item) {
@@ -182,7 +212,19 @@ class QuoteService
             $newItem->save();
         }
 
+        $this->log($quote, 'created', 'admin');
+
         return $quote;
+    }
+
+    public function log(Quote $quote, string $action, string $actor = 'system', ?string $note = null): void
+    {
+        QuoteLog::create([
+            'quote_id' => $quote->id,
+            'action'   => $action,
+            'actor'    => $actor,
+            'note'     => $note,
+        ]);
     }
 
     private function sendQuoteEmail(Quote $quote): void

@@ -135,28 +135,70 @@
 
     {{-- Actions --}}
     @if($quote->isPending() && ! $quote->isExpired())
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6" x-data="{ action: '' }">
         <h3 class="font-semibold text-gray-800 mb-2">Votre réponse</h3>
         <p class="text-sm text-gray-500 mb-5">
             En acceptant ce devis, vous confirmez avoir pris connaissance des prestations décrites et vous engagez à régler le montant indiqué.
         </p>
-        <div class="flex gap-3">
+
+        {{-- Comment field --}}
+        <div x-show="action !== ''" class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+                Message <span class="text-gray-400 font-normal">(optionnel)</span>
+            </label>
+            <textarea id="client_comment" name="client_comment" rows="3" placeholder="Remarques, questions..."
+                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"></textarea>
+        </div>
+
+        {{-- CGV --}}
+        @if(!empty($cgvPath))
+        <div x-show="action === 'accept'" class="mb-4">
+            <label class="flex items-start gap-2 text-sm text-gray-700 cursor-pointer">
+                <input type="checkbox" id="cgv_accepted" class="mt-0.5 rounded border-gray-300 text-green-600" required>
+                <span>J'ai lu et j'accepte les
+                    <a href="{{ Storage::url($cgvPath) }}" target="_blank" class="text-indigo-600 underline">Conditions Générales de Vente</a>
+                </span>
+            </label>
+        </div>
+        @endif
+
+        <div class="flex flex-wrap gap-3">
+            {{-- Accept --}}
             <form method="POST" action="{{ route('quotes.accept', $quote->access_token) }}"
-                onsubmit="return confirm('Accepter ce devis pour {{ number_format($quote->total, 2) }} € ?')">
+                id="form-accept"
+                @submit.prevent="
+                    const cgv = document.getElementById('cgv_accepted');
+                    if (cgv && !cgv.checked) { alert('Veuillez accepter les CGV.'); return; }
+                    if (!confirm('Accepter ce devis pour {{ number_format($quote->total, 2) }} € ?')) return;
+                    document.getElementById('hidden_comment_accept').value = document.getElementById('client_comment')?.value ?? '';
+                    document.getElementById('hidden_cgv').value = (cgv && cgv.checked) ? '1' : '0';
+                    $el.submit();
+                ">
                 @csrf
-                <button type="submit"
+                <input type="hidden" name="client_comment" id="hidden_comment_accept">
+                <input type="hidden" name="cgv_accepted" id="hidden_cgv" value="0">
+                <button type="submit" @click="action = 'accept'"
                     class="px-6 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition">
                     Accepter le devis
                 </button>
             </form>
+
+            {{-- Refuse --}}
             <form method="POST" action="{{ route('quotes.refuse', $quote->access_token) }}"
-                onsubmit="return confirm('Refuser ce devis ?')">
+                id="form-refuse"
+                @submit.prevent="
+                    if (!confirm('Refuser ce devis ?')) return;
+                    document.getElementById('hidden_comment_refuse').value = document.getElementById('client_comment')?.value ?? '';
+                    $el.submit();
+                ">
                 @csrf
-                <button type="submit"
+                <input type="hidden" name="client_comment" id="hidden_comment_refuse">
+                <button type="submit" @click="action = 'refuse'"
                     class="px-6 py-3 bg-white border border-red-200 text-red-600 font-medium rounded-lg hover:bg-red-50 transition">
                     Refuser
                 </button>
             </form>
+
             <a href="{{ route('quotes.download-pdf', $quote->access_token) }}"
                class="px-6 py-3 bg-white border border-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition">
                 Télécharger PDF

@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Invoice;
+use App\Models\Setting;
 use App\Models\User;
+use App\Services\MailService;
 use Illuminate\Http\Request;
 
 class InvoiceController extends Controller
@@ -46,12 +48,14 @@ class InvoiceController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'user_id'      => 'required|exists:users,id',
-            'due_date'     => 'nullable|date',
-            'items'        => 'required|array|min:1',
-            'items.*.description' => 'required|string',
-            'items.*.quantity'    => 'required|numeric|min:0.01',
-            'items.*.unit_price'  => 'required|numeric|min:0',
+            'user_id'            => 'required|exists:users,id',
+            'due_date'           => 'nullable|date',
+            'items'              => 'required|array|min:1',
+            'items.*.description'=> 'required|string',
+            'items.*.quantity'   => 'required|numeric|min:0.01',
+            'items.*.unit_price' => 'required|numeric|min:0',
+            'recurrence_period'  => 'nullable|in:monthly,quarterly,yearly',
+            'next_billing_at'    => 'nullable|date',
         ]);
 
         $items = collect($request->items)->map(fn($item) => [
@@ -61,17 +65,21 @@ class InvoiceController extends Controller
             'total'       => round((float) $item['quantity'] * (float) $item['unit_price'], 2),
         ])->all();
 
-        $total = collect($items)->sum('total');
+        $total       = collect($items)->sum('total');
+        $isRecurring = $request->boolean('is_recurring');
 
         Invoice::create([
-            'user_id'  => $request->user_id,
-            'number'   => Invoice::generateNumber(),
-            'status'   => 'pending',
-            'items'    => $items,
-            'subtotal' => $total,
-            'total'    => $total,
-            'currency' => 'EUR',
-            'due_at'   => $request->due_date ?: null,
+            'user_id'           => $request->user_id,
+            'number'            => Invoice::generateNumber(),
+            'status'            => 'pending',
+            'items'             => $items,
+            'subtotal'          => $total,
+            'total'             => $total,
+            'currency'          => 'EUR',
+            'due_at'            => $request->due_date ?: null,
+            'is_recurring'      => $isRecurring,
+            'recurrence_period' => $isRecurring ? $request->recurrence_period : null,
+            'next_billing_at'   => $isRecurring ? $request->next_billing_at : null,
         ]);
 
         return redirect()->route('admin.invoices.index')->with('success', 'Facture créée.');
@@ -80,7 +88,21 @@ class InvoiceController extends Controller
     public function markPaid(Invoice $invoice)
     {
         $invoice->update(['status' => 'paid', 'paid_at' => now()]);
-        return back()->with('success', 'Facture marquée comme payée.');
+
+        try {
+            $invoice->load('user');
+            app(MailService::class)->sendFromTemplate('invoice_paid', $invoice->user->email, [
+                'client_name'    => $invoice->user->full_name,
+                'invoice_number' => $invoice->number,
+                'invoice_total'  => number_format($invoice->total, 2) . ' ' . ($invoice->currency ?? 'EUR'),
+                'paid_at'        => now()->format('d/m/Y'),
+                'company_name'   => Setting::get('app_name', config('app.name')),
+            ]);
+        } catch (\Throwable) {
+            // Don't block the action if mail fails
+        }
+
+        return back()->with('success', 'Facture marquée comme payée. Confirmation envoyée au client.');
     }
 
     public function destroy(Invoice $invoice)

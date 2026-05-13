@@ -27,18 +27,53 @@
 <div class="mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{{ session('error') }}</div>
 @endif
 
+{{-- Stats --}}
+@php
+    $statBase = \App\Models\Quote::where('is_template', false);
+    $statSent = (clone $statBase)->whereIn('status', ['sent','viewed','accepted','refused','invoiced'])->count();
+    $statAccepted = (clone $statBase)->whereIn('status', ['accepted','invoiced'])->count();
+    $statPending = (clone $statBase)->whereIn('status', ['sent','viewed'])->sum('total');
+    $convRate = $statSent > 0 ? round($statAccepted / $statSent * 100) : 0;
+@endphp
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-5">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+        <p class="text-xs text-gray-400 uppercase font-semibold">Devis envoyés</p>
+        <p class="text-2xl font-bold text-gray-900 mt-1">{{ $statSent }}</p>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+        <p class="text-xs text-gray-400 uppercase font-semibold">Taux d'acceptation</p>
+        <p class="text-2xl font-bold text-gray-900 mt-1">{{ $convRate }} %</p>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+        <p class="text-xs text-gray-400 uppercase font-semibold">CA prévisionnel</p>
+        <p class="text-2xl font-bold text-indigo-600 mt-1">{{ number_format($statPending, 0, ',', ' ') }} €</p>
+        <p class="text-xs text-gray-400">Devis en attente</p>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+        <p class="text-xs text-gray-400 uppercase font-semibold">Acceptés / Facturés</p>
+        <p class="text-2xl font-bold text-green-600 mt-1">{{ $statAccepted }}</p>
+    </div>
+</div>
+
 <div class="bg-white rounded-xl shadow-sm border border-gray-100">
     <div class="p-4 border-b border-gray-50">
-        <form method="GET" class="flex gap-3">
+        <form method="GET" class="flex flex-wrap gap-3">
             <input type="text" name="search" value="{{ request('search') }}" placeholder="Numéro, client, objet..."
-                class="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                class="flex-1 min-w-48 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
             <select name="status" class="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                 <option value="">Tous les statuts</option>
                 @foreach(['draft' => 'Brouillon', 'sent' => 'Envoyé', 'viewed' => 'Consulté', 'accepted' => 'Accepté', 'refused' => 'Refusé', 'expired' => 'Expiré', 'invoiced' => 'Facturé', 'cancelled' => 'Annulé'] as $val => $label)
                 <option value="{{ $val }}" {{ request('status') === $val ? 'selected' : '' }}>{{ $label }}</option>
                 @endforeach
             </select>
+            <input type="date" name="date_from" value="{{ request('date_from') }}" title="Du"
+                class="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            <input type="date" name="date_to" value="{{ request('date_to') }}" title="Au"
+                class="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
             <button type="submit" class="px-4 py-2 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200">Filtrer</button>
+            @if(request()->hasAny(['search','status','date_from','date_to']))
+            <a href="{{ route('admin.quotes.index') }}" class="px-4 py-2 text-sm text-gray-400 hover:text-gray-600">Réinitialiser</a>
+            @endif
         </form>
     </div>
 

@@ -242,6 +242,39 @@
             <p class="text-sm text-amber-700 whitespace-pre-line">{{ $quote->internal_notes }}</p>
         </div>
         @endif
+
+        {{-- Client comment --}}
+        @if($quote->client_comment)
+        <div class="bg-blue-50 border border-blue-100 rounded-xl p-4">
+            <h3 class="font-semibold text-blue-800 mb-2 text-xs uppercase">Message du client</h3>
+            <p class="text-sm text-blue-700 whitespace-pre-line">{{ $quote->client_comment }}</p>
+            @if($quote->cgv_accepted_at)
+            <p class="text-xs text-blue-400 mt-2">CGV acceptées le {{ $quote->cgv_accepted_at->format('d/m/Y à H:i') }}</p>
+            @endif
+        </div>
+        @endif
+
+        {{-- Action log --}}
+        @if($quote->logs->count())
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <h3 class="font-semibold text-gray-800 mb-3 text-sm">Historique</h3>
+            <ol class="space-y-2">
+                @foreach($quote->logs as $log)
+                <li class="flex items-start gap-2 text-xs text-gray-600">
+                    <span class="shrink-0 w-5 text-center">{{ $log->actionIcon() }}</span>
+                    <div>
+                        <span class="font-medium text-gray-800">{{ $log->actionLabel() }}</span>
+                        <span class="text-gray-400 ml-1">— {{ $log->created_at->format('d/m/Y H:i') }}</span>
+                        <span class="text-gray-400 ml-1">({{ $log->actor }})</span>
+                        @if($log->note)
+                        <p class="text-gray-500 italic mt-0.5">{{ $log->note }}</p>
+                        @endif
+                    </div>
+                </li>
+                @endforeach
+            </ol>
+        </div>
+        @endif
     </div>
 </div>
 @endsection

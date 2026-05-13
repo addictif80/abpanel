@@ -37,6 +37,14 @@ class QuoteController extends Controller
             $query->where('status', $request->status);
         }
 
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
         $quotes = $query->paginate(25);
 
         return view('admin.quotes.index', compact('quotes'));
@@ -115,13 +123,14 @@ class QuoteController extends Controller
         }
 
         $this->quoteService->recalculate($quote);
+        $this->quoteService->log($quote, 'created', 'admin');
 
         return redirect()->route('admin.quotes.show', $quote)->with('success', 'Devis créé.');
     }
 
     public function show(Quote $quote)
     {
-        $quote->load('items.product', 'user', 'invoices');
+        $quote->load('items.product', 'user', 'invoices', 'logs');
         return view('admin.quotes.show', compact('quote'));
     }
 

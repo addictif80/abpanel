@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Quote;
 use App\Services\PdfService;
 use App\Services\QuoteService;
+use Illuminate\Http\Request;
 
 class PublicQuoteController extends Controller
 {
@@ -16,16 +17,19 @@ class PublicQuoteController extends Controller
     public function show(string $token)
     {
         $quote = Quote::where('access_token', $token)
+            ->whereNotIn('status', ['draft', 'cancelled'])
             ->where('is_template', false)
             ->with('items.product', 'user')
             ->firstOrFail();
 
         $this->quoteService->markViewed($quote);
 
-        return view('quotes.public', compact('quote'));
+        $cgvPath = \App\Models\Setting::get('cgv_path');
+
+        return view('quotes.public', compact('quote', 'cgvPath'));
     }
 
-    public function accept(string $token)
+    public function accept(Request $request, string $token)
     {
         $quote = Quote::where('access_token', $token)
             ->where('is_template', false)
@@ -41,13 +45,23 @@ class PublicQuoteController extends Controller
                 ->with('error', 'Ce devis est expiré. Veuillez nous contacter pour obtenir un nouveau devis.');
         }
 
-        $invoice = $this->quoteService->accept($quote);
+        $cgvPath = \App\Models\Setting::get('cgv_path');
+        if ($cgvPath && ! $request->boolean('cgv_accepted')) {
+            return redirect()->route('quotes.public', $token)
+                ->with('error', 'Vous devez accepter les Conditions Générales de Vente pour valider le devis.');
+        }
+
+        $invoice = $this->quoteService->accept(
+            $quote,
+            $request->input('client_comment'),
+            $request->boolean('cgv_accepted')
+        );
 
         return redirect()->route('quotes.public', $token)
             ->with('success', 'Devis accepté ! Une facture vous sera transmise prochainement.');
     }
 
-    public function refuse(string $token)
+    public function refuse(Request $request, string $token)
     {
         $quote = Quote::where('access_token', $token)
             ->where('is_template', false)
@@ -58,7 +72,7 @@ class PublicQuoteController extends Controller
                 ->with('error', 'Ce devis ne peut plus être refusé.');
         }
 
-        $this->quoteService->refuse($quote);
+        $this->quoteService->refuse($quote, $request->input('client_comment'));
 
         return redirect()->route('quotes.public', $token)
             ->with('info', 'Devis refusé. N\'hésitez pas à nous contacter si vous souhaitez discuter d\'une nouvelle proposition.');

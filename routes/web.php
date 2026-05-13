@@ -45,10 +45,10 @@ Route::middleware('installed')->group(function () {
     });
 
     // Public quote access (token-based, no auth required)
-    Route::prefix('quotes')->name('quotes.')->group(function () {
+    Route::prefix('quotes')->name('quotes.')->middleware('throttle:30,1')->group(function () {
         Route::get('/{token}', [PublicQuoteController::class, 'show'])->name('public');
-        Route::post('/{token}/accept', [PublicQuoteController::class, 'accept'])->name('accept');
-        Route::post('/{token}/refuse', [PublicQuoteController::class, 'refuse'])->name('refuse');
+        Route::post('/{token}/accept', [PublicQuoteController::class, 'accept'])->name('accept')->middleware('throttle:5,1');
+        Route::post('/{token}/refuse', [PublicQuoteController::class, 'refuse'])->name('refuse')->middleware('throttle:5,1');
         Route::get('/{token}/download', [PublicQuoteController::class, 'downloadPdf'])->name('download-pdf');
     });
 
@@ -84,6 +84,9 @@ Route::middleware('installed')->group(function () {
             Route::get('/invoices/{invoice}', [Client\BillingController::class, 'show'])->name('invoice');
             Route::get('/invoices/{invoice}/download', [Client\BillingController::class, 'download'])->name('invoice.download');
             Route::get('/invoices/{invoice}/facturx.xml', [Client\BillingController::class, 'downloadXml'])->name('invoice.facturx');
+            Route::post('/invoices/{invoice}/pay-intent', [Client\BillingController::class, 'createPayIntent'])->name('invoice.pay-intent');
+            Route::get('/invoices/{invoice}/pay', [Client\BillingController::class, 'payPage'])->name('invoice.pay');
+            Route::get('/invoices/{invoice}/pay/success', [Client\BillingController::class, 'paySuccess'])->name('invoice.pay-success');
         });
 
         // Quotes

@@ -14,19 +14,32 @@ class Invoice extends Model
         'number', 'stripe_invoice_id', 'stripe_payment_intent_id',
         'status', 'subtotal', 'tax', 'total', 'currency',
         'items', 'metadata', 'paid_at', 'due_at',
+        'is_recurring', 'recurrence_period', 'next_billing_at',
     ];
 
     protected function casts(): array
     {
         return [
-            'items'    => 'array',
-            'metadata' => 'array',
-            'paid_at'  => 'datetime',
-            'due_at'   => 'datetime',
-            'subtotal' => 'decimal:2',
-            'tax'      => 'decimal:2',
-            'total'    => 'decimal:2',
+            'items'           => 'array',
+            'metadata'        => 'array',
+            'paid_at'         => 'datetime',
+            'due_at'          => 'datetime',
+            'next_billing_at' => 'date',
+            'subtotal'        => 'decimal:2',
+            'tax'             => 'decimal:2',
+            'total'           => 'decimal:2',
+            'is_recurring'    => 'boolean',
         ];
+    }
+
+    public function recurrenceLabel(): string
+    {
+        return match($this->recurrence_period) {
+            'monthly'   => 'Mensuelle',
+            'quarterly' => 'Trimestrielle',
+            'yearly'    => 'Annuelle',
+            default     => '—',
+        };
     }
 
     public function user(): BelongsTo

@@ -12,6 +12,7 @@ class Quote extends Model
 {
     protected $fillable = [
         'number', 'user_id', 'status', 'subject', 'notes', 'internal_notes',
+        'client_comment', 'cgv_accepted_at',
         'is_template', 'template_name',
         'subtotal', 'discount_amount', 'discount_type', 'tax_amount', 'total',
         'deposit_percent', 'currency', 'access_token',
@@ -33,6 +34,7 @@ class Quote extends Model
             'accepted_at'     => 'datetime',
             'refused_at'      => 'datetime',
             'expires_at'      => 'datetime',
+            'cgv_accepted_at' => 'datetime',
         ];
     }
 
@@ -58,6 +60,11 @@ class Quote extends Model
     public function invoices(): HasMany
     {
         return $this->hasMany(Invoice::class);
+    }
+
+    public function logs(): HasMany
+    {
+        return $this->hasMany(QuoteLog::class)->orderBy('created_at');
     }
 
     public function depositInvoice(): HasOne

@@ -79,6 +79,11 @@ class StripeService
         );
     }
 
+    public function retrievePaymentIntent(string $intentId): PaymentIntent
+    {
+        return PaymentIntent::retrieve($intentId);
+    }
+
     public function testConnection(): bool
     {
         try {
