@@ -31,7 +31,7 @@
                    class="text-xs text-indigo-600 hover:underline">Voir le HTML brut</a>
             </div>
             <iframe
-                srcdoc="{{ htmlspecialchars($mailLog->html_content) }}"
+                srcdoc="{!! htmlspecialchars($mailLog->html_content, ENT_QUOTES, 'UTF-8') !!}"
                 class="w-full border-0"
                 style="min-height: 500px;"
                 onload="this.style.height = this.contentDocument.body.scrollHeight + 'px'">
