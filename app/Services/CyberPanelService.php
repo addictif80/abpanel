@@ -19,14 +19,20 @@ class CyberPanelService
         $this->adminPassword = Setting::get('cyberpanel_password', '');
     }
 
+    private function token(): string
+    {
+        return 'Basic ' . hash('sha256', $this->adminUser . ':' . $this->adminPassword);
+    }
+
     private function request(string $controller, string $function, array $data = []): array
     {
         $response = Http::withoutVerifying()
             ->timeout(15)
-            ->withHeaders(['Content-Type' => 'application/json'])
+            ->withHeaders([
+                'Content-Type'  => 'application/json',
+                'Authorization' => $this->token(),
+            ])
             ->post("{$this->host}/cloudAPI/", array_merge([
-                'adminUser'      => $this->adminUser,
-                'adminPass'      => $this->adminPassword,
                 'serverUserName' => $this->adminUser,
                 'controller'     => $controller,
                 'function'       => $function,
