@@ -176,6 +176,12 @@ Route::middleware('installed')->group(function () {
             Route::post('/{node}/{vmid}', [Admin\VmController::class, 'importStore'])->name('store');
         });
 
+        // Mail logs
+        Route::prefix('mail-logs')->name('mail-logs.')->group(function () {
+            Route::get('/', [Admin\MailLogController::class, 'index'])->name('index');
+            Route::get('/{mailLog}', [Admin\MailLogController::class, 'show'])->name('show');
+        });
+
         // Mail templates
         Route::prefix('mail-templates')->name('mail-templates.')->group(function () {
             Route::get('/', [Admin\MailTemplateController::class, 'index'])->name('index');
