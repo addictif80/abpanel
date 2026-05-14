@@ -6,8 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Models\Quote;
 use App\Models\QuoteItem;
+use App\Models\QuoteMessage;
 use App\Models\Setting;
 use App\Models\User;
+use App\Services\MailService;
 use App\Services\PdfService;
 use App\Services\QuoteService;
 use Illuminate\Http\Request;
@@ -130,8 +132,36 @@ class QuoteController extends Controller
 
     public function show(Quote $quote)
     {
-        $quote->load('items.product', 'user', 'invoices', 'logs');
+        $quote->load('items.product', 'user', 'invoices', 'logs', 'messages.user');
         return view('admin.quotes.show', compact('quote'));
+    }
+
+    public function addMessage(Request $request, Quote $quote)
+    {
+        $request->validate(['body' => 'required|string|max:2000']);
+
+        if ($quote->status === 'cancelled') {
+            return back()->with('error', 'Impossible de laisser un message sur un devis annulé.');
+        }
+
+        QuoteMessage::create([
+            'quote_id' => $quote->id,
+            'user_id'  => auth()->id(),
+            'author'   => 'admin',
+            'body'     => $request->body,
+        ]);
+
+        // Notify client by email
+        try {
+            app(MailService::class)->sendFromTemplate('quote_message_to_client', $quote->user->email, [
+                'client_name'  => $quote->user->full_name,
+                'quote_number' => $quote->number,
+                'message_body' => $request->body,
+                'quote_url'    => route('client.quotes.show', $quote),
+            ]);
+        } catch (\Exception) {}
+
+        return back()->with('success', 'Message envoyé au client.');
     }
 
     public function edit(Quote $quote)

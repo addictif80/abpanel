@@ -151,6 +151,56 @@
         </div>
         @endif
 
+        {{-- Message thread --}}
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+                <h3 class="font-semibold text-gray-800 text-sm">Messages</h3>
+                <span class="text-xs text-gray-400">{{ $quote->messages->count() }} message(s)</span>
+            </div>
+
+            @if($quote->messages->count())
+            <div class="divide-y divide-gray-50">
+                @foreach($quote->messages as $msg)
+                <div class="px-5 py-4 flex gap-3 {{ $msg->author === 'admin' ? 'bg-indigo-50/40' : '' }}">
+                    <div class="shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold
+                        {{ $msg->author === 'admin' ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-600' }}">
+                        {{ $msg->author === 'admin' ? 'A' : strtoupper(substr($quote->user->first_name, 0, 1)) }}
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-baseline gap-2 mb-1">
+                            <span class="text-sm font-semibold {{ $msg->author === 'admin' ? 'text-indigo-700' : 'text-gray-800' }}">
+                                {{ $msg->author === 'admin' ? 'Équipe' : $quote->user->full_name }}
+                            </span>
+                            <span class="text-xs text-gray-400">{{ $msg->created_at->format('d/m/Y H:i') }}</span>
+                        </div>
+                        <p class="text-sm text-gray-700 whitespace-pre-line">{{ $msg->body }}</p>
+                    </div>
+                </div>
+                @endforeach
+            </div>
+            @else
+            <p class="px-5 py-6 text-sm text-gray-400 text-center">Aucun message pour l'instant.</p>
+            @endif
+
+            @if($quote->status !== 'cancelled')
+            <div class="px-5 py-4 border-t border-gray-100 bg-gray-50/50">
+                @if($errors->has('body'))
+                <p class="text-xs text-red-600 mb-2">{{ $errors->first('body') }}</p>
+                @endif
+                <form method="POST" action="{{ route('admin.quotes.message', $quote) }}" class="flex gap-2">
+                    @csrf
+                    <textarea name="body" rows="2" required maxlength="2000"
+                        placeholder="Répondre au client…"
+                        class="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none">{{ old('body') }}</textarea>
+                    <button type="submit"
+                        class="self-end px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition">
+                        Envoyer
+                    </button>
+                </form>
+            </div>
+            @endif
+        </div>
+
         {{-- Linked invoices --}}
         @if($quote->invoices->count())
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">

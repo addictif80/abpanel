@@ -4,6 +4,10 @@ namespace App\Http\Controllers\Client;
 
 use App\Http\Controllers\Controller;
 use App\Models\Quote;
+use App\Models\QuoteMessage;
+use App\Models\Setting;
+use App\Models\User;
+use App\Services\MailService;
 use App\Services\PdfService;
 use App\Services\QuoteService;
 use Illuminate\Http\Request;
@@ -36,7 +40,7 @@ class QuoteController extends Controller
             abort(404);
         }
 
-        $quote->load('items.product');
+        $quote->load('items.product', 'messages.user');
         $this->quoteService->markViewed($quote);
 
         return view('client.quotes.show', compact('quote'));
@@ -94,5 +98,41 @@ class QuoteController extends Controller
             'Content-Type'        => 'application/pdf',
             'Content-Disposition' => 'attachment; filename="' . $quote->number . '.pdf"',
         ]);
+    }
+
+    public function addMessage(Request $request, Quote $quote)
+    {
+        if ($quote->user_id !== auth()->id()) {
+            abort(403);
+        }
+
+        if (! $quote->isPending()) {
+            return back()->with('error', 'Vous ne pouvez laisser un message que sur un devis en attente.');
+        }
+
+        $request->validate(['body' => 'required|string|max:2000']);
+
+        QuoteMessage::create([
+            'quote_id' => $quote->id,
+            'user_id'  => auth()->id(),
+            'author'   => 'client',
+            'body'     => $request->body,
+        ]);
+
+        // Notify admin by email
+        $adminEmail = User::where('is_admin', true)->value('email');
+        if ($adminEmail) {
+            try {
+                app(MailService::class)->sendFromTemplate('quote_message_to_admin', $adminEmail, [
+                    'client_name'    => auth()->user()->full_name,
+                    'client_email'   => auth()->user()->email,
+                    'quote_number'   => $quote->number,
+                    'message_body'   => $request->body,
+                    'quote_admin_url' => route('admin.quotes.show', $quote),
+                ]);
+            } catch (\Exception) {}
+        }
+
+        return back()->with('success', 'Votre message a bien été envoyé.');
     }
 }
