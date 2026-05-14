@@ -39,6 +39,17 @@
         </div>
     </nav>
 
+    {{-- Impersonation banner --}}
+    @if(session('impersonating_admin_id'))
+    <div class="bg-orange-500 text-white text-sm px-4 py-2 flex items-center justify-between">
+        <span>Vous consultez l'espace de <strong>{{ auth()->user()->full_name }}</strong> ({{ auth()->user()->email }})</span>
+        <a href="{{ route('impersonate.stop') }}"
+           class="ml-4 px-3 py-1 bg-white text-orange-600 font-semibold rounded hover:bg-orange-50 transition text-xs">
+            ← Retour à mon compte admin
+        </a>
+    </div>
+    @endif
+
     <div class="flex">
         {{-- Sidebar --}}
         <aside class="hidden md:flex md:flex-col md:w-64 md:min-h-screen bg-white shadow-sm" :class="sidebarOpen ? 'flex' : 'hidden'">

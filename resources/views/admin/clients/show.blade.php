@@ -10,6 +10,14 @@
         <p class="text-gray-500 text-sm">{{ $client->email }}</p>
     </div>
     <div class="flex gap-2">
+        <form method="POST" action="{{ route('admin.clients.impersonate', $client) }}"
+              onsubmit="return confirm('Accéder à l\'espace de {{ addslashes($client->full_name) }} ?')">
+            @csrf
+            <button type="submit"
+                class="px-4 py-2 bg-orange-500 text-white text-sm font-semibold rounded-lg hover:bg-orange-600 transition">
+                Voir l'espace client
+            </button>
+        </form>
         <a href="{{ route('admin.clients.edit', $client) }}"
            class="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-200 transition">
             Modifier

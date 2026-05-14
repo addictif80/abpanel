@@ -105,6 +105,32 @@ class ClientController extends Controller
         return redirect()->route('admin.clients.index')->with('success', 'Client supprimé.');
     }
 
+    public function impersonate(User $client)
+    {
+        if ($client->is_admin) {
+            return back()->with('error', 'Impossible d\'impersonner un administrateur.');
+        }
+
+        session(['impersonating_admin_id' => auth()->id()]);
+        auth()->login($client);
+
+        return redirect()->route('client.dashboard')->with('success', 'Vous consultez l\'espace de ' . $client->full_name . '.');
+    }
+
+    public function stopImpersonating()
+    {
+        $adminId = session('impersonating_admin_id');
+
+        if (!$adminId) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        session()->forget('impersonating_admin_id');
+        auth()->loginUsingId($adminId);
+
+        return redirect()->route('admin.dashboard')->with('success', 'Vous êtes de retour sur votre compte administrateur.');
+    }
+
     public function resetPassword(Request $request, User $client)
     {
         $request->validate(['password' => 'required|string|min:8']);

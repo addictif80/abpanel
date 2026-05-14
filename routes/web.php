@@ -107,6 +107,9 @@ Route::middleware('installed')->group(function () {
             Route::post('/{ticket}/reply', [Client\TicketController::class, 'reply'])->name('reply');
         });
 
+        // Stop impersonating
+        Route::get('/impersonate/stop', [Admin\ClientController::class, 'stopImpersonating'])->name('impersonate.stop');
+
         // Profile
         Route::get('/profile', [Client\ProfileController::class, 'index'])->name('profile');
         Route::put('/profile', [Client\ProfileController::class, 'update'])->name('profile.update');
@@ -134,6 +137,7 @@ Route::middleware('installed')->group(function () {
         // Clients
         Route::resource('clients', Admin\ClientController::class);
         Route::post('/clients/{client}/reset-password', [Admin\ClientController::class, 'resetPassword'])->name('clients.reset-password');
+        Route::post('/clients/{client}/impersonate', [Admin\ClientController::class, 'impersonate'])->name('clients.impersonate');
 
         // Products catalog
         Route::resource('products', Admin\ProductController::class)->except(['show']);
