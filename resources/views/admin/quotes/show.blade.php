@@ -139,7 +139,7 @@
                         <span>{{ number_format($quote->balanceAmount(), 2) }} €</span>
                     </div>
                     @endif
-                    <p class="text-xs text-gray-400 pt-1">TVA non applicable, art. 293 B du CGI</p>
+                    <p class="text-xs text-gray-400 pt-1">{{ \App\Models\Setting::get('vat_mention', 'TVA non applicable, art. 293 B du CGI') }}</p>
                 </div>
             </div>
         </div>

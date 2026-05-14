@@ -122,13 +122,12 @@ class SendReminders extends Command
                 $source->update(['next_billing_at' => $next]);
 
                 try {
-                    $this->mail->sendFromTemplate('invoice_created_from_quote', $source->user->email, [
+                    $this->mail->sendFromTemplate('invoice_recurring', $source->user->email, [
                         'client_name'    => $source->user->full_name,
-                        'client_email'   => $source->user->email,
+                        'recurrence_label' => $source->recurrenceLabel(),
                         'invoice_number' => $newInvoice->number,
                         'invoice_total'  => number_format($newInvoice->total, 2) . ' ' . $newInvoice->currency,
                         'invoice_due_at' => $newInvoice->due_at?->format('d/m/Y') ?? '—',
-                        'quote_number'   => '—',
                         'company_name'   => $appName,
                     ]);
                 } catch (\Throwable) {}

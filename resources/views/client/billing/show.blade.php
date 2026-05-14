@@ -37,7 +37,7 @@
 <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 max-w-2xl">
     <div class="flex justify-between items-start mb-8">
         <div>
-            <div class="text-2xl font-bold text-indigo-600">{{ config('app.name') }}</div>
+            <div class="text-2xl font-bold text-indigo-600">{{ \App\Models\Setting::get('company_name') ?: \App\Models\Setting::get('app_name', config('app.name')) }}</div>
         </div>
         <div class="text-right">
             <div class="text-lg font-bold text-gray-900">{{ $invoice->number }}</div>

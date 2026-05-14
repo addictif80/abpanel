@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Devis {{ $quote->number }} — {{ config('app.name') }}</title>
+    <title>Devis {{ $quote->number }} — {{ \App\Models\Setting::get('company_name') ?: \App\Models\Setting::get('app_name', config('app.name')) }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="min-h-full">
@@ -12,7 +12,7 @@
 
     {{-- Header --}}
     <div class="flex items-center justify-between mb-8">
-        <div class="text-xl font-bold text-indigo-600">{{ config('app.name') }}</div>
+        <div class="text-xl font-bold text-indigo-600">{{ \App\Models\Setting::get('company_name') ?: \App\Models\Setting::get('app_name', config('app.name')) }}</div>
         <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold {{ $quote->statusColor() }}">
             {{ $quote->statusLabel() }}
         </span>
@@ -40,7 +40,7 @@
         <div class="grid grid-cols-2 gap-6 mb-6">
             <div>
                 <p class="text-xs text-gray-400 uppercase font-semibold mb-2">De</p>
-                <div class="font-semibold text-gray-800">{{ config('app.name') }}</div>
+                <div class="font-semibold text-gray-800">{{ \App\Models\Setting::get('company_name') ?: \App\Models\Setting::get('app_name', config('app.name')) }}</div>
             </div>
             <div>
                 <p class="text-xs text-gray-400 uppercase font-semibold mb-2">Pour</p>
@@ -224,7 +224,7 @@
     </div>
     @endif
 
-    <p class="text-center text-xs text-gray-400 mt-8">{{ config('app.name') }} — Devis {{ $quote->number }} émis le {{ $quote->created_at->format('d/m/Y') }}</p>
+    <p class="text-center text-xs text-gray-400 mt-8">{{ \App\Models\Setting::get('company_name') ?: \App\Models\Setting::get('app_name', config('app.name')) }} — Devis {{ $quote->number }} émis le {{ $quote->created_at->format('d/m/Y') }}</p>
 </div>
 
 </body>

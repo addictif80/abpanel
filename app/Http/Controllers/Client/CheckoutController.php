@@ -62,6 +62,8 @@ class CheckoutController extends Controller
                     'unit_price'  => $plan->price,
                     'total'       => $plan->price,
                 ]],
+                'subtotal'                 => $plan->price,
+                'tax'                      => 0,
                 'total'                    => $plan->price,
                 'currency'                 => 'EUR',
                 'metadata'                 => $plan->type === 'hosting' ? ['domain' => strtolower(trim($request->domain))] : null,
