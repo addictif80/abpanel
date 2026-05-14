@@ -47,6 +47,13 @@
                 <p class="text-sm text-gray-500 -mt-2">Ces informations apparaissent sur les devis et factures.</p>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="sm:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Nom de l'entreprise <span class="text-red-500">*</span></label>
+                        <input type="text" name="company_name" value="{{ $settings['company_name'] ?? '' }}"
+                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                            placeholder="Acme SARL, John Doe Consulting...">
+                        <p class="text-xs text-gray-400 mt-1">Affiché sur les devis et factures. Différent du nom du panel (onglet Général).</p>
+                    </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">SIREN / SIRET</label>
                         <input type="text" name="company_siren" value="{{ $settings['company_siren'] ?? '' }}"

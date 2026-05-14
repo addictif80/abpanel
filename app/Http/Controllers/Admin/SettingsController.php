@@ -161,6 +161,7 @@ class SettingsController extends Controller
     public function saveCompany(Request $request)
     {
         $request->validate([
+            'company_name'       => 'nullable|string|max:100',
             'company_siren'      => 'nullable|string|max:20',
             'company_legal_form' => 'nullable|string|max:100',
             'company_rcs'        => 'nullable|string|max:100',
@@ -170,7 +171,7 @@ class SettingsController extends Controller
             'company_address'    => 'nullable|string|max:255',
         ]);
 
-        foreach (['company_siren', 'company_legal_form', 'company_rcs', 'company_iban', 'company_bic', 'company_phone', 'company_address'] as $key) {
+        foreach (['company_name', 'company_siren', 'company_legal_form', 'company_rcs', 'company_iban', 'company_bic', 'company_phone', 'company_address'] as $key) {
             Setting::set($key, $request->input($key, ''), 'company');
         }
 

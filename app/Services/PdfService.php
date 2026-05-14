@@ -37,7 +37,7 @@ class PdfService
         $settings = Setting::group('general') + Setting::group('company') + Setting::group('quotes');
 
         $seller = [
-            'name'      => $settings['app_name'] ?? config('app.name'),
+            'name'      => $settings['company_name'] ?? $settings['app_name'] ?? config('app.name'),
             'siren'     => $settings['company_siren'] ?? '',
             'address'   => '',
             'legal_form'=> $settings['company_legal_form'] ?? 'Micro-entreprise',

@@ -35,7 +35,7 @@ td.bold { font-weight: bold; }
 
 <div class="header">
     <div>
-        <div class="brand">{{ $settings['app_name'] ?? config('app.name') }}</div>
+        <div class="brand">{{ $settings['company_name'] ?? $settings['app_name'] ?? config('app.name') }}</div>
         <div class="company-meta">
             @if(!empty($settings['company_legal_form'])){{ $settings['company_legal_form'] }}@endif
             @if(!empty($settings['company_siren'])) — SIREN {{ $settings['company_siren'] }}@endif
@@ -125,7 +125,7 @@ td.bold { font-weight: bold; }
 </div>
 
 <div class="footer">
-    {{ $settings['app_name'] ?? config('app.name') }}
+    {{ $settings['company_name'] ?? $settings['app_name'] ?? config('app.name') }}
     @if(!empty($settings['company_siren'])) — SIREN {{ $settings['company_siren'] }} @endif
     @if(!empty($settings['company_legal_form'])) — {{ $settings['company_legal_form'] }} @endif
 </div>
