@@ -71,6 +71,16 @@ class User extends Authenticatable
         return $this->hasMany(CreditNote::class);
     }
 
+    public function appNotifications(): HasMany
+    {
+        return $this->hasMany(Notification::class);
+    }
+
+    public function projects(): HasMany
+    {
+        return $this->hasMany(Project::class);
+    }
+
     public function isPro(): bool
     {
         return ! empty($this->siret);

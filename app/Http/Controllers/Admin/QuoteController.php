@@ -10,6 +10,7 @@ use App\Models\QuoteMessage;
 use App\Models\Setting;
 use App\Models\User;
 use App\Services\MailService;
+use App\Services\NotificationService;
 use App\Services\PdfService;
 use App\Services\QuoteService;
 use Illuminate\Http\Request;
@@ -151,7 +152,7 @@ class QuoteController extends Controller
             'body'     => $request->body,
         ]);
 
-        // Notify client by email
+        // Notify client by email and in-app
         try {
             app(MailService::class)->sendFromTemplate('quote_message_to_client', $quote->user->email, [
                 'client_name'  => $quote->user->full_name,
@@ -160,6 +161,8 @@ class QuoteController extends Controller
                 'quote_url'    => route('client.quotes.show', $quote),
             ]);
         } catch (\Exception) {}
+
+        app(NotificationService::class)->quoteMessage($quote, mb_substr($request->body, 0, 120), toAdmin: false);
 
         return back()->with('success', 'Message envoyé au client.');
     }

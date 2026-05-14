@@ -8,6 +8,7 @@ use App\Http\Controllers\Auth\ResetPasswordController;
 use App\Http\Controllers\Client;
 use App\Http\Controllers\Install\InstallController;
 use App\Http\Controllers\NewsletterController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PublicQuoteController;
 use App\Http\Controllers\WebhookController;
 use Illuminate\Support\Facades\Route;
@@ -109,6 +110,13 @@ Route::middleware('installed')->group(function () {
             Route::post('/', [Client\TicketController::class, 'store'])->name('store');
             Route::get('/{ticket}', [Client\TicketController::class, 'show'])->name('show');
             Route::post('/{ticket}/reply', [Client\TicketController::class, 'reply'])->name('reply');
+        });
+
+        // Projects
+        Route::prefix('projects')->name('projects.')->group(function () {
+            Route::get('/', [Client\ProjectController::class, 'index'])->name('index');
+            Route::get('/{project}', [Client\ProjectController::class, 'show'])->name('show');
+            Route::post('/{project}/message', [Client\ProjectController::class, 'addMessage'])->name('message');
         });
 
         // Stop impersonating
@@ -238,6 +246,17 @@ Route::middleware('installed')->group(function () {
         Route::resource('invoices', Admin\InvoiceController::class)->only(['index', 'show', 'create', 'store', 'destroy']);
         Route::post('/invoices/{invoice}/mark-paid', [Admin\InvoiceController::class, 'markPaid'])->name('invoices.mark-paid');
 
+        // Projects
+        Route::prefix('projects')->name('projects.')->group(function () {
+            Route::get('/', [Admin\ProjectController::class, 'index'])->name('index');
+            Route::get('/create', [Admin\ProjectController::class, 'create'])->name('create');
+            Route::post('/', [Admin\ProjectController::class, 'store'])->name('store');
+            Route::get('/{project}', [Admin\ProjectController::class, 'show'])->name('show');
+            Route::put('/{project}', [Admin\ProjectController::class, 'update'])->name('update');
+            Route::delete('/{project}', [Admin\ProjectController::class, 'destroy'])->name('destroy');
+            Route::post('/{project}/message', [Admin\ProjectController::class, 'addMessage'])->name('message');
+        });
+
         // Tickets
         Route::prefix('tickets')->name('tickets.')->group(function () {
             Route::get('/', [Admin\TicketController::class, 'index'])->name('index');
@@ -245,6 +264,13 @@ Route::middleware('installed')->group(function () {
             Route::post('/{ticket}/reply', [Admin\TicketController::class, 'reply'])->name('reply');
             Route::post('/{ticket}/status', [Admin\TicketController::class, 'updateStatus'])->name('status');
         });
+    });
+
+    // Notifications (any authenticated user)
+    Route::middleware('auth')->prefix('notifications')->name('notifications.')->group(function () {
+        Route::get('/', [NotificationController::class, 'index'])->name('index');
+        Route::post('/read-all', [NotificationController::class, 'markAllRead'])->name('read-all');
+        Route::post('/{notification}/read', [NotificationController::class, 'markRead'])->name('read');
     });
 
     // Root redirect

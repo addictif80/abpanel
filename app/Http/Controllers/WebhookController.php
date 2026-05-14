@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Invoice;
 use App\Models\User;
 use App\Services\MailService;
+use App\Services\NotificationService;
 use App\Services\ProvisioningService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -47,6 +48,11 @@ class WebhookController extends Controller
         if ($invoice->status === 'paid') return;
 
         $invoice->update(['status' => 'paid', 'paid_at' => now()]);
+
+        try {
+            app(NotificationService::class)->paymentConfirmed($invoice);
+            app(NotificationService::class)->paymentReceived($invoice);
+        } catch (\Exception) {}
 
         // Provision VM/container if the plan requires it
         try {

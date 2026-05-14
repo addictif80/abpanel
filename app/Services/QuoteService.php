@@ -10,7 +10,10 @@ use App\Models\Setting;
 
 class QuoteService
 {
-    public function __construct(private readonly MailService $mail) {}
+    public function __construct(
+        private readonly MailService $mail,
+        private readonly NotificationService $notifService,
+    ) {}
 
     public function recalculate(Quote $quote): void
     {
@@ -28,6 +31,7 @@ class QuoteService
 
         $this->log($quote, 'sent', 'admin');
         $this->sendQuoteEmail($quote);
+        $this->notifService->quoteSent($quote);
     }
 
     public function sendReminder(Quote $quote): void

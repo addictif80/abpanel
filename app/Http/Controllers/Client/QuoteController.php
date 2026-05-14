@@ -8,6 +8,7 @@ use App\Models\QuoteMessage;
 use App\Models\Setting;
 use App\Models\User;
 use App\Services\MailService;
+use App\Services\NotificationService;
 use App\Services\PdfService;
 use App\Services\QuoteService;
 use Illuminate\Http\Request;
@@ -119,19 +120,21 @@ class QuoteController extends Controller
             'body'     => $request->body,
         ]);
 
-        // Notify admin by email
+        // Notify admin by email and in-app
         $adminEmail = User::where('is_admin', true)->value('email');
         if ($adminEmail) {
             try {
                 app(MailService::class)->sendFromTemplate('quote_message_to_admin', $adminEmail, [
-                    'client_name'    => auth()->user()->full_name,
-                    'client_email'   => auth()->user()->email,
-                    'quote_number'   => $quote->number,
-                    'message_body'   => $request->body,
+                    'client_name'     => auth()->user()->full_name,
+                    'client_email'    => auth()->user()->email,
+                    'quote_number'    => $quote->number,
+                    'message_body'    => $request->body,
                     'quote_admin_url' => route('admin.quotes.show', $quote),
                 ]);
             } catch (\Exception) {}
         }
+
+        app(NotificationService::class)->quoteMessage($quote, mb_substr($request->body, 0, 120), toAdmin: true);
 
         return back()->with('success', 'Votre message a bien été envoyé.');
     }

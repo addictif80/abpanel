@@ -7,6 +7,7 @@ use App\Models\Invoice;
 use App\Models\Setting;
 use App\Models\User;
 use App\Services\MailService;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 
 class InvoiceController extends Controller
@@ -82,12 +83,18 @@ class InvoiceController extends Controller
             'next_billing_at'   => $isRecurring ? $request->next_billing_at : null,
         ]);
 
+        $invoice = Invoice::where('user_id', $request->user_id)->latest()->first();
+        if ($invoice) {
+            try { app(NotificationService::class)->invoiceCreated($invoice); } catch (\Exception) {}
+        }
+
         return redirect()->route('admin.invoices.index')->with('success', 'Facture créée.');
     }
 
     public function markPaid(Invoice $invoice)
     {
         $invoice->update(['status' => 'paid', 'paid_at' => now()]);
+        try { app(NotificationService::class)->paymentConfirmed($invoice); } catch (\Exception) {}
 
         try {
             $invoice->load('user');

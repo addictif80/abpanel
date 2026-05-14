@@ -2,11 +2,14 @@
 
 namespace App\Console\Commands;
 
+use App\Models\HostingAccount;
 use App\Models\Invoice;
 use App\Models\Quote;
 use App\Models\QuoteLog;
 use App\Models\Setting;
+use App\Models\VirtualMachine;
 use App\Services\MailService;
+use App\Services\NotificationService;
 use Illuminate\Console\Command;
 
 class SendReminders extends Command
@@ -14,8 +17,10 @@ class SendReminders extends Command
     protected $signature   = 'reminders:send {--dry-run : Afficher sans envoyer}';
     protected $description = 'Envoie les relances, expire les devis, et génère les factures récurrentes';
 
-    public function __construct(private readonly MailService $mail)
-    {
+    public function __construct(
+        private readonly MailService $mail,
+        private readonly NotificationService $notif,
+    ) {
         parent::__construct();
     }
 
@@ -81,6 +86,37 @@ class SendReminders extends Command
                     'invoice_due_at' => $invoice->due_at?->format('d/m/Y') ?? '—',
                     'company_name'   => $appName,
                 ]);
+                try { $this->notif->invoiceOverdue($invoice); } catch (\Exception) {}
+            }
+        }
+
+        // 4. Renewal approaching (7 days) — VMs
+        $vmRenewals = VirtualMachine::whereNotNull('next_renewal_at')
+            ->whereBetween('next_renewal_at', [now()->addDays(6)->startOfDay(), now()->addDays(7)->endOfDay()])
+            ->with('user')
+            ->get();
+
+        foreach ($vmRenewals as $vm) {
+            $this->line("Renouvellement VM {$vm->name} dans 7 jours → {$vm->user->email}");
+            if (! $dry) {
+                try {
+                    $this->notif->renewalSoon($vm->user, 'vm', $vm->name, 7, route('client.vms.show', $vm));
+                } catch (\Exception) {}
+            }
+        }
+
+        // 5. Renewal approaching (7 days) — Hosting
+        $hostingRenewals = HostingAccount::whereNotNull('next_renewal_at')
+            ->whereBetween('next_renewal_at', [now()->addDays(6)->startOfDay(), now()->addDays(7)->endOfDay()])
+            ->with('user')
+            ->get();
+
+        foreach ($hostingRenewals as $h) {
+            $this->line("Renouvellement hébergement {$h->domain} dans 7 jours → {$h->user->email}");
+            if (! $dry) {
+                try {
+                    $this->notif->renewalSoon($h->user, 'hosting', $h->domain, 7, route('client.hosting.index'));
+                } catch (\Exception) {}
             }
         }
 
@@ -131,16 +167,20 @@ class SendReminders extends Command
                         'company_name'   => $appName,
                     ]);
                 } catch (\Throwable) {}
+
+                try { $this->notif->invoiceCreated($newInvoice); } catch (\Exception) {}
             }
 
             $recurringCount++;
         }
 
         $this->info(sprintf(
-            '%d devis expirés, %d relances devis, %d relances factures, %d factures récurrentes%s',
+            '%d devis expirés, %d relances devis, %d relances factures, %d renouvellements VM, %d renouvellements hébergement, %d factures récurrentes%s',
             $expiredCount,
             $expiringSoon->count(),
             $overdueInvoices->count(),
+            $vmRenewals->count(),
+            $hostingRenewals->count(),
             $recurringCount,
             $dry ? ' (dry-run)' : '',
         ));
