@@ -70,6 +70,9 @@ Route::middleware('installed')->group(function () {
             Route::post('/{vm}/password', [Client\VmController::class, 'changeRootPassword'])->name('password');
         });
 
+        // Hosting
+        Route::get('/hosting', [Client\HostingController::class, 'index'])->name('hosting.index');
+
         // Plans & Checkout
         Route::prefix('checkout')->name('checkout.')->group(function () {
             Route::get('/plans', [Client\CheckoutController::class, 'plans'])->name('plans');

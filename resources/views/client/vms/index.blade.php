@@ -13,10 +13,10 @@
     <svg class="w-12 h-12 text-gray-300 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/>
     </svg>
-    <p class="text-gray-400 text-sm">Vous n'avez pas encore de machine virtuelle.</p>
-    <p class="text-gray-400 text-sm mt-1">Contactez le support pour en commander une.</p>
-    <a href="{{ route('client.tickets.create') }}" class="mt-4 inline-block px-5 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition">
-        Contacter le support
+    <p class="text-gray-700 font-medium mb-1">Vous n'avez pas encore de machine virtuelle.</p>
+    <p class="text-gray-400 text-sm mb-4">Consultez nos offres et souscrivez pour bénéficier d'une VM.</p>
+    <a href="{{ route('client.checkout.plans') }}" class="inline-block px-5 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition">
+        Consulter les offres
     </a>
 </div>
 @else

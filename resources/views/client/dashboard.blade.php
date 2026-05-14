@@ -82,6 +82,7 @@
     <div class="bg-white rounded-xl shadow-sm border border-gray-100">
         <div class="flex items-center justify-between px-5 py-4 border-b border-gray-50">
             <h2 class="font-semibold text-gray-800 text-sm">Hébergements web</h2>
+            <a href="{{ route('client.hosting.index') }}" class="text-xs text-indigo-600 hover:underline">Gérer →</a>
         </div>
         <div class="divide-y divide-gray-50">
             @forelse($hostingAccounts as $hosting)
