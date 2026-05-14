@@ -67,6 +67,11 @@ class Quote extends Model
         return $this->hasMany(QuoteLog::class)->orderBy('created_at');
     }
 
+    public function messages(): HasMany
+    {
+        return $this->hasMany(QuoteMessage::class)->orderBy('created_at');
+    }
+
     public function depositInvoice(): HasOne
     {
         return $this->hasOne(Invoice::class)->where('type', 'deposit');

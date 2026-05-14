@@ -98,6 +98,7 @@ Route::middleware('installed')->group(function () {
             Route::get('/{quote}', [Client\QuoteController::class, 'show'])->name('show');
             Route::post('/{quote}/accept', [Client\QuoteController::class, 'accept'])->name('accept');
             Route::post('/{quote}/refuse', [Client\QuoteController::class, 'refuse'])->name('refuse');
+            Route::post('/{quote}/message', [Client\QuoteController::class, 'addMessage'])->name('message');
             Route::get('/{quote}/download', [Client\QuoteController::class, 'downloadPdf'])->name('download-pdf');
         });
 
@@ -160,6 +161,7 @@ Route::middleware('installed')->group(function () {
             Route::post('/{quote}/cancel', [Admin\QuoteController::class, 'cancel'])->name('cancel');
             Route::post('/{quote}/save-template', [Admin\QuoteController::class, 'saveAsTemplate'])->name('save-template');
             Route::get('/{quote}/download-pdf', [Admin\QuoteController::class, 'downloadPdf'])->name('download-pdf');
+            Route::post('/{quote}/message', [Admin\QuoteController::class, 'addMessage'])->name('message');
             Route::delete('/{quote}', [Admin\QuoteController::class, 'destroy'])->name('destroy');
         });
 
