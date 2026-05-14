@@ -90,6 +90,16 @@ class CyberPanelService
         return $this->request('fetchWebsites', ['page' => $page]);
     }
 
+    public function listAllWebsites(): array
+    {
+        $result = $this->request('fetchWebsites', ['page' => 1]);
+        $raw = $result['data'] ?? [];
+        if (is_string($raw)) {
+            $raw = json_decode($raw, true) ?? [];
+        }
+        return array_values(array_filter($raw, fn($s) => isset($s['domain'])));
+    }
+
     public function getWebsiteData(string $domain): array
     {
         return $this->request('fetchWebsiteDataJSON', [
