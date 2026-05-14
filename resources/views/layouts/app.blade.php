@@ -26,7 +26,64 @@
                     <a href="/" class="text-white font-bold text-xl">{{ config('app.name', 'ABPanel') }}</a>
                 </div>
                 <div class="flex items-center gap-4">
-                    <span class="text-indigo-200 text-sm">{{ auth()->user()->full_name }}</span>
+                    <span class="text-indigo-200 text-sm hidden sm:inline">{{ auth()->user()->full_name }}</span>
+
+                    {{-- Notification bell --}}
+                    @php
+                        $unreadCount = auth()->user()->appNotifications()->whereNull('read_at')->count();
+                        $recentNotifs = auth()->user()->appNotifications()->latest()->limit(8)->get();
+                    @endphp
+                    <div class="relative" x-data="{ open: false }" @click.outside="open = false">
+                        <button @click="open = !open" class="relative text-indigo-200 hover:text-white transition">
+                            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                            </svg>
+                            @if($unreadCount > 0)
+                            <span class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center leading-none">
+                                {{ $unreadCount > 9 ? '9+' : $unreadCount }}
+                            </span>
+                            @endif
+                        </button>
+
+                        <div x-show="open" x-cloak
+                             class="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-lg border border-gray-100 z-50 overflow-hidden">
+                            <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+                                <span class="font-semibold text-gray-800 text-sm">Notifications</span>
+                                @if($unreadCount > 0)
+                                <form method="POST" action="{{ route('notifications.read-all') }}" @submit="open = false">
+                                    @csrf
+                                    <button class="text-xs text-indigo-600 hover:underline">Tout lire</button>
+                                </form>
+                                @endif
+                            </div>
+                            <div class="max-h-96 overflow-y-auto divide-y divide-gray-50">
+                                @forelse($recentNotifs as $notif)
+                                <a href="{{ route('notifications.read', $notif) }}"
+                                   class="flex items-start gap-3 px-4 py-3 hover:bg-gray-50 transition {{ $notif->isUnread() ? 'bg-indigo-50/30' : '' }}">
+                                    <span class="text-lg shrink-0 mt-0.5">{{ $notif->icon() }}</span>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-sm font-medium text-gray-800 leading-tight truncate">{{ $notif->title }}</p>
+                                        @if($notif->body)
+                                        <p class="text-xs text-gray-400 mt-0.5 truncate">{{ $notif->body }}</p>
+                                        @endif
+                                        <p class="text-xs text-gray-300 mt-0.5">{{ $notif->created_at->diffForHumans() }}</p>
+                                    </div>
+                                    @if($notif->isUnread())
+                                    <div class="shrink-0 w-2 h-2 rounded-full bg-indigo-500 mt-1.5"></div>
+                                    @endif
+                                </a>
+                                @empty
+                                <p class="px-4 py-6 text-sm text-gray-400 text-center">Aucune notification</p>
+                                @endforelse
+                            </div>
+                            <div class="px-4 py-2.5 border-t border-gray-100 bg-gray-50">
+                                <a href="{{ route('notifications.index') }}" class="text-xs text-indigo-600 hover:underline">
+                                    Voir toutes les notifications →
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
                     @if(auth()->user()->is_admin)
                         <a href="{{ route('admin.dashboard') }}" class="text-indigo-200 hover:text-white text-sm">Admin</a>
                     @endif
