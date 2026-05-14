@@ -110,7 +110,7 @@
                 @forelse($client->invoices as $invoice)
                 <div class="px-5 py-3 flex items-center justify-between">
                     <div>
-                        <div class="font-medium text-sm text-gray-800">{{ $invoice->number }}</div>
+                        <a href="{{ route('admin.invoices.show', $invoice) }}" class="font-medium text-sm text-indigo-600 hover:underline">{{ $invoice->number }}</a>
                         <div class="text-xs text-gray-400">{{ $invoice->created_at->format('d/m/Y') }}</div>
                     </div>
                     <div class="text-right">
@@ -120,6 +120,54 @@
                 </div>
                 @empty
                 <div class="px-5 py-6 text-center text-sm text-gray-400">Aucune facture</div>
+                @endforelse
+            </div>
+        </div>
+
+        {{-- Devis --}}
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+            <div class="flex items-center justify-between px-5 py-4 border-b border-gray-50">
+                <h2 class="font-semibold text-gray-800 text-sm">Devis récents</h2>
+                <a href="{{ route('admin.quotes.index', ['search' => $client->email]) }}" class="text-xs text-indigo-600 hover:underline">Voir tout →</a>
+            </div>
+            <div class="divide-y divide-gray-50">
+                @forelse($client->quotes as $quote)
+                <div class="px-5 py-3 flex items-center justify-between">
+                    <div>
+                        <a href="{{ route('admin.quotes.show', $quote) }}" class="font-medium text-sm text-indigo-600 hover:underline">{{ $quote->number }}</a>
+                        <div class="text-xs text-gray-400">{{ $quote->created_at->format('d/m/Y') }}</div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="font-semibold text-sm text-gray-800">{{ number_format($quote->total, 2) }} {{ $quote->currency }}</span>
+                        @php
+                            $qColor = match($quote->status) {
+                                'draft'    => 'bg-gray-100 text-gray-600',
+                                'sent'     => 'bg-blue-100 text-blue-700',
+                                'viewed'   => 'bg-purple-100 text-purple-700',
+                                'accepted' => 'bg-green-100 text-green-700',
+                                'refused'  => 'bg-red-100 text-red-700',
+                                'invoiced' => 'bg-indigo-100 text-indigo-700',
+                                'expired'  => 'bg-orange-100 text-orange-700',
+                                'cancelled'=> 'bg-gray-100 text-gray-500',
+                                default    => 'bg-gray-100 text-gray-600',
+                            };
+                            $qLabel = match($quote->status) {
+                                'draft'    => 'Brouillon',
+                                'sent'     => 'Envoyé',
+                                'viewed'   => 'Consulté',
+                                'accepted' => 'Accepté',
+                                'refused'  => 'Refusé',
+                                'invoiced' => 'Facturé',
+                                'expired'  => 'Expiré',
+                                'cancelled'=> 'Annulé',
+                                default    => $quote->status,
+                            };
+                        @endphp
+                        <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium {{ $qColor }}">{{ $qLabel }}</span>
+                    </div>
+                </div>
+                @empty
+                <div class="px-5 py-6 text-center text-sm text-gray-400">Aucun devis</div>
                 @endforelse
             </div>
         </div>

@@ -27,7 +27,7 @@ class ClientController extends Controller
 
     public function show(User $client)
     {
-        $client->load(['virtualMachines', 'hostingAccounts', 'invoices' => fn($q) => $q->latest()->limit(10), 'tickets' => fn($q) => $q->latest()->limit(10)]);
+        $client->load(['virtualMachines', 'hostingAccounts', 'invoices' => fn($q) => $q->latest()->limit(10), 'tickets' => fn($q) => $q->latest()->limit(10), 'quotes' => fn($q) => $q->where('is_template', false)->latest()->limit(10)]);
         return view('admin.clients.show', compact('client'));
     }
 

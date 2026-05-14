@@ -18,7 +18,8 @@ class DashboardController extends Controller
         $openTickets = $user->tickets()->whereIn('status', ['open', 'in_progress'])->count();
         $unpaidInvoices = $user->invoices()->where('status', 'pending')->count();
         $lastInvoice = $user->invoices()->latest()->first();
+        $pendingQuotes = $user->quotes()->whereIn('status', ['sent', 'viewed'])->where('is_template', false)->latest()->limit(5)->get();
 
-        return view('client.dashboard', compact('vms', 'hostingAccounts', 'openTickets', 'unpaidInvoices', 'lastInvoice'));
+        return view('client.dashboard', compact('vms', 'hostingAccounts', 'openTickets', 'unpaidInvoices', 'lastInvoice', 'pendingQuotes'));
     }
 }

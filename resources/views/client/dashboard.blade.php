@@ -9,6 +9,13 @@
 </div>
 
 {{-- Alertes --}}
+@if($pendingQuotes->count() > 0)
+<div class="mb-4 flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-800">
+    <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+    <span>Vous avez <strong>{{ $pendingQuotes->count() }} devis</strong> en attente de réponse.</span>
+    <a href="{{ route('client.quotes.index') }}" class="ml-auto font-semibold hover:underline">Voir →</a>
+</div>
+@endif
 @if($unpaidInvoices > 0)
 <div class="mb-4 flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
     <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -36,6 +43,32 @@
         <div class="text-xs text-gray-500 mt-1">Ticket(s) ouvert(s)</div>
     </div>
 </div>
+
+{{-- Devis en attente --}}
+@if($pendingQuotes->count() > 0)
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 mb-6">
+    <div class="flex items-center justify-between px-5 py-4 border-b border-gray-50">
+        <h2 class="font-semibold text-gray-800 text-sm">Devis en attente de réponse</h2>
+        <a href="{{ route('client.quotes.index') }}" class="text-xs text-indigo-600 hover:underline">Tous les devis →</a>
+    </div>
+    <div class="divide-y divide-gray-50">
+        @foreach($pendingQuotes as $quote)
+        <div class="px-5 py-3 flex items-center justify-between">
+            <div>
+                <a href="{{ route('client.quotes.show', $quote) }}" class="font-medium text-sm text-indigo-600 hover:underline">{{ $quote->number }}</a>
+                <div class="text-xs text-gray-400">{{ $quote->created_at->format('d/m/Y') }}@if($quote->expires_at) · Expire le {{ $quote->expires_at->format('d/m/Y') }}@endif</div>
+            </div>
+            <div class="flex items-center gap-3">
+                <span class="font-semibold text-sm text-gray-800">{{ number_format($quote->total, 2) }} {{ $quote->currency }}</span>
+                <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium {{ $quote->status === 'viewed' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700' }}">
+                    {{ $quote->status === 'viewed' ? 'Consulté' : 'En attente' }}
+                </span>
+            </div>
+        </div>
+        @endforeach
+    </div>
+</div>
+@endif
 
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
