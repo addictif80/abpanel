@@ -19,7 +19,7 @@
 
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-    {{-- Infos client --}}
+    {{-- Colonne infos --}}
     <div class="space-y-4">
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
             <h2 class="font-semibold text-gray-800 text-sm mb-4">Informations</h2>
@@ -33,6 +33,29 @@
                 <div class="flex justify-between"><dt class="text-gray-500">CyberPanel</dt><dd class="font-mono text-xs text-gray-800">{{ $client->cyberpanel_username ?: '—' }}</dd></div>
                 <div class="flex justify-between"><dt class="text-gray-500">Inscription</dt><dd class="text-gray-800">{{ $client->created_at->format('d/m/Y') }}</dd></div>
             </dl>
+        </div>
+
+        {{-- Compteurs --}}
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <h2 class="font-semibold text-gray-800 text-sm mb-3">Résumé</h2>
+            <div class="grid grid-cols-2 gap-3 text-center">
+                <div class="bg-gray-50 rounded-lg p-3">
+                    <div class="text-xl font-bold text-indigo-600">{{ $client->virtualMachines->count() }}</div>
+                    <div class="text-xs text-gray-500 mt-0.5">VM(s)</div>
+                </div>
+                <div class="bg-gray-50 rounded-lg p-3">
+                    <div class="text-xl font-bold text-blue-600">{{ $client->hostingAccounts->count() }}</div>
+                    <div class="text-xs text-gray-500 mt-0.5">Hébergement(s)</div>
+                </div>
+                <div class="bg-gray-50 rounded-lg p-3">
+                    <div class="text-xl font-bold text-amber-600">{{ $client->invoices->where('status', 'pending')->count() }}</div>
+                    <div class="text-xs text-gray-500 mt-0.5">Facture(s) impayée(s)</div>
+                </div>
+                <div class="bg-gray-50 rounded-lg p-3">
+                    <div class="text-xl font-bold text-red-500">{{ $client->tickets->whereIn('status', ['open', 'in_progress'])->count() }}</div>
+                    <div class="text-xs text-gray-500 mt-0.5">Ticket(s) ouvert(s)</div>
+                </div>
+            </div>
         </div>
 
         {{-- Reset password --}}
@@ -55,10 +78,10 @@
         </div>
     </div>
 
-    {{-- VMs + Tickets --}}
+    {{-- Colonne principale --}}
     <div class="lg:col-span-2 space-y-4">
 
-        {{-- VMs --}}
+        {{-- Machines virtuelles --}}
         <div class="bg-white rounded-xl shadow-sm border border-gray-100">
             <div class="flex items-center justify-between px-5 py-4 border-b border-gray-50">
                 <h2 class="font-semibold text-gray-800 text-sm">Machines virtuelles ({{ $client->virtualMachines->count() }})</h2>
@@ -81,45 +104,24 @@
             </div>
         </div>
 
-        {{-- Tickets récents --}}
+        {{-- Hébergements web --}}
         <div class="bg-white rounded-xl shadow-sm border border-gray-100">
             <div class="flex items-center justify-between px-5 py-4 border-b border-gray-50">
-                <h2 class="font-semibold text-gray-800 text-sm">Tickets récents</h2>
+                <h2 class="font-semibold text-gray-800 text-sm">Hébergements web ({{ $client->hostingAccounts->count() }})</h2>
             </div>
             <div class="divide-y divide-gray-50">
-                @forelse($client->tickets as $ticket)
+                @forelse($client->hostingAccounts as $hosting)
                 <div class="px-5 py-3 flex items-center justify-between">
                     <div>
-                        <a href="{{ route('admin.tickets.show', $ticket) }}" class="font-medium text-sm text-indigo-600 hover:underline">#{{ $ticket->number }} — {{ $ticket->subject }}</a>
-                        <div class="text-xs text-gray-400">{{ $ticket->created_at->format('d/m/Y H:i') }}</div>
+                        <div class="font-medium text-sm text-gray-800">{{ $hosting->domain }}</div>
+                        <div class="text-xs text-gray-400">{{ $hosting->plan }} · {{ $hosting->disk_mb }}MB</div>
                     </div>
-                    <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">{{ $ticket->status }}</span>
+                    <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium {{ $hosting->is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500' }}">
+                        {{ $hosting->is_active ? 'Actif' : 'Inactif' }}
+                    </span>
                 </div>
                 @empty
-                <div class="px-5 py-6 text-center text-sm text-gray-400">Aucun ticket</div>
-                @endforelse
-            </div>
-        </div>
-
-        {{-- Factures --}}
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100">
-            <div class="flex items-center justify-between px-5 py-4 border-b border-gray-50">
-                <h2 class="font-semibold text-gray-800 text-sm">Dernières factures</h2>
-            </div>
-            <div class="divide-y divide-gray-50">
-                @forelse($client->invoices as $invoice)
-                <div class="px-5 py-3 flex items-center justify-between">
-                    <div>
-                        <a href="{{ route('admin.invoices.show', $invoice) }}" class="font-medium text-sm text-indigo-600 hover:underline">{{ $invoice->number }}</a>
-                        <div class="text-xs text-gray-400">{{ $invoice->created_at->format('d/m/Y') }}</div>
-                    </div>
-                    <div class="text-right">
-                        <div class="font-semibold text-sm {{ $invoice->isPaid() ? 'text-green-600' : 'text-amber-600' }}">{{ number_format($invoice->total, 2) }}€</div>
-                        <div class="text-xs text-gray-400">{{ $invoice->isPaid() ? 'Payée' : 'En attente' }}</div>
-                    </div>
-                </div>
-                @empty
-                <div class="px-5 py-6 text-center text-sm text-gray-400">Aucune facture</div>
+                <div class="px-5 py-6 text-center text-sm text-gray-400">Aucun hébergement</div>
                 @endforelse
             </div>
         </div>
@@ -171,6 +173,84 @@
                 @endforelse
             </div>
         </div>
+
+        {{-- Factures & paiements --}}
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+            <div class="flex items-center justify-between px-5 py-4 border-b border-gray-50">
+                <h2 class="font-semibold text-gray-800 text-sm">Factures &amp; paiements</h2>
+                <a href="{{ route('admin.invoices.index', ['search' => $client->email]) }}" class="text-xs text-indigo-600 hover:underline">Voir tout →</a>
+            </div>
+            <div class="divide-y divide-gray-50">
+                @forelse($client->invoices as $invoice)
+                <div class="px-5 py-3 flex items-center justify-between">
+                    <div>
+                        <a href="{{ route('admin.invoices.show', $invoice) }}" class="font-medium text-sm text-indigo-600 hover:underline">{{ $invoice->number }}</a>
+                        <div class="text-xs text-gray-400">{{ $invoice->created_at->format('d/m/Y') }}@if($invoice->due_at) · Échéance {{ $invoice->due_at->format('d/m/Y') }}@endif</div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="font-semibold text-sm text-gray-800">{{ number_format($invoice->total, 2) }} {{ $invoice->currency ?? 'EUR' }}</span>
+                        <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium {{ $invoice->isPaid() ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700' }}">
+                            {{ $invoice->isPaid() ? 'Payée' : 'En attente' }}
+                        </span>
+                    </div>
+                </div>
+                @empty
+                <div class="px-5 py-6 text-center text-sm text-gray-400">Aucune facture</div>
+                @endforelse
+            </div>
+        </div>
+
+        {{-- Avoirs --}}
+        @if($client->creditNotes->count() > 0)
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+            <div class="flex items-center justify-between px-5 py-4 border-b border-gray-50">
+                <h2 class="font-semibold text-gray-800 text-sm">Avoirs ({{ $client->creditNotes->count() }})</h2>
+                <a href="{{ route('admin.credit-notes.index') }}" class="text-xs text-indigo-600 hover:underline">Voir tout →</a>
+            </div>
+            <div class="divide-y divide-gray-50">
+                @foreach($client->creditNotes as $cn)
+                <div class="px-5 py-3 flex items-center justify-between">
+                    <div>
+                        <a href="{{ route('admin.credit-notes.show', $cn) }}" class="font-medium text-sm text-indigo-600 hover:underline">{{ $cn->number }}</a>
+                        <div class="text-xs text-gray-400">{{ $cn->created_at->format('d/m/Y') }} · Facture {{ $cn->invoice->number ?? '—' }}</div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="font-semibold text-sm text-gray-800">{{ number_format($cn->amount, 2) }} {{ $cn->currency }}</span>
+                        <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium
+                            {{ $cn->status === 'applied' ? 'bg-green-100 text-green-700' : ($cn->status === 'issued' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600') }}">
+                            {{ match($cn->status) { 'draft' => 'Brouillon', 'issued' => 'Émis', 'applied' => 'Appliqué', default => $cn->status } }}
+                        </span>
+                    </div>
+                </div>
+                @endforeach
+            </div>
+        </div>
+        @endif
+
+        {{-- Tickets --}}
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+            <div class="flex items-center justify-between px-5 py-4 border-b border-gray-50">
+                <h2 class="font-semibold text-gray-800 text-sm">Tickets</h2>
+                <a href="{{ route('admin.tickets.index') }}" class="text-xs text-indigo-600 hover:underline">Tous les tickets →</a>
+            </div>
+            <div class="divide-y divide-gray-50">
+                @forelse($client->tickets as $ticket)
+                <div class="px-5 py-3 flex items-center justify-between">
+                    <div>
+                        <a href="{{ route('admin.tickets.show', $ticket) }}" class="font-medium text-sm text-indigo-600 hover:underline">#{{ $ticket->number }} — {{ $ticket->subject }}</a>
+                        <div class="text-xs text-gray-400">{{ $ticket->created_at->format('d/m/Y H:i') }}</div>
+                    </div>
+                    <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium
+                        {{ $ticket->status === 'open' ? 'bg-amber-100 text-amber-700' : ($ticket->status === 'in_progress' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600') }}">
+                        {{ match($ticket->status) { 'open' => 'Ouvert', 'in_progress' => 'En cours', 'closed' => 'Fermé', default => $ticket->status } }}
+                    </span>
+                </div>
+                @empty
+                <div class="px-5 py-6 text-center text-sm text-gray-400">Aucun ticket</div>
+                @endforelse
+            </div>
+        </div>
+
     </div>
 </div>
 @endsection
