@@ -208,6 +208,16 @@ Route::middleware('installed')->group(function () {
             Route::post('/campaigns/{campaign}/send', [Admin\NewsletterController::class, 'send'])->name('campaigns.send');
         });
 
+        // Hosting accounts
+        Route::prefix('hosting')->name('hosting.')->group(function () {
+            Route::get('/', [Admin\HostingController::class, 'index'])->name('index');
+            Route::prefix('import')->name('import.')->group(function () {
+                Route::get('/', [Admin\HostingController::class, 'importIndex'])->name('index');
+                Route::get('/{domain}', [Admin\HostingController::class, 'importShow'])->name('show');
+                Route::post('/{domain}', [Admin\HostingController::class, 'importStore'])->name('store');
+            });
+        });
+
         // Plans
         Route::get('/plans/cyberpanel-packages', [Admin\PlanController::class, 'cyberpanelPackages'])->name('plans.cyberpanel-packages');
         Route::resource('plans', Admin\PlanController::class);
