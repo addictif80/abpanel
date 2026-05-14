@@ -10,7 +10,7 @@ class NotificationController extends Controller
     public function index()
     {
         $notifications = auth()->user()
-            ->notifications()
+            ->appNotifications()
             ->latest()
             ->paginate(30);
 
