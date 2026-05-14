@@ -70,7 +70,10 @@
                 </div>
             </div>
             @empty
-            <div class="px-5 py-8 text-center text-sm text-gray-400">Aucune machine virtuelle</div>
+            <div class="px-5 py-8 text-center text-sm text-gray-400">
+                <p class="mb-2">Aucune machine virtuelle</p>
+                <a href="{{ route('client.checkout.plans') }}" class="text-indigo-600 hover:underline font-medium">Voir nos offres →</a>
+            </div>
             @endforelse
         </div>
     </div>
@@ -93,7 +96,10 @@
                 @endif
             </div>
             @empty
-            <div class="px-5 py-8 text-center text-sm text-gray-400">Aucun hébergement</div>
+            <div class="px-5 py-8 text-center text-sm text-gray-400">
+                <p class="mb-2">Aucun hébergement</p>
+                <a href="{{ route('client.checkout.plans') }}" class="text-indigo-600 hover:underline font-medium">Voir nos offres →</a>
+            </div>
             @endforelse
         </div>
     </div>
