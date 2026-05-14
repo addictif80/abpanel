@@ -18,43 +18,43 @@
 @endif
 
 <form method="POST" action="{{ route('admin.plans.update', $plan) }}" class="max-w-2xl space-y-5"
-      x-data="{ planType: '{{ old('type', $plan->type) }}' }">
+      x-data="planForm('{{ old('type', $plan->type) }}', '{{ old('cyberpanel_package', $plan->cyberpanel_package) }}')">
     @csrf @method('PUT')
 
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
         <h2 class="font-semibold text-gray-800">Informations générales</h2>
 
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Nom <span class="text-red-500">*</span></label>
-            <input type="text" name="name" value="{{ old('name', $plan->name) }}" required
-                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-        </div>
-
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                <select name="type" x-model="planType"
+                <label class="block text-sm font-medium text-gray-700 mb-1">Nom <span class="text-red-500">*</span></label>
+                <input type="text" name="name" value="{{ old('name', $plan->name) }}" required
+                    class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Catégorie <span class="text-red-500">*</span></label>
+                <select name="type" required x-model="planType"
                     class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                     <option value="vm" {{ old('type', $plan->type) === 'vm' ? 'selected' : '' }}>VPS / Serveur virtuel</option>
                     <option value="hosting" {{ old('type', $plan->type) === 'hosting' ? 'selected' : '' }}>Hébergement web</option>
                 </select>
             </div>
-            <div class="text-sm text-gray-500 flex items-center">Slug : <strong class="text-gray-700 font-mono ml-1">{{ $plan->slug }}</strong></div>
         </div>
 
-        <div x-show="planType === 'vm'">
+        <div x-show="planType === 'vm'" x-cloak>
             <label class="block text-sm font-medium text-gray-700 mb-2">Type de virtualisation</label>
             <div class="grid grid-cols-2 gap-3">
                 <label class="cursor-pointer">
                     <input type="radio" name="vm_type" value="qemu" class="sr-only peer" {{ old('vm_type', $plan->vm_type ?? 'qemu') === 'qemu' ? 'checked' : '' }}>
                     <div class="rounded-lg border-2 p-3 transition peer-checked:border-indigo-500 peer-checked:bg-indigo-50 border-gray-200 hover:border-gray-300">
-                        <div class="font-semibold text-sm text-gray-800">Machine virtuelle (KVM)</div>
+                        <div class="font-semibold text-sm text-gray-800">Machine virtuelle</div>
+                        <div class="text-xs text-gray-500 mt-0.5">KVM / QEMU — isolation complète</div>
                     </div>
                 </label>
                 <label class="cursor-pointer">
                     <input type="radio" name="vm_type" value="lxc" class="sr-only peer" {{ old('vm_type', $plan->vm_type) === 'lxc' ? 'checked' : '' }}>
                     <div class="rounded-lg border-2 p-3 transition peer-checked:border-indigo-500 peer-checked:bg-indigo-50 border-gray-200 hover:border-gray-300">
-                        <div class="font-semibold text-sm text-gray-800">Conteneur (LXC)</div>
+                        <div class="font-semibold text-sm text-gray-800">Conteneur</div>
+                        <div class="text-xs text-gray-500 mt-0.5">LXC — léger, démarrage rapide</div>
                     </div>
                 </label>
             </div>
@@ -81,8 +81,12 @@
                 <input type="number" name="price" value="{{ old('price', $plan->price) }}" min="0" step="0.01" required
                     class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
             </div>
-            <div class="text-sm text-gray-500 flex items-center">
-                Période : <strong class="text-gray-700 ml-1">{{ $plan->billing_period === 'yearly' ? 'Annuel' : 'Mensuel' }}</strong>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Période <span class="text-red-500">*</span></label>
+                <select name="billing_period" required class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    <option value="monthly" {{ old('billing_period', $plan->billing_period) !== 'yearly' ? 'selected' : '' }}>Mensuel</option>
+                    <option value="yearly" {{ old('billing_period', $plan->billing_period) === 'yearly' ? 'selected' : '' }}>Annuel</option>
+                </select>
             </div>
         </div>
 
@@ -91,11 +95,11 @@
             <input type="text" name="stripe_price_id" value="{{ old('stripe_price_id', $plan->stripe_price_id) }}"
                 placeholder="price_xxxxxxxxxxxx"
                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-            <p class="text-xs text-gray-400 mt-1">Laissez vide pour conserver la valeur actuelle.</p>
         </div>
     </div>
 
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
+    {{-- Ressources VM --}}
+    <div x-show="planType === 'vm'" x-cloak class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
         <h2 class="font-semibold text-gray-800">Ressources</h2>
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
@@ -116,6 +120,45 @@
         </div>
     </div>
 
+    {{-- Package CyberPanel --}}
+    <div x-show="planType === 'hosting'" x-cloak class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
+        <div class="flex items-center justify-between">
+            <h2 class="font-semibold text-gray-800">Package CyberPanel</h2>
+            <button type="button" @click="loadPackages()"
+                class="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
+                x-text="loadingPackages ? 'Chargement...' : '↻ Charger les packages'">
+            </button>
+        </div>
+        <div x-show="packageError" class="text-xs text-red-500" x-text="packageError"></div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Package <span class="text-red-500">*</span></label>
+            <template x-if="packages.length > 0">
+                <div>
+                    <select name="cyberpanel_package" x-model="selectedPackage"
+                        class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <option value="">— Sélectionnez un package —</option>
+                        <template x-for="pkg in packages" :key="pkg.packageName">
+                            <option :value="pkg.packageName" x-text="pkg.packageName"></option>
+                        </template>
+                    </select>
+                    <template x-if="selectedPackage">
+                        <div class="mt-2 p-3 bg-gray-50 rounded-lg text-xs text-gray-600 grid grid-cols-3 gap-2" x-show="selectedPackageData">
+                            <span>💾 <span x-text="selectedPackageData?.diskSpace ?? '—'"></span> MB disque</span>
+                            <span>🗄️ <span x-text="selectedPackageData?.dataBases ?? '—'"></span> bases de données</span>
+                            <span>🌐 <span x-text="selectedPackageData?.allowedDomains ?? '—'"></span> domaines</span>
+                        </div>
+                    </template>
+                </div>
+            </template>
+            <template x-if="packages.length === 0">
+                <input type="text" name="cyberpanel_package" x-model="selectedPackage"
+                    placeholder="Default"
+                    class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            </template>
+            <p class="text-xs text-gray-400 mt-1">Package actuel : <strong>{{ $plan->cyberpanel_package ?: '(non défini)' }}</strong>. Cliquez sur "Charger les packages" pour changer.</p>
+        </div>
+    </div>
+
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
         <h2 class="font-semibold text-gray-800">Options</h2>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -128,7 +171,7 @@
                 <label class="flex items-center gap-2 cursor-pointer">
                     <input type="checkbox" name="is_active" value="1" {{ old('is_active', $plan->is_active) ? 'checked' : '' }}
                         class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500">
-                    <span class="text-sm font-medium text-gray-700">Plan actif</span>
+                    <span class="text-sm font-medium text-gray-700">Plan actif (visible aux clients)</span>
                 </label>
             </div>
         </div>
@@ -150,3 +193,35 @@
     </div>
 </form>
 @endsection
+
+@push('scripts')
+<script>
+function planForm(initialType, initialPackage) {
+    return {
+        planType: initialType,
+        packages: [],
+        selectedPackage: initialPackage || '',
+        loadingPackages: false,
+        packageError: '',
+        get selectedPackageData() {
+            return this.packages.find(p => p.packageName === this.selectedPackage) ?? null;
+        },
+        loadPackages() {
+            this.loadingPackages = true;
+            this.packageError = '';
+            fetch('{{ route('admin.plans.cyberpanel-packages') }}')
+                .then(r => r.json())
+                .then(d => {
+                    if (d.success && d.packages && d.packages.length > 0) {
+                        this.packages = d.packages;
+                    } else {
+                        this.packageError = d.message || 'Aucun package trouvé. Vérifiez la connexion CyberPanel dans les settings.';
+                    }
+                })
+                .catch(() => { this.packageError = 'Erreur de connexion.'; })
+                .finally(() => { this.loadingPackages = false; });
+        }
+    }
+}
+</script>
+@endpush
