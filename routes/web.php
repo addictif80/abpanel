@@ -270,7 +270,7 @@ Route::middleware('installed')->group(function () {
     Route::middleware('auth')->prefix('notifications')->name('notifications.')->group(function () {
         Route::get('/', [NotificationController::class, 'index'])->name('index');
         Route::post('/read-all', [NotificationController::class, 'markAllRead'])->name('read-all');
-        Route::post('/{notification}/read', [NotificationController::class, 'markRead'])->name('read');
+        Route::get('/{notification}/read', [NotificationController::class, 'markRead'])->name('read');
     });
 
     // Root redirect
