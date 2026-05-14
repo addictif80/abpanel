@@ -167,21 +167,21 @@ Route::middleware('installed')->group(function () {
         Route::prefix('credit-notes')->name('credit-notes.')->group(function () {
             Route::get('/', [Admin\CreditNoteController::class, 'index'])->name('index');
             Route::get('/create', [Admin\CreditNoteController::class, 'create'])->name('create');
+            Route::get('/invoices', [Admin\CreditNoteController::class, 'getInvoices'])->name('invoices');
             Route::post('/', [Admin\CreditNoteController::class, 'store'])->name('store');
             Route::get('/{creditNote}', [Admin\CreditNoteController::class, 'show'])->name('show');
             Route::post('/{creditNote}/issue', [Admin\CreditNoteController::class, 'issue'])->name('issue');
             Route::post('/{creditNote}/apply', [Admin\CreditNoteController::class, 'apply'])->name('apply');
-            Route::get('/invoices', [Admin\CreditNoteController::class, 'getInvoices'])->name('invoices');
         });
 
-        // VMs
-        Route::resource('vms', Admin\VmController::class);
+        // VMs — specific routes must come before the resource to avoid {vm} catching them
         Route::get('/vms/disk-storages', [Admin\VmController::class, 'diskStorages'])->name('vms.disk-storages');
         Route::prefix('vms/import')->name('vms.import.')->group(function () {
             Route::get('/', [Admin\VmController::class, 'importIndex'])->name('index');
             Route::get('/{node}/{vmid}', [Admin\VmController::class, 'importShow'])->name('show');
             Route::post('/{node}/{vmid}', [Admin\VmController::class, 'importStore'])->name('store');
         });
+        Route::resource('vms', Admin\VmController::class);
 
         // Mail logs
         Route::prefix('mail-logs')->name('mail-logs.')->group(function () {
