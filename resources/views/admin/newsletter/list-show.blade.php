@@ -14,16 +14,71 @@
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
         <h2 class="font-semibold text-gray-800 text-sm mb-3">Ajouter un abonné</h2>
-        <form method="POST" action="{{ route('admin.newsletter.lists.show', $list) }}" class="space-y-3">
-            @csrf
-            <input type="email" name="email" required placeholder="Email"
-                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-            <input type="text" name="first_name" placeholder="Prénom (optionnel)"
-                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-            <button type="submit" class="w-full py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition">
-                Ajouter
-            </button>
-        </form>
+        <div x-data="{
+            mode: 'manual',
+            userId: '',
+            email: '',
+            firstName: '',
+            selectUser(id, email, first) {
+                this.userId = id;
+                this.email = email;
+                this.firstName = first;
+            }
+        }">
+            {{-- Mode toggle --}}
+            <div class="flex rounded-lg border border-gray-200 overflow-hidden mb-4 text-xs font-semibold">
+                <button type="button" @click="mode = 'manual'; userId = ''; email = ''; firstName = ''"
+                    :class="mode === 'manual' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'"
+                    class="flex-1 py-1.5 transition">Saisie manuelle</button>
+                <button type="button" @click="mode = 'client'"
+                    :class="mode === 'client' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'"
+                    class="flex-1 py-1.5 transition">Client existant</button>
+            </div>
+
+            <form method="POST" action="{{ route('admin.newsletter.lists.subscribers.store', $list) }}" class="space-y-3">
+                @csrf
+                <input type="hidden" name="user_id" :value="userId">
+
+                {{-- Client selector --}}
+                <div x-show="mode === 'client'" x-cloak>
+                    <select @change="
+                        const opt = $event.target.selectedOptions[0];
+                        if (opt.value) {
+                            selectUser(opt.value, opt.dataset.email, opt.dataset.first);
+                        } else {
+                            userId = ''; email = ''; firstName = '';
+                        }
+                    " class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <option value="">— Sélectionner un client —</option>
+                        @foreach($clients as $client)
+                        <option value="{{ $client->id }}"
+                            data-email="{{ $client->email }}"
+                            data-first="{{ $client->first_name }}">
+                            {{ $client->full_name }} ({{ $client->email }})
+                        </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                {{-- Email field (manual mode or read-only preview in client mode) --}}
+                <div>
+                    <input type="email" name="email" x-model="email"
+                        :readonly="mode === 'client' && userId !== ''"
+                        :required="mode === 'manual'"
+                        placeholder="Email"
+                        class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                        :class="mode === 'client' && userId ? 'bg-gray-50 text-gray-500' : ''">
+                </div>
+
+                {{-- First name (always editable) --}}
+                <input type="text" name="first_name" x-model="firstName" placeholder="Prénom (optionnel)"
+                    class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+
+                <button type="submit" class="w-full py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition">
+                    Ajouter
+                </button>
+            </form>
+        </div>
     </div>
 
     <div class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100">
