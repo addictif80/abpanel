@@ -66,7 +66,6 @@ class RegisterController extends Controller
         // Send welcome email
         try {
             app(MailService::class)->sendFromTemplate('welcome', $user->email, [
-                'app_name'  => config('app.name'),
                 'first_name' => $user->first_name,
                 'last_name'  => $user->last_name,
                 'email'      => $user->email,

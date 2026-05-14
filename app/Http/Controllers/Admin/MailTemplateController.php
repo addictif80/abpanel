@@ -77,7 +77,7 @@ class MailTemplateController extends Controller
         foreach ($template->variables ?? [] as $var) {
             $vars[$var] = "[{$var}]";
         }
-        $vars['app_name'] = config('app.name');
+        $vars['app_name'] = Setting::get('company_name', Setting::get('app_name', config('app.name')));
 
         try {
             app(MailService::class)->sendFromTemplate($template->key, $request->email, $vars);

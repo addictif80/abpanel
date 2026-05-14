@@ -86,7 +86,6 @@ class ProvisioningService
                 'username'   => $username,
                 'password'   => $password,
                 'panel_url'  => $panelUrl,
-                'app_name'   => config('app.name'),
             ]);
 
         } catch (\Exception $e) {

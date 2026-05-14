@@ -22,7 +22,7 @@ class SendReminders extends Command
     public function handle(): int
     {
         $dry     = $this->option('dry-run');
-        $appName = Setting::get('app_name', config('app.name'));
+        $appName = Setting::get('company_name') ?: Setting::get('app_name', config('app.name'));
         $appUrl  = Setting::get('app_url', config('app.url'));
 
         // 1. Expire overdue quotes
