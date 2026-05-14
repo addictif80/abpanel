@@ -252,7 +252,7 @@ class QuoteService
             'invoice_total'  => number_format($invoice->total, 2) . ' ' . $invoice->currency,
             'invoice_due_at' => $invoice->due_at ? $invoice->due_at->format('d/m/Y') : '—',
             'quote_number'   => $invoice->quote?->number ?? '—',
-            'company_name'   => Setting::get('app_name', config('app.name')),
+            'company_name'   => Setting::get('company_name') ?: Setting::get('app_name', config('app.name')),
         ]);
     }
 
@@ -267,7 +267,7 @@ class QuoteService
             'quote_total'     => number_format($quote->total, 2) . ' ' . $quote->currency,
             'quote_expires_at'=> $quote->expires_at ? $quote->expires_at->format('d/m/Y') : '—',
             'quote_url'       => rtrim($appUrl, '/') . '/quotes/' . $quote->access_token,
-            'company_name'    => Setting::get('app_name', config('app.name')),
+            'company_name'    => Setting::get('company_name') ?: Setting::get('app_name', config('app.name')),
         ];
     }
 

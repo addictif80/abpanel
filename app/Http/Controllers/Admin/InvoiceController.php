@@ -96,7 +96,7 @@ class InvoiceController extends Controller
                 'invoice_number' => $invoice->number,
                 'invoice_total'  => number_format($invoice->total, 2) . ' ' . ($invoice->currency ?? 'EUR'),
                 'paid_at'        => now()->format('d/m/Y'),
-                'company_name'   => Setting::get('app_name', config('app.name')),
+                'company_name'   => Setting::get('company_name') ?: Setting::get('app_name', config('app.name')),
             ]);
         } catch (\Throwable) {
             // Don't block the action if mail fails
