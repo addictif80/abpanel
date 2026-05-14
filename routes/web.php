@@ -203,6 +203,7 @@ Route::middleware('installed')->group(function () {
         Route::prefix('newsletter')->name('newsletter.')->group(function () {
             Route::get('/', [Admin\NewsletterController::class, 'index'])->name('index');
             Route::resource('lists', Admin\NewsletterListController::class);
+            Route::post('/lists/{list}/subscribers', [Admin\NewsletterListController::class, 'addSubscriber'])->name('lists.subscribers.store');
             Route::resource('campaigns', Admin\NewsletterCampaignController::class);
             Route::post('/campaigns/{campaign}/send', [Admin\NewsletterController::class, 'send'])->name('campaigns.send');
         });

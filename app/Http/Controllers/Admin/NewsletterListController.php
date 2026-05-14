@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\NewsletterList;
 use App\Models\NewsletterSubscriber;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class NewsletterListController extends Controller
@@ -40,17 +41,26 @@ class NewsletterListController extends Controller
     public function show(NewsletterList $list)
     {
         $subscribers = $list->subscribers()->latest()->paginate(30);
-        return view('admin.newsletter.list-show', compact('list', 'subscribers'));
+        $clients     = User::where('is_admin', false)->orderBy('last_name')->orderBy('first_name')->get();
+        return view('admin.newsletter.list-show', compact('list', 'subscribers', 'clients'));
     }
 
     public function addSubscriber(Request $request, NewsletterList $list)
     {
-        $request->validate(['email' => 'required|email']);
+        if ($request->filled('user_id')) {
+            $user = User::findOrFail($request->user_id);
+            $email     = $user->email;
+            $firstName = $user->first_name;
+        } else {
+            $request->validate(['email' => 'required|email']);
+            $email     = $request->email;
+            $firstName = $request->first_name;
+        }
 
-        NewsletterSubscriber::firstOrCreate(
-            ['list_id' => $list->id, 'email' => $request->email],
-            ['first_name' => $request->first_name, 'status' => 'subscribed']
-        );
+        $subscriber = NewsletterSubscriber::firstOrNew(['list_id' => $list->id, 'email' => $email]);
+        $subscriber->first_name = $firstName ?: $subscriber->first_name;
+        $subscriber->status     = 'subscribed';
+        $subscriber->save();
 
         return back()->with('success', 'Abonné ajouté.');
     }
