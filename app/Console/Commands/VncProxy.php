@@ -209,11 +209,15 @@ class VncProxy extends Command
             return;
         }
 
+        // Any bytes after the HTTP headers are the start of the VNC WS stream
+        $headerEnd   = strpos($pxResp, "\r\n\r\n");
+        $initialData = $headerEnd !== false ? substr($pxResp, $headerEnd + 4) : '';
+
         stream_set_blocking($proxmox, false);
 
         $this->sessions[$id]['state']      = 'relay';
         $this->sessions[$id]['vnc']        = $proxmox;
-        $this->sessions[$id]['proxmoxBuf'] = '';
+        $this->sessions[$id]['proxmoxBuf'] = $initialData;
     }
 
     // ── Relay phase ───────────────────────────────────────────────────────────
@@ -232,7 +236,7 @@ class VncProxy extends Command
             }
             if ($data !== '') {
                 $this->sessions[$id]['browserBuf'] .= $data;
-                $raw = $this->unwrapWsFrames($this->sessions[$id]['browserBuf']);
+                $raw = $this->unwrapWsFrames($this->sessions[$id]['browserBuf'], $proxmox, false);
                 if ($raw === null) {
                     $this->close($id);
                     return;
@@ -244,15 +248,21 @@ class VncProxy extends Command
         }
 
         // Proxmox → Browser: unwrap Proxmox WS frames, forward as unmasked WS server frames
-        if ($proxmox && in_array($proxmox, $readable, true)) {
-            $data = @fread($proxmox, 65536);
-            if ($data === false || ($data === '' && feof($proxmox))) {
-                $this->close($id);
-                return;
+        // Also flush any initial data that arrived with the 101 response
+        $hasInitial = $this->sessions[$id]['proxmoxBuf'] !== '';
+        if ($proxmox && ($hasInitial || in_array($proxmox, $readable, true))) {
+            if (!$hasInitial) {
+                $data = @fread($proxmox, 65536);
+                if ($data === false || ($data === '' && feof($proxmox))) {
+                    $this->close($id);
+                    return;
+                }
+                if ($data !== '') {
+                    $this->sessions[$id]['proxmoxBuf'] .= $data;
+                }
             }
-            if ($data !== '') {
-                $this->sessions[$id]['proxmoxBuf'] .= $data;
-                $raw = $this->unwrapWsFrames($this->sessions[$id]['proxmoxBuf']);
+            if ($this->sessions[$id]['proxmoxBuf'] !== '') {
+                $raw = $this->unwrapWsFrames($this->sessions[$id]['proxmoxBuf'], $browser, true);
                 if ($raw === null) {
                     $this->close($id);
                     return;
@@ -277,7 +287,11 @@ class VncProxy extends Command
 
     // ── WebSocket frame helpers ───────────────────────────────────────────────
 
-    private function unwrapWsFrames(string &$buf): ?string
+    /**
+     * @param  resource  $pongTarget  socket to send pong replies to
+     * @param  bool      $serverSide  true = pong unmasked (server), false = pong masked (client)
+     */
+    private function unwrapWsFrames(string &$buf, $pongTarget, bool $serverSide): ?string
     {
         $out = '';
 
@@ -316,7 +330,20 @@ class VncProxy extends Command
                 }
             }
 
-            if ($opcode === 0x8) return null; // Close frame
+            if ($opcode === 0x8) return null; // Close
+
+            // Reply to pings immediately
+            if ($opcode === 0x9) {
+                $pong = $serverSide
+                    ? $this->wrapBinaryFrame($payload) // reuse binary wrap but opcode 0xA
+                    : $this->wrapClientFrame($payload);
+                // Fix opcode to pong (0xA)
+                $pong[0] = chr((ord($pong[0]) & 0xF0) | 0x0A);
+                @fwrite($pongTarget, $pong);
+                continue;
+            }
+
+            if ($opcode === 0xA) continue; // Pong — discard
 
             $out .= $payload;
         }
