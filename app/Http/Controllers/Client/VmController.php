@@ -25,7 +25,11 @@ class VmController extends Controller
             $proxmox = app(ProxmoxService::class);
             $status  = $proxmox->getStatus($vm->proxmox_node, (int) $vm->proxmox_vmid, $vm->vm_type ?? 'qemu');
             $proxmoxStatus = $status['status'] ?? $vm->status;
-            if ($proxmoxStatus === 'stopped' && ($status['lock'] ?? '') === 'suspended') {
+            // Proxmox represents suspended VMs as "stopped" (with optional lock:"suspended").
+            // Preserve our hibernated state whenever Proxmox returns stopped for a VM we suspended.
+            if ($vm->status === 'hibernated' && $proxmoxStatus === 'stopped') {
+                $proxmoxStatus = 'hibernated';
+            } elseif ($proxmoxStatus === 'stopped' && str_contains(strtolower($status['lock'] ?? ''), 'suspend')) {
                 $proxmoxStatus = 'hibernated';
             }
             $vm->update(['status' => $proxmoxStatus]);
