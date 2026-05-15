@@ -91,6 +91,50 @@
                 </div>
             </div>
 
+            @if(!$siteInfo['owner'])
+            {{-- No CyberPanel owner: offer to create a user + transfer ownership --}}
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4" x-data="{ create: {{ old('create_cyberpanel_user') ? 'true' : 'false' }} }">
+                <h2 class="font-semibold text-gray-800">Compte CyberPanel client</h2>
+                <p class="text-sm text-gray-500 -mt-2">
+                    Ce site n'a pas d'owner sur CyberPanel. Vous pouvez créer un compte utilisateur CyberPanel pour le client
+                    et transférer la propriété du site en une seule opération.
+                </p>
+
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" name="create_cyberpanel_user" value="1" x-model="create"
+                        {{ old('create_cyberpanel_user') ? 'checked' : '' }}
+                        class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                    <span class="text-sm font-medium text-gray-700">Créer un compte CyberPanel pour ce client</span>
+                </label>
+
+                <div x-show="create" class="space-y-3 pl-6">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Identifiant CyberPanel <span class="text-red-500">*</span></label>
+                            <input type="text" name="new_cyberpanel_username" value="{{ old('new_cyberpanel_username') }}"
+                                placeholder="ex: clienttest"
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none font-mono">
+                            <p class="text-xs text-gray-400 mt-1">Lettres et chiffres uniquement.</p>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Mot de passe</label>
+                            <input type="text" name="new_cyberpanel_password" value="{{ old('new_cyberpanel_password') }}"
+                                placeholder="Laissez vide pour générer automatiquement"
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none font-mono">
+                            <p class="text-xs text-gray-400 mt-1">Sera sauvegardé sur la fiche du client.</p>
+                        </div>
+                    </div>
+
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" name="transfer_ownership" value="1"
+                            {{ old('transfer_ownership', '1') ? 'checked' : '' }}
+                            class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                        <span class="text-sm text-gray-700">Transférer la propriété du site à ce nouvel utilisateur sur CyberPanel</span>
+                    </label>
+                </div>
+            </div>
+            @endif
+
             <div class="flex items-center gap-3">
                 <button type="submit"
                     class="px-5 py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition">
