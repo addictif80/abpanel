@@ -52,10 +52,8 @@ class ProxmoxService
             ->withCookies(['PVEAuthCookie' => $this->ticket], parse_url($this->host, PHP_URL_HOST))
             ->withHeaders(['CSRFPreventionToken' => $this->csrfToken]);
 
-        if (in_array($method, ['post', 'put', 'patch', 'delete']) && !empty($data)) {
+        if (in_array($method, ['post', 'put', 'patch', 'delete'])) {
             $response = $http->asForm()->$method("{$this->host}/api2/json{$path}", $data);
-        } elseif (in_array($method, ['post', 'put', 'patch', 'delete'])) {
-            $response = $http->$method("{$this->host}/api2/json{$path}");
         } else {
             $response = $http->$method("{$this->host}/api2/json{$path}", $data);
         }
