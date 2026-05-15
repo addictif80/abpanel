@@ -98,16 +98,18 @@ class VmController extends Controller
             return back()->with('error', 'Le terminal noVNC n\'est pas disponible pour les conteneurs LXC.');
         }
 
-        $vncData = null;
+        $ticket = null;
         try {
-            $vncData = app(ProxmoxService::class)->getVNCProxy($vm->proxmox_node, (int) $vm->proxmox_vmid);
+            $proxmox = app(ProxmoxService::class);
+            $proxmox->getVNCProxy($vm->proxmox_node, (int) $vm->proxmox_vmid);
+            $ticket = $proxmox->getAuthTicket();
         } catch (\Exception $e) {
             return back()->with('error', 'Impossible d\'ouvrir le terminal : ' . $e->getMessage());
         }
 
         $proxmoxHost = rtrim(\App\Models\Setting::get('proxmox_host'), '/');
 
-        return view('client.vms.terminal', compact('vm', 'vncData', 'proxmoxHost'));
+        return view('client.vms.terminal', compact('vm', 'ticket', 'proxmoxHost'));
     }
 
     public function changeRootPassword(Request $request, VirtualMachine $vm)
