@@ -139,16 +139,35 @@ class SettingsController extends Controller
     public function saveTailscale(Request $request)
     {
         $request->validate([
-            'tailscale_api_key'   => 'nullable|string|max:200',
-            'tailscale_tailnet'   => 'nullable|string|max:200',
-            'tailscale_auth_key'  => 'nullable|string|max:200',
+            'tailscale_oauth_client_id'     => 'nullable|string|max:200',
+            'tailscale_oauth_client_secret' => 'nullable|string|max:200',
+            'tailscale_tailnet'             => 'nullable|string|max:200',
         ]);
 
-        foreach (['tailscale_api_key', 'tailscale_tailnet', 'tailscale_auth_key'] as $key) {
+        foreach (['tailscale_oauth_client_id', 'tailscale_oauth_client_secret', 'tailscale_tailnet'] as $key) {
             Setting::set($key, $request->input($key, ''), 'tailscale');
         }
 
+        // Invalider le token OAuth mis en cache
+        \Illuminate\Support\Facades\Cache::forget('tailscale_oauth_token');
+
         return back()->with('success', 'Configuration Tailscale enregistrée.');
+    }
+
+    public function generateTailscaleKey(Request $request)
+    {
+        try {
+            $tailscale = app(TailscaleService::class);
+            $key = $tailscale->createAuthKey(
+                description:   'abpanel-manual',
+                ephemeral:     (bool) $request->input('ephemeral', true),
+                reusable:      false,
+                expirySeconds: (int)  $request->input('expiry', 3600),
+            );
+            return response()->json(['key' => $key]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
     }
 
     public function testConnection(Request $request, string $service)

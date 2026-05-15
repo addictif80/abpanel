@@ -516,20 +516,29 @@
                 @csrf
                 <h2 class="font-semibold text-gray-800 mb-1">Configuration Tailscale</h2>
                 <p class="text-sm text-gray-500 -mt-2">
-                    Tailscale permet d'attribuer une IP privée à chaque VM et de l'afficher dans le panel.
-                    Une <strong>Auth Key</strong> réutilisable (ephemeral) permet l'enrôlement automatique lors du provisionnement.
+                    Tailscale permet d'attribuer une IP privée à chaque VPS.
+                    L'authentification passe par un <strong>OAuth client</strong> — les credentials n'expirent pas et les auth keys sont générées dynamiquement à chaque provisionnement.
                 </p>
+
+                <div class="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-sm text-blue-800">
+                    <strong>Comment créer un OAuth client :</strong>
+                    Allez dans <a href="https://login.tailscale.com/admin/settings/oauth" target="_blank" class="underline">Tailscale → Settings → OAuth clients</a>
+                    et créez un client avec les scopes <code class="bg-blue-100 px-1 rounded">devices:read</code> et <code class="bg-blue-100 px-1 rounded">auth_keys:write</code>.
+                </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">
-                            Clé API Tailscale
-                            <a href="https://login.tailscale.com/admin/settings/keys" target="_blank" class="text-indigo-500 text-xs ml-1">→ Générer</a>
-                        </label>
-                        <input type="password" name="tailscale_api_key" value="{{ $settings['tailscale_api_key'] ?? '' }}"
-                            placeholder="tskey-api-..."
+                        <label class="block text-sm font-medium text-gray-700 mb-1">OAuth Client ID</label>
+                        <input type="text" name="tailscale_oauth_client_id" value="{{ $settings['tailscale_oauth_client_id'] ?? '' }}"
+                            placeholder="k123456CNTRL"
                             class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none font-mono">
-                        <p class="text-xs text-gray-400 mt-1">Utilisée pour lire les IPs des devices via l'API (lecture seule).</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">OAuth Client Secret</label>
+                        <input type="password" name="tailscale_oauth_client_secret" value="{{ $settings['tailscale_oauth_client_secret'] ?? '' }}"
+                            placeholder="tskey-client-..."
+                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none font-mono">
+                        <p class="text-xs text-gray-400 mt-1">Non expirant. Permet d'obtenir des access tokens et de générer des auth keys.</p>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Tailnet (organisation)</label>
@@ -537,19 +546,6 @@
                             placeholder="example.com ou -"
                             class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none font-mono">
                         <p class="text-xs text-gray-400 mt-1">Votre organisation Tailscale. Laissez <code>-</code> pour le tailnet par défaut.</p>
-                    </div>
-                    <div class="sm:col-span-2">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">
-                            Auth Key (cloud-init)
-                            <a href="https://login.tailscale.com/admin/settings/keys" target="_blank" class="text-indigo-500 text-xs ml-1">→ Générer (réutilisable + éphémère)</a>
-                        </label>
-                        <input type="password" name="tailscale_auth_key" value="{{ $settings['tailscale_auth_key'] ?? '' }}"
-                            placeholder="tskey-auth-..."
-                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none font-mono">
-                        <p class="text-xs text-gray-400 mt-1">
-                            Injectée dans le script cloud-init lors du provisionnement pour que la VM rejoigne automatiquement le réseau.
-                            Créez-la avec les options <strong>Reusable</strong> et <strong>Ephemeral</strong>.
-                        </p>
                     </div>
                 </div>
 
@@ -565,29 +561,54 @@
                 </div>
             </form>
 
+            {{-- Génération manuelle d'une auth key --}}
+            <div class="mt-4 bg-white rounded-xl shadow-sm border border-gray-100 p-5"
+                 x-data="{ loading: false, key: '', error: '', expiry: 3600, ephemeral: true }">
+                <h3 class="font-semibold text-gray-800 text-sm mb-1">Générer une auth key à la demande</h3>
+                <p class="text-sm text-gray-500 mb-3">
+                    Pour les templates Proxmox ou les installations manuelles. La clé est générée via l'API et valable pour la durée choisie.
+                </p>
+                <div class="flex items-center gap-3 flex-wrap">
+                    <select x-model="expiry" class="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <option value="3600">Expire dans 1 heure</option>
+                        <option value="86400">Expire dans 24 heures</option>
+                        <option value="604800">Expire dans 7 jours</option>
+                    </select>
+                    <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                        <input type="checkbox" x-model="ephemeral" class="rounded border-gray-300 text-indigo-600">
+                        Éphémère (device supprimé quand hors ligne)
+                    </label>
+                    <button type="button" @click="
+                        loading = true; key = ''; error = '';
+                        fetch('{{ route('admin.settings.tailscale.generate-key') }}', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content},
+                            body: JSON.stringify({expiry, ephemeral})
+                        }).then(r => r.json()).then(d => {
+                            if (d.key) key = d.key; else error = d.error || 'Erreur';
+                        }).catch(() => error = 'Erreur réseau').finally(() => loading = false)
+                    " :disabled="loading"
+                        class="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition disabled:opacity-50">
+                        <span x-text="loading ? 'Génération...' : 'Générer'"></span>
+                    </button>
+                </div>
+                <div x-show="key" class="mt-3">
+                    <p class="text-xs text-gray-500 mb-1">Auth key générée (copiez-la, elle ne sera pas re-affichée) :</p>
+                    <pre class="bg-gray-800 text-green-300 rounded-lg p-3 text-xs font-mono overflow-x-auto whitespace-pre-wrap">#!/bin/bash
+curl -fsSL https://tailscale.com/install.sh | sh
+tailscale up --authkey=<span x-text="key"></span> --hostname=NOM-VPS --accept-routes</pre>
+                </div>
+                <p x-show="error" class="mt-2 text-sm text-red-600" x-text="error"></p>
+            </div>
+
             <div class="mt-4 bg-blue-50 rounded-xl border border-blue-200 p-5">
                 <h3 class="font-semibold text-blue-900 text-sm mb-2">Synchronisation des IPs</h3>
                 <p class="text-sm text-blue-700 mb-3">
-                    La commande suivante interroge l'API Tailscale et met à jour les IPs de toutes les VMs enregistrées dans le panel.
-                    Vous pouvez l'ajouter à une tâche planifiée (cron toutes les 5 minutes par exemple).
+                    La commande suivante interroge l'API Tailscale et met à jour les IPs de tous les VPS enregistrés dans le panel.
+                    Ajoutez-la à un cron toutes les 5 minutes.
                 </p>
                 <pre class="bg-blue-900 text-green-300 rounded-lg p-3 text-xs font-mono overflow-x-auto">php artisan vm:sync-tailscale</pre>
-                <p class="text-xs text-blue-600 mt-2">Pour une seule VM : <code>php artisan vm:sync-tailscale --vm=ID</code></p>
-            </div>
-
-            <div class="mt-4 bg-gray-50 rounded-xl border border-gray-200 p-5">
-                <h3 class="font-semibold text-gray-800 text-sm mb-2">Script cloud-init (QEMU)</h3>
-                <p class="text-sm text-gray-500 mb-3">
-                    À injecter dans le champ <strong>User Data</strong> d'un template Proxmox, ou passé via l'API lors du provisionnement.
-                    Remplacez <code>NOM-VM</code> par le nom de la VM.
-                </p>
-                @if(!empty($settings['tailscale_auth_key']))
-                <pre class="bg-gray-800 text-green-300 rounded-lg p-3 text-xs font-mono overflow-x-auto whitespace-pre-wrap">#!/bin/bash
-curl -fsSL https://tailscale.com/install.sh | sh
-tailscale up --authkey={{ $settings['tailscale_auth_key'] }} --hostname=NOM-VM --accept-routes</pre>
-                @else
-                <p class="text-sm text-amber-600">Configurez d'abord une Auth Key ci-dessus.</p>
-                @endif
+                <p class="text-xs text-blue-600 mt-2">Pour un seul VPS : <code>php artisan vm:sync-tailscale --vm=ID</code></p>
             </div>
         </div>
 

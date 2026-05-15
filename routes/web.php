@@ -164,6 +164,7 @@ Route::middleware('installed')->group(function () {
             Route::post('/stripe', [Admin\SettingsController::class, 'saveStripe'])->name('stripe');
             Route::post('/mail', [Admin\SettingsController::class, 'saveMail'])->name('mail');
             Route::post('/tailscale', [Admin\SettingsController::class, 'saveTailscale'])->name('tailscale');
+            Route::post('/tailscale/generate-key', [Admin\SettingsController::class, 'generateTailscaleKey'])->name('tailscale.generate-key');
             Route::post('/test/{service}', [Admin\SettingsController::class, 'testConnection'])->name('test');
         });
 
