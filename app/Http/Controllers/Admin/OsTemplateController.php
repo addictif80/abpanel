@@ -92,7 +92,17 @@ class OsTemplateController extends Controller
 
     public function taskStatus(OsTemplate $osTemplate)
     {
-        if (!$osTemplate->proxmox_task_id || $osTemplate->status === 'ready') {
+        if ($osTemplate->status === 'ready') {
+            return response()->json(['status' => 'ready']);
+        }
+
+        // UPID missing (was lost due to a bug) — try resolving the volume directly
+        if (!$osTemplate->proxmox_task_id) {
+            $volume = $this->resolveVolume($osTemplate);
+            if ($volume) {
+                $osTemplate->update(['status' => 'ready', 'proxmox_volume' => $volume, 'error_message' => null]);
+                return response()->json(['status' => 'ready']);
+            }
             return response()->json(['status' => $osTemplate->status]);
         }
 

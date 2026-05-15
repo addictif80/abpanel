@@ -296,12 +296,27 @@ class ProxmoxService
 
     public function downloadTemplate(string $node, string $storage, string $url, string $filename, string $content = 'iso'): string
     {
-        $result = $this->request('post', "/nodes/{$node}/storage/{$storage}/download-url", [
-            'url'      => $url,
-            'filename' => $filename,
-            'content'  => $content,
-        ]);
-        return is_string($result) ? $result : ($result['upid'] ?? $result[0] ?? '');
+        if (!$this->ticket) {
+            $this->authenticate();
+        }
+
+        $response = Http::withoutVerifying()
+            ->withCookies(['PVEAuthCookie' => $this->ticket], parse_url($this->host, PHP_URL_HOST))
+            ->withHeaders(['CSRFPreventionToken' => $this->csrfToken])
+            ->asForm()
+            ->post("{$this->host}/api2/json/nodes/{$node}/storage/{$storage}/download-url", [
+                'url'      => $url,
+                'filename' => $filename,
+                'content'  => $content,
+            ]);
+
+        if ($response->failed()) {
+            Log::error("Proxmox downloadTemplate error: " . $response->body());
+            throw new \RuntimeException("HTTP {$response->status()}");
+        }
+
+        $data = $response->json('data');
+        return is_string($data) ? $data : ($data['upid'] ?? '');
     }
 
     public function getTaskStatus(string $node, string $upid): array
