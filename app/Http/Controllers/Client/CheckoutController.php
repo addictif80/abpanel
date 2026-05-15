@@ -22,9 +22,10 @@ class CheckoutController extends Controller
     {
         abort_if(!$plan->is_active, 404);
 
-        $stripeKey = Setting::get('stripe_public_key');
+        $stripeKey  = Setting::get('stripe_public_key');
+        $limitError = $plan->checkClientLimit(auth()->user());
 
-        return view('client.checkout.checkout', compact('plan', 'stripeKey'));
+        return view('client.checkout.checkout', compact('plan', 'stripeKey', 'limitError'));
     }
 
     public function validatePromo(Request $request)
@@ -37,7 +38,7 @@ class CheckoutController extends Controller
         $code = PromoCode::where('code', strtoupper($request->code))->first();
         if (!$code) return response()->json(['valid' => false, 'error' => 'Code promo invalide.']);
 
-        $plan = Plan::findOrFail($request->plan_id);
+        $plan   = Plan::findOrFail($request->plan_id);
         $result = $code->validate($plan, $plan->price);
 
         return response()->json($result);
@@ -46,6 +47,12 @@ class CheckoutController extends Controller
     public function createIntent(Request $request, Plan $plan)
     {
         abort_if(!$plan->is_active, 404);
+
+        // Vérification limite côté serveur (protection contre contournement JS)
+        $limitError = $plan->checkClientLimit(auth()->user());
+        if ($limitError) {
+            return response()->json(['error' => $limitError], 403);
+        }
 
         if ($plan->type === 'hosting') {
             $request->validate([
@@ -59,7 +66,7 @@ class CheckoutController extends Controller
             $customer = $stripe->getOrCreateCustomer(auth()->user());
 
             $promoCode = null;
-            $discount = 0;
+            $discount  = 0;
             if ($request->promo_code) {
                 $promoCode = PromoCode::where('code', strtoupper($request->promo_code))->first();
                 if ($promoCode) {

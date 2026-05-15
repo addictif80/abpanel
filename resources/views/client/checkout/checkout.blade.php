@@ -15,6 +15,16 @@
 
             <div id="payment-error" class="hidden mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm"></div>
 
+            @if($limitError ?? null)
+            <div class="mb-4 px-4 py-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800 flex items-start gap-3">
+                <svg class="w-5 h-5 text-amber-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <div>
+                    <p class="font-medium">Commande non disponible</p>
+                    <p class="mt-0.5">{{ $limitError }}</p>
+                </div>
+            </div>
+            @endif
+
             @if($plan->type === 'hosting')
             <div class="mb-5">
                 <label class="block text-sm font-medium text-gray-700 mb-1">
@@ -30,7 +40,7 @@
             </div>
             @endif
 
-            @if($stripeKey)
+            @if($stripeKey && !($limitError ?? null))
             <div class="mb-5" x-data="promoBlock()">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Code promo</label>
                 <div class="flex gap-2">
@@ -104,7 +114,7 @@
     </div>
 </div>
 
-@if($stripeKey)
+@if($stripeKey && !($limitError ?? null))
 @push('scripts')
 <script src="https://js.stripe.com/v3/"></script>
 <script>
