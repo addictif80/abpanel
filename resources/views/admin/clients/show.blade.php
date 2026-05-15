@@ -49,11 +49,11 @@
             <div class="grid grid-cols-2 gap-3 text-center">
                 <div class="bg-gray-50 rounded-lg p-3">
                     <div class="text-xl font-bold text-indigo-600">{{ $client->virtualMachines->count() }}</div>
-                    <div class="text-xs text-gray-500 mt-0.5">VM(s)</div>
+                    <div class="text-xs text-gray-500 mt-0.5">VPS</div>
                 </div>
                 <div class="bg-gray-50 rounded-lg p-3">
                     <div class="text-xl font-bold text-blue-600">{{ $client->hostingAccounts->count() }}</div>
-                    <div class="text-xs text-gray-500 mt-0.5">Hébergement(s)</div>
+                    <div class="text-xs text-gray-500 mt-0.5">Site(s)</div>
                 </div>
                 <div class="bg-gray-50 rounded-lg p-3">
                     <div class="text-xl font-bold text-amber-600">{{ $client->invoices->where('status', 'pending')->count() }}</div>
@@ -89,10 +89,10 @@
     {{-- Colonne principale --}}
     <div class="lg:col-span-2 space-y-4">
 
-        {{-- Machines virtuelles --}}
+        {{-- VPS --}}
         <div class="bg-white rounded-xl shadow-sm border border-gray-100">
             <div class="flex items-center justify-between px-5 py-4 border-b border-gray-50">
-                <h2 class="font-semibold text-gray-800 text-sm">Machines virtuelles ({{ $client->virtualMachines->count() }})</h2>
+                <h2 class="font-semibold text-gray-800 text-sm">VPS ({{ $client->virtualMachines->count() }})</h2>
             </div>
             <div class="divide-y divide-gray-50">
                 @forelse($client->virtualMachines as $vm)
@@ -107,15 +107,15 @@
                     </span>
                 </div>
                 @empty
-                <div class="px-5 py-6 text-center text-sm text-gray-400">Aucune VM</div>
+                <div class="px-5 py-6 text-center text-sm text-gray-400">Aucun VPS</div>
                 @endforelse
             </div>
         </div>
 
-        {{-- Hébergements web --}}
+        {{-- Sites --}}
         <div class="bg-white rounded-xl shadow-sm border border-gray-100">
             <div class="flex items-center justify-between px-5 py-4 border-b border-gray-50">
-                <h2 class="font-semibold text-gray-800 text-sm">Hébergements web ({{ $client->hostingAccounts->count() }})</h2>
+                <h2 class="font-semibold text-gray-800 text-sm">Sites ({{ $client->hostingAccounts->count() }})</h2>
             </div>
             <div class="divide-y divide-gray-50">
                 @forelse($client->hostingAccounts as $hosting)
@@ -129,7 +129,7 @@
                     </span>
                 </div>
                 @empty
-                <div class="px-5 py-6 text-center text-sm text-gray-400">Aucun hébergement</div>
+                <div class="px-5 py-6 text-center text-sm text-gray-400">Aucun site</div>
                 @endforelse
             </div>
         </div>

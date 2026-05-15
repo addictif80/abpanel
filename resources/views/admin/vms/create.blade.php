@@ -31,7 +31,7 @@
                             <svg class="w-5 h-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
                         </div>
                         <div>
-                            <div class="font-semibold text-gray-900 text-sm">Machine virtuelle</div>
+                            <div class="font-semibold text-gray-900 text-sm">VPS (machine virtuelle)</div>
                             <div class="text-xs text-gray-500">KVM / QEMU — isolation complète</div>
                         </div>
                     </div>

@@ -83,6 +83,16 @@ Route::middleware('installed')->group(function () {
             Route::post('/{hosting}/cancel', [Client\HostingController::class, 'cancelConfirm'])->name('cancelConfirm');
         });
 
+        // Domains
+        Route::prefix('domains')->name('domains.')->group(function () {
+            Route::get('/', [Client\DomainController::class, 'index'])->name('index');
+            Route::get('/create', [Client\DomainController::class, 'create'])->name('create');
+            Route::post('/', [Client\DomainController::class, 'store'])->name('store');
+            Route::post('/check-dns', [Client\DomainController::class, 'checkDnsAjax'])->name('check-dns');
+            Route::post('/{domain}/ssl', [Client\DomainController::class, 'enableSsl'])->name('enable-ssl');
+            Route::delete('/{domain}', [Client\DomainController::class, 'destroy'])->name('destroy');
+        });
+
         // Plans & Checkout
         Route::prefix('checkout')->name('checkout.')->group(function () {
             Route::get('/plans', [Client\CheckoutController::class, 'plans'])->name('plans');
@@ -237,6 +247,12 @@ Route::middleware('installed')->group(function () {
                 Route::get('/{domain}', [Admin\HostingController::class, 'importShow'])->name('show');
                 Route::post('/{domain}', [Admin\HostingController::class, 'importStore'])->name('store');
             });
+        });
+
+        // Domains
+        Route::prefix('domains')->name('domains.')->group(function () {
+            Route::get('/', [Admin\DomainController::class, 'index'])->name('index');
+            Route::delete('/{domain}', [Admin\DomainController::class, 'destroy'])->name('destroy');
         });
 
         // Plans

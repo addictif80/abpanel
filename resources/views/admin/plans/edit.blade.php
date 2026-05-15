@@ -46,7 +46,7 @@
                 <label class="cursor-pointer">
                     <input type="radio" name="vm_type" value="qemu" class="sr-only peer" {{ old('vm_type', $plan->vm_type ?? 'qemu') === 'qemu' ? 'checked' : '' }}>
                     <div class="rounded-lg border-2 p-3 transition peer-checked:border-indigo-500 peer-checked:bg-indigo-50 border-gray-200 hover:border-gray-300">
-                        <div class="font-semibold text-sm text-gray-800">Machine virtuelle</div>
+                        <div class="font-semibold text-sm text-gray-800">VPS (machine virtuelle)</div>
                         <div class="text-xs text-gray-500 mt-0.5">KVM / QEMU — isolation complète</div>
                     </div>
                 </label>

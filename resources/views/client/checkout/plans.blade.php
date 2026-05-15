@@ -10,7 +10,7 @@
 
 @foreach($plans as $type => $typePlans)
 <div class="mb-10">
-    <h2 class="text-lg font-semibold text-gray-700 mb-4">{{ $type === 'vm' ? 'Serveurs virtuels (VPS)' : 'Hébergement web' }}</h2>
+    <h2 class="text-lg font-semibold text-gray-700 mb-4">{{ $type === 'vm' ? 'Serveurs virtuels (VPS)' : 'Hébergements web' }}</h2>
     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
         @foreach($typePlans as $plan)
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col">

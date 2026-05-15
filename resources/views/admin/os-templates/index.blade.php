@@ -6,7 +6,7 @@
 <div class="flex items-center justify-between mb-6">
     <div>
         <h1 class="text-2xl font-bold text-gray-900">Templates OS</h1>
-        <p class="text-gray-500 text-sm mt-0.5">ISOs disponibles pour l'installation et la réinstallation des VMs.</p>
+        <p class="text-gray-500 text-sm mt-0.5">ISOs disponibles pour l'installation et la réinstallation des VPS.</p>
     </div>
 </div>
 

@@ -117,6 +117,39 @@ class CyberPanelService
         ]);
     }
 
+    /**
+     * Create a CyberPanel user account (without a website).
+     * Returns the generated or provided username.
+     */
+    public function createUser(
+        string $username,
+        string $password,
+        string $email,
+        string $fullName = '',
+        int $websitesLimit = 0
+    ): array {
+        return $this->request('submitUserCreation', [
+            'userName'       => $username,
+            'userPassword'   => $password,
+            'confirmPassword'=> $password,
+            'firstName'      => $fullName ?: $username,
+            'lastName'       => '',
+            'email'          => $email,
+            'websitesLimit'  => $websitesLimit,
+            'selectedACL'    => 'user',
+            'securityLevel'  => 'HIGH',
+        ]);
+    }
+
+    /** Transfer ownership of an existing website to another CyberPanel user. */
+    public function changeWebsiteOwner(string $domain, string $newOwner): array
+    {
+        return $this->request('changeOwner', [
+            'domainName' => $domain,
+            'newOwner'   => $newOwner,
+        ]);
+    }
+
     public function listPackages(): array
     {
         $result = $this->request('fetchPackages');

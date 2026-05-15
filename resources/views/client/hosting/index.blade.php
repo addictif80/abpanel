@@ -1,10 +1,10 @@
 @extends('layouts.app')
-@section('title', 'Hébergement web')
+@section('title', 'Mes sites')
 @section('sidebar')<x-client-sidebar />@endsection
 
 @section('content')
 <div class="mb-6">
-    <h1 class="text-2xl font-bold text-gray-900">Hébergement web</h1>
+    <h1 class="text-2xl font-bold text-gray-900">Mes sites</h1>
     <p class="text-gray-500 text-sm mt-1">{{ $hostingAccounts->count() }} compte(s) actif(s)</p>
 </div>
 
@@ -13,7 +13,7 @@
     <svg class="w-12 h-12 text-gray-300 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9"/>
     </svg>
-    <p class="text-gray-700 font-medium mb-1">Vous n'avez pas encore d'hébergement web.</p>
+    <p class="text-gray-700 font-medium mb-1">Vous n'avez pas encore de site hébergé.</p>
     <p class="text-gray-400 text-sm mb-4">Consultez nos offres et souscrivez pour héberger vos sites.</p>
     <a href="{{ route('client.checkout.plans') }}" class="inline-block px-5 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition">
         Consulter les offres
@@ -58,6 +58,13 @@
         </div>
     </div>
     @endforeach
+    <a href="{{ route('client.checkout.plans') }}"
+       class="bg-white rounded-xl border-2 border-dashed border-indigo-300 p-5 flex flex-col items-center justify-center gap-3 hover:border-indigo-500 hover:bg-indigo-50 transition min-h-[160px]">
+        <div class="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center">
+            <svg class="w-6 h-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        </div>
+        <span class="text-sm font-semibold text-indigo-600">Commander un nouvel hébergement</span>
+    </a>
 </div>
 @endif
 @endsection

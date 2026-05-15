@@ -81,6 +81,11 @@ class User extends Authenticatable
         return $this->hasMany(Project::class);
     }
 
+    public function clientDomains(): HasMany
+    {
+        return $this->hasMany(ClientDomain::class);
+    }
+
     public function isPro(): bool
     {
         return ! empty($this->siret);

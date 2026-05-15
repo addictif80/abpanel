@@ -1,13 +1,13 @@
 @extends('layouts.app')
-@section('title', 'Importer une VM Proxmox')
+@section('title', 'Importer un VPS Proxmox')
 @section('sidebar')<x-admin-sidebar />@endsection
 
 @section('content')
 <div class="flex items-center justify-between mb-6">
     <div>
         <a href="{{ route('admin.vms.index') }}" class="text-sm text-gray-400 hover:text-gray-600">← VMs</a>
-        <h1 class="text-2xl font-bold text-gray-900 mt-1">Importer une VM existante</h1>
-        <p class="text-gray-500 text-sm mt-0.5">Toutes les VMs détectées sur Proxmox. Assignez-en à vos clients.</p>
+        <h1 class="text-2xl font-bold text-gray-900 mt-1">Importer un VPS existant</h1>
+        <p class="text-gray-500 text-sm mt-0.5">Tous les VPS détectés sur Proxmox. Assignez-en à vos clients.</p>
     </div>
     <a href="{{ route('admin.vms.import.index') }}"
        class="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-200 transition">
@@ -35,7 +35,7 @@
 <div class="grid grid-cols-3 gap-4 mb-6">
     <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 text-center">
         <div class="text-2xl font-bold text-gray-900">{{ $total }}</div>
-        <div class="text-xs text-gray-500 mt-0.5">VMs Proxmox</div>
+        <div class="text-xs text-gray-500 mt-0.5">VPS Proxmox</div>
     </div>
     <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 text-center">
         <div class="text-2xl font-bold text-amber-600">{{ $pending }}</div>
@@ -66,7 +66,7 @@
         <table class="w-full text-sm">
             <thead class="bg-gray-50">
                 <tr>
-                    <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">VM</th>
+                    <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">VPS</th>
                     <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Nœud</th>
                     <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Ressources</th>
                     <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Statut</th>
@@ -128,7 +128,7 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="6" class="px-5 py-10 text-center text-gray-400">Aucune VM trouvée sur Proxmox</td>
+                    <td colspan="6" class="px-5 py-10 text-center text-gray-400">Aucun VPS trouvé sur Proxmox</td>
                 </tr>
                 @endforelse
             </tbody>

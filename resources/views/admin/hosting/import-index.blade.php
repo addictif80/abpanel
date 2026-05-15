@@ -5,7 +5,7 @@
 @section('content')
 <div class="flex items-center justify-between mb-6">
     <div>
-        <a href="{{ route('admin.hosting.index') }}" class="text-sm text-gray-400 hover:text-gray-600">← Hébergements</a>
+        <a href="{{ route('admin.hosting.index') }}" class="text-sm text-gray-400 hover:text-gray-600">← Sites</a>
         <h1 class="text-2xl font-bold text-gray-900 mt-1">Importer un hébergement existant</h1>
         <p class="text-gray-500 text-sm mt-0.5">Tous les sites détectés sur CyberPanel. Assignez-en à vos clients.</p>
     </div>
