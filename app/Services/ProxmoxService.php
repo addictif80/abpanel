@@ -66,7 +66,8 @@ class ProxmoxService
             throw new \RuntimeException($detail ?: "HTTP {$response->status()}");
         }
 
-        return $response->json('data') ?? [];
+        $data = $response->json('data');
+        return is_array($data) ? $data : [];
     }
 
     // ── Nodes ─────────────────────────────────────────────────────────────────
