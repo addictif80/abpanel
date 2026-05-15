@@ -54,13 +54,13 @@ class NginxProxyManagerService
     public function createProxyHost(string $domain, string $forwardHost, int $forwardPort = 80, bool $ssl = true): array
     {
         $data = [
-            'domain_names' => [$domain],
-            'forward_scheme' => 'http',
-            'forward_host' => $forwardHost,
-            'forward_port' => $forwardPort,
-            'block_exploits' => true,
+            'domain_names'            => [$domain],
+            'forward_scheme'          => 'http',
+            'forward_host'            => $forwardHost,
+            'forward_port'            => $forwardPort,
+            'block_exploits'          => true,
             'allow_websocket_upgrade' => true,
-            'http2_support' => false,
+            'http2_support'           => false,
         ];
 
         $host = $this->request('post', '/nginx/proxy-hosts', $data);
@@ -70,6 +70,72 @@ class NginxProxyManagerService
         }
 
         return $host;
+    }
+
+    /** Create a proxy host without SSL. Returns the host record with its id. */
+    public function createProxyHostPlain(
+        array  $domainNames,
+        string $forwardHost,
+        int    $forwardPort,
+        string $forwardScheme = 'http'
+    ): array {
+        return $this->request('post', '/nginx/proxy-hosts', [
+            'domain_names'            => $domainNames,
+            'forward_scheme'          => $forwardScheme,
+            'forward_host'            => $forwardHost,
+            'forward_port'            => $forwardPort,
+            'block_exploits'          => true,
+            'allow_websocket_upgrade' => true,
+            'http2_support'           => false,
+            'ssl_forced'              => false,
+            'certificate_id'          => 0,
+        ]);
+    }
+
+    /**
+     * Request a Let's Encrypt certificate via NPM and return the certificate record.
+     * Throws on failure.
+     */
+    public function requestLetsEncryptCertificate(array $domainNames, string $email): array
+    {
+        return $this->request('post', '/nginx/certificates', [
+            'provider'     => 'letsencrypt',
+            'domain_names' => $domainNames,
+            'meta'         => [
+                'letsencrypt_agree' => true,
+                'letsencrypt_email' => $email,
+                'dns_challenge'     => false,
+            ],
+        ]);
+    }
+
+    /** Attach an existing certificate to a proxy host and force SSL. */
+    public function attachCertificateToHost(int $hostId, int $certificateId): array
+    {
+        $host = $this->getProxyHost($hostId);
+        return $this->request('put', "/nginx/proxy-hosts/{$hostId}", array_merge($host, [
+            'certificate_id' => $certificateId,
+            'ssl_forced'     => true,
+            'http2_support'  => true,
+            'hsts_enabled'   => false,
+        ]));
+    }
+
+    /** Get a single proxy host record including certificate info. */
+    public function getProxyHost(int $hostId): array
+    {
+        return $this->request('get', "/nginx/proxy-hosts/{$hostId}");
+    }
+
+    /** Get certificate expiry date from NPM (ISO string or null). */
+    public function getCertificateExpiry(int $certId): ?string
+    {
+        try {
+            $cert = $this->request('get', "/nginx/certificates/{$certId}");
+            return $cert['expires_on'] ?? $cert['meta']['letsencrypt_certificate']['notAfter'] ?? null;
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     public function enableSSL(int $hostId, array $domains): array

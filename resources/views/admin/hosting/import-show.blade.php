@@ -4,7 +4,7 @@
 
 @section('content')
 <div class="mb-6">
-    <a href="{{ route('admin.hosting.import.index') }}" class="text-sm text-gray-400 hover:text-gray-600">← Importer un hébergement</a>
+    <a href="{{ route('admin.hosting.import.index') }}" class="text-sm text-gray-400 hover:text-gray-600">← Importer un site</a>
     <h1 class="text-2xl font-bold text-gray-900 mt-1">
         Importer « {{ $siteInfo['domain'] }} »
     </h1>
@@ -54,7 +54,7 @@
             </div>
 
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
-                <h2 class="font-semibold text-gray-800">Informations hébergement <span class="text-xs font-normal text-gray-400">(pré-remplies depuis CyberPanel)</span></h2>
+                <h2 class="font-semibold text-gray-800">Informations site <span class="text-xs font-normal text-gray-400">(pré-remplies depuis CyberPanel)</span></h2>
 
                 <div class="grid grid-cols-2 gap-4">
                     <div>

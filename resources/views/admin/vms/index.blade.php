@@ -1,12 +1,12 @@
 @extends('layouts.app')
-@section('title', 'Machines virtuelles')
+@section('title', 'VPS')
 @section('sidebar')<x-admin-sidebar />@endsection
 
 @section('content')
 <div class="flex items-center justify-between mb-6">
     <div>
-        <h1 class="text-2xl font-bold text-gray-900">Machines virtuelles</h1>
-        <p class="text-gray-500 text-sm mt-1">{{ $vms->total() }} VM(s)</p>
+        <h1 class="text-2xl font-bold text-gray-900">VPS</h1>
+        <p class="text-gray-500 text-sm mt-1">{{ $vms->total() }} VPS</p>
     </div>
     <div class="flex items-center gap-3">
         <a href="{{ route('admin.vms.import.index') }}"
@@ -16,7 +16,7 @@
         </a>
         <a href="{{ route('admin.vms.create') }}"
            class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition">
-            + Nouvelle VM
+            + Nouveau VPS
         </a>
     </div>
 </div>
@@ -25,7 +25,7 @@
     <table class="w-full text-sm">
         <thead class="bg-gray-50">
             <tr>
-                <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">VM</th>
+                <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">VPS</th>
                 <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Client</th>
                 <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Ressources</th>
                 <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Statut</th>
@@ -72,7 +72,7 @@
                 </td>
             </tr>
             @empty
-            <tr><td colspan="7" class="px-5 py-10 text-center text-gray-400">Aucune VM</td></tr>
+            <tr><td colspan="7" class="px-5 py-10 text-center text-gray-400">Aucun VPS</td></tr>
             @endforelse
         </tbody>
     </table>

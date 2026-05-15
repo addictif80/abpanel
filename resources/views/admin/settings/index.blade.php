@@ -360,6 +360,13 @@
                         <input type="password" name="cyberpanel_password" value="{{ $settings['cyberpanel_password'] ?? '' }}"
                             class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                     </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">IP Tailscale CyberPanel</label>
+                        <input type="text" name="cyberpanel_tailscale_ip" value="{{ $settings['cyberpanel_tailscale_ip'] ?? '' }}"
+                            placeholder="100.x.x.x"
+                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none font-mono">
+                        <p class="text-xs text-gray-400 mt-1">IP Tailscale du serveur CyberPanel, utilisée comme cible des proxy hosts "Hébergement" créés par les clients.</p>
+                    </div>
                 </div>
                 <div class="pt-4 border-t border-gray-100 flex items-center gap-3">
                     <button type="submit" class="px-5 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition">Enregistrer</button>
@@ -392,6 +399,12 @@
                         <label class="block text-sm font-medium text-gray-700 mb-1">Mot de passe</label>
                         <input type="password" name="npm_password" value="{{ $settings['npm_password'] ?? '' }}"
                             class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Cooldown suppression domaine (minutes)</label>
+                        <input type="number" name="domain_deletion_cooldown" value="{{ $settings['domain_deletion_cooldown'] ?? 60 }}" min="0"
+                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <p class="text-xs text-gray-400 mt-1">Délai avant qu'un client puisse recréer un domaine qu'il vient de supprimer.</p>
                     </div>
                 </div>
                 <div class="pt-4 border-t border-gray-100 flex items-center gap-3">

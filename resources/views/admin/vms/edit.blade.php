@@ -61,7 +61,7 @@
                 </a>
             </div>
             <form method="POST" action="{{ route('admin.vms.destroy', $vm) }}"
-                onsubmit="return confirm('Supprimer cette VM de Proxmox ? Cette action est irréversible.')">
+                onsubmit="return confirm('Supprimer ce VPS de Proxmox ? Cette action est irréversible.')">
                 @csrf @method('DELETE')
                 <button type="submit" class="px-4 py-2 bg-red-50 text-red-600 text-sm font-semibold rounded-lg hover:bg-red-100 transition">
                     Supprimer

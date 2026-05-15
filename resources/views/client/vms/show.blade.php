@@ -5,7 +5,7 @@
 @section('content')
 <div class="flex items-center justify-between mb-6">
     <div>
-        <a href="{{ route('client.vms.index') }}" class="text-sm text-gray-400 hover:text-gray-600">← Mes VMs</a>
+        <a href="{{ route('client.vms.index') }}" class="text-sm text-gray-400 hover:text-gray-600">← Mes VPS</a>
         <h1 class="text-2xl font-bold text-gray-900 mt-1">{{ $vm->name }}</h1>
     </div>
     @php
@@ -50,7 +50,7 @@
                     </button>
                 </form>
                 @elseif($vm->status === 'running')
-                <form method="POST" action="{{ route('client.vms.stop', $vm) }}" onsubmit="return confirm('Arrêter proprement la VM ?')">
+                <form method="POST" action="{{ route('client.vms.stop', $vm) }}" onsubmit="return confirm('Arrêter proprement le VPS ?')">
                     @csrf
                     <button type="submit" class="w-full flex flex-col items-center gap-1 px-3 py-3 bg-gray-800 text-white text-xs font-semibold rounded-lg hover:bg-gray-900 transition">
                         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 10h6v4H9z"/></svg>
@@ -69,7 +69,7 @@
 
                 {{-- Slot 2 : Suspendre (running) ou désactivé --}}
                 @if($vm->status === 'running')
-                <form method="POST" action="{{ route('client.vms.hibernate', $vm) }}" onsubmit="return confirm('Suspendre la VM ?')">
+                <form method="POST" action="{{ route('client.vms.hibernate', $vm) }}" onsubmit="return confirm('Suspendre le VPS ?')">
                     @csrf
                     <button type="submit" class="w-full flex flex-col items-center gap-1 px-3 py-3 bg-amber-500 text-white text-xs font-semibold rounded-lg hover:bg-amber-600 transition">
                         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
@@ -91,7 +91,7 @@
                     Réinstaller
                 </a>
                 @else
-                <form method="POST" action="{{ route('client.vms.forceStop', $vm) }}" onsubmit="return confirm('Forcer l\'arrêt immédiat de la VM ? Les données non sauvegardées seront perdues.')">
+                <form method="POST" action="{{ route('client.vms.forceStop', $vm) }}" onsubmit="return confirm('Forcer l\'arrêt immédiat du VPS ? Les données non sauvegardées seront perdues.')">
                     @csrf
                     <button type="submit" class="w-full flex flex-col items-center gap-1 px-3 py-3 bg-red-600 text-white text-xs font-semibold rounded-lg hover:bg-red-700 transition">
                         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
@@ -112,7 +112,7 @@
                 <a href="{{ route('client.vms.cancel', $vm) }}"
                    class="flex items-center gap-2 px-3 py-2 text-xs text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition">
                     <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                    Résilier cette VM
+                    Résilier ce VPS
                 </a>
             </div>
         </div>

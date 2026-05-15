@@ -29,7 +29,7 @@
                 <tr>
                     <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Client</th>
                     <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">VMs</th>
-                    <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Hébergements</th>
+                    <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Sites</th>
                     <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Tickets</th>
                     <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Statut</th>
                     <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Inscrit le</th>

@@ -1,11 +1,11 @@
 @extends('layouts.app')
-@section('title', 'Hébergements web')
+@section('title', 'Sites')
 @section('sidebar')<x-admin-sidebar />@endsection
 
 @section('content')
 <div class="flex items-center justify-between mb-6">
     <div>
-        <h1 class="text-2xl font-bold text-gray-900">Hébergements web</h1>
+        <h1 class="text-2xl font-bold text-gray-900">Sites</h1>
         <p class="text-gray-500 text-sm mt-1">{{ $accounts->total() }} compte(s) hébergement</p>
     </div>
     <a href="{{ route('admin.hosting.import.index') }}"
@@ -67,7 +67,7 @@
                 </td>
             </tr>
             @empty
-            <tr><td colspan="7" class="px-5 py-10 text-center text-gray-400">Aucun hébergement</td></tr>
+            <tr><td colspan="7" class="px-5 py-10 text-center text-gray-400">Aucun site</td></tr>
             @endforelse
         </tbody>
     </table>

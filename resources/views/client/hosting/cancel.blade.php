@@ -5,7 +5,7 @@
 @section('content')
 <div class="max-w-lg mx-auto">
 
-    <a href="{{ route('client.hosting.index') }}" class="text-sm text-gray-400 hover:text-gray-600">← Retour à l'hébergement</a>
+    <a href="{{ route('client.hosting.index') }}" class="text-sm text-gray-400 hover:text-gray-600">← Retour à mes sites</a>
 
     <div class="mt-4 bg-red-50 border border-red-200 rounded-xl p-5 mb-6">
         <div class="flex items-start gap-3">

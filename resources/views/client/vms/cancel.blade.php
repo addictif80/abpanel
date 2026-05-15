@@ -5,7 +5,7 @@
 @section('content')
 <div class="max-w-lg mx-auto">
 
-    <a href="{{ route('client.vms.show', $vm) }}" class="text-sm text-gray-400 hover:text-gray-600">← Retour à la VM</a>
+    <a href="{{ route('client.vms.show', $vm) }}" class="text-sm text-gray-400 hover:text-gray-600">← Retour au VPS</a>
 
     <div class="mt-4 bg-red-50 border border-red-200 rounded-xl p-5 mb-6">
         <div class="flex items-start gap-3">
@@ -20,7 +20,7 @@
                 </p>
                 <ul class="mt-3 space-y-1 text-sm text-red-700 list-disc list-inside">
                     <li>Tous vos fichiers et données seront perdus</li>
-                    <li>La VM ne pourra pas être restaurée</li>
+                    <li>Le VPS ne pourra pas être restauré</li>
                     <li>La facturation s'arrêtera à la date de résiliation</li>
                 </ul>
             </div>
@@ -53,7 +53,7 @@
             </div>
 
             <button type="submit"
-                onclick="return confirm('Dernière confirmation : supprimer définitivement la VM « {{ addslashes($vm->name) }} » et toutes ses données ?')"
+                onclick="return confirm('Dernière confirmation : supprimer définitivement le VPS « {{ addslashes($vm->name) }} » et toutes ses données ?')"
                 class="w-full py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition text-sm">
                 Confirmer la résiliation définitive
             </button>

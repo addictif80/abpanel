@@ -20,11 +20,11 @@
     </div>
     <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
         <div class="text-2xl font-bold text-blue-600">{{ $stats['vms'] }}</div>
-        <div class="text-xs text-gray-500 mt-1">VMs totales</div>
+        <div class="text-xs text-gray-500 mt-1">VPS total</div>
     </div>
     <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
         <div class="text-2xl font-bold text-green-600">{{ $stats['vms_running'] }}</div>
-        <div class="text-xs text-gray-500 mt-1">VMs actives</div>
+        <div class="text-xs text-gray-500 mt-1">VPS actifs</div>
     </div>
     <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
         <div class="text-2xl font-bold text-amber-600">{{ $stats['open_tickets'] }}</div>

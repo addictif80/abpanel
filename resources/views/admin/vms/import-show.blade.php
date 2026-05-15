@@ -4,7 +4,7 @@
 
 @section('content')
 <div class="mb-6">
-    <a href="{{ route('admin.vms.import.index') }}" class="text-sm text-gray-400 hover:text-gray-600">← Importer une VM</a>
+    <a href="{{ route('admin.vms.import.index') }}" class="text-sm text-gray-400 hover:text-gray-600">← Importer un VPS</a>
     <h1 class="text-2xl font-bold text-gray-900 mt-1">
         Importer « {{ $vmInfo['name'] }} »
         <span class="text-base font-normal text-gray-400 ml-2">VMID {{ $vmInfo['vmid'] }} — {{ $vmInfo['node'] }}</span>

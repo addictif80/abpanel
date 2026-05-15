@@ -28,11 +28,11 @@
 <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
     <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
         <div class="text-2xl font-bold text-indigo-600">{{ $vms->count() }}</div>
-        <div class="text-xs text-gray-500 mt-1">Machine(s) virtuelle(s)</div>
+        <div class="text-xs text-gray-500 mt-1">VPS</div>
     </div>
     <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
         <div class="text-2xl font-bold text-blue-600">{{ $hostingAccounts->count() }}</div>
-        <div class="text-xs text-gray-500 mt-1">Hébergement(s)</div>
+        <div class="text-xs text-gray-500 mt-1">Site(s)</div>
     </div>
     <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
         <div class="text-2xl font-bold text-amber-600">{{ $unpaidInvoices }}</div>
@@ -46,10 +46,10 @@
 
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
-    {{-- Machines virtuelles --}}
+    {{-- VPS --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100">
         <div class="flex items-center justify-between px-5 py-4 border-b border-gray-50">
-            <h2 class="font-semibold text-gray-800 text-sm">Machines virtuelles</h2>
+            <h2 class="font-semibold text-gray-800 text-sm">Mes VPS</h2>
             <a href="{{ route('client.vms.index') }}" class="text-xs text-indigo-600 hover:underline">Gérer →</a>
         </div>
         <div class="divide-y divide-gray-50">
@@ -71,17 +71,17 @@
             </div>
             @empty
             <div class="px-5 py-8 text-center text-sm text-gray-400">
-                <p class="mb-2">Aucune machine virtuelle</p>
+                <p class="mb-2">Aucun VPS</p>
                 <a href="{{ route('client.checkout.plans') }}" class="text-indigo-600 hover:underline font-medium">Voir nos offres →</a>
             </div>
             @endforelse
         </div>
     </div>
 
-    {{-- Hébergements web --}}
+    {{-- Sites --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100">
         <div class="flex items-center justify-between px-5 py-4 border-b border-gray-50">
-            <h2 class="font-semibold text-gray-800 text-sm">Hébergements web</h2>
+            <h2 class="font-semibold text-gray-800 text-sm">Mes sites</h2>
             <a href="{{ route('client.hosting.index') }}" class="text-xs text-indigo-600 hover:underline">Gérer →</a>
         </div>
         <div class="divide-y divide-gray-50">

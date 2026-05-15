@@ -5,7 +5,7 @@
 @section('content')
 <div class="mb-6">
     <a href="{{ route('client.vms.show', $vm) }}" class="text-sm text-gray-400 hover:text-gray-600">← {{ $vm->name }}</a>
-    <h1 class="text-2xl font-bold text-gray-900 mt-1">Réinstaller la VM</h1>
+    <h1 class="text-2xl font-bold text-gray-900 mt-1">Réinstaller le VPS</h1>
 </div>
 
 <div class="max-w-xl space-y-6">
@@ -20,7 +20,7 @@
             <div>
                 <p class="font-semibold text-red-800 text-sm">Toutes les données seront effacées</p>
                 <p class="text-red-700 text-sm mt-1">
-                    La réinstallation supprime définitivement le disque de la VM et le remplace par un disque vierge.
+                    La réinstallation supprime définitivement le disque du VPS et le remplace par un disque vierge.
                     Cette action est <strong>irréversible</strong>.
                 </p>
             </div>
@@ -68,7 +68,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                         d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
                 </svg>
-                Réinstaller la VM
+                Réinstaller le VPS
             </button>
         </div>
     </form>

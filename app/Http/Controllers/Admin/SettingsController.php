@@ -67,8 +67,8 @@ class SettingsController extends Controller
             'cyberpanel_password' => 'required|string',
         ]);
 
-        foreach (['cyberpanel_host', 'cyberpanel_user', 'cyberpanel_password'] as $key) {
-            Setting::set($key, $request->input($key), 'cyberpanel');
+        foreach (['cyberpanel_host', 'cyberpanel_user', 'cyberpanel_password', 'cyberpanel_tailscale_ip'] as $key) {
+            Setting::set($key, $request->input($key, ''), 'cyberpanel');
         }
 
         return back()->with('success', 'Configuration CyberPanel enregistrée.');
@@ -85,6 +85,7 @@ class SettingsController extends Controller
         foreach (['npm_host', 'npm_email', 'npm_password'] as $key) {
             Setting::set($key, $request->input($key), 'npm');
         }
+        Setting::set('domain_deletion_cooldown', (string) max(0, (int) $request->input('domain_deletion_cooldown', 60)), 'npm');
 
         return back()->with('success', 'Configuration NPM enregistrée.');
     }
