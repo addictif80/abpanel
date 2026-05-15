@@ -21,7 +21,7 @@ class CheckoutController extends Controller
     {
         abort_if(!$plan->is_active, 404);
 
-        $stripeKey = Setting::get('stripe_publishable_key');
+        $stripeKey = Setting::get('stripe_public_key');
 
         return view('client.checkout.checkout', compact('plan', 'stripeKey'));
     }
