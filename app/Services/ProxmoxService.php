@@ -25,7 +25,7 @@ class ProxmoxService
 
     private function authenticate(): void
     {
-        $response = Http::withoutVerifying()->timeout(10)->asForm()->post("{$this->host}/api2/json/access/ticket", [
+        $response = Http::withoutVerifying()->timeout(10)->post("{$this->host}/api2/json/access/ticket", [
             'username' => "{$this->user}@{$this->realm}",
             'password' => $this->password,
         ]);
@@ -35,6 +35,9 @@ class ProxmoxService
         }
 
         $data = $response->json('data');
+        if (!isset($data['ticket'], $data['CSRFPreventionToken'])) {
+            throw new \RuntimeException('Réponse d\'authentification Proxmox invalide');
+        }
         $this->ticket = $data['ticket'];
         $this->csrfToken = $data['CSRFPreventionToken'];
     }
@@ -45,11 +48,17 @@ class ProxmoxService
             $this->authenticate();
         }
 
-        $response = Http::withoutVerifying()
+        $http = Http::withoutVerifying()
             ->withCookies(['PVEAuthCookie' => $this->ticket], parse_url($this->host, PHP_URL_HOST))
-            ->withHeaders(['CSRFPreventionToken' => $this->csrfToken])
-            ->asForm()
-            ->$method("{$this->host}/api2/json{$path}", $data);
+            ->withHeaders(['CSRFPreventionToken' => $this->csrfToken]);
+
+        if (in_array($method, ['post', 'put', 'patch', 'delete']) && !empty($data)) {
+            $response = $http->asForm()->$method("{$this->host}/api2/json{$path}", $data);
+        } elseif (in_array($method, ['post', 'put', 'patch', 'delete'])) {
+            $response = $http->$method("{$this->host}/api2/json{$path}");
+        } else {
+            $response = $http->$method("{$this->host}/api2/json{$path}", $data);
+        }
 
         if ($response->failed()) {
             Log::error("Proxmox API error [{$method} {$path}]: " . $response->body());
