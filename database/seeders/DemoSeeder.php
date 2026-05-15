@@ -85,6 +85,7 @@ class DemoSeeder extends Seeder
             $clients[] = User::firstOrCreate(
                 ['email' => $d['email']],
                 [
+                    'name'       => $d['first_name'] . ' ' . $d['last_name'],
                     'first_name' => $d['first_name'],
                     'last_name'  => $d['last_name'],
                     'password'   => Hash::make('Demo1234!'),
