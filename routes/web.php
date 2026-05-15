@@ -69,6 +69,7 @@ Route::middleware('installed')->group(function () {
             Route::get('/{vm}/terminal', [Client\VmController::class, 'terminal'])->name('terminal');
             Route::post('/{vm}/domain', [Client\VmController::class, 'updateDomain'])->name('domain');
             Route::post('/{vm}/password', [Client\VmController::class, 'changeRootPassword'])->name('password');
+            Route::post('/{vm}/force-stop', [Client\VmController::class, 'forceStop'])->name('forceStop');
             Route::get('/{vm}/reinstall', [Client\VmController::class, 'reinstall'])->name('reinstall');
             Route::post('/{vm}/reinstall', [Client\VmController::class, 'doReinstall'])->name('doReinstall');
         });
@@ -146,6 +147,7 @@ Route::middleware('installed')->group(function () {
             Route::post('/npm', [Admin\SettingsController::class, 'saveNpm'])->name('npm');
             Route::post('/stripe', [Admin\SettingsController::class, 'saveStripe'])->name('stripe');
             Route::post('/mail', [Admin\SettingsController::class, 'saveMail'])->name('mail');
+            Route::post('/tailscale', [Admin\SettingsController::class, 'saveTailscale'])->name('tailscale');
             Route::post('/test/{service}', [Admin\SettingsController::class, 'testConnection'])->name('test');
         });
 

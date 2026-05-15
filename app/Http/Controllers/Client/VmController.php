@@ -87,6 +87,18 @@ class VmController extends Controller
         }
     }
 
+    public function forceStop(VirtualMachine $vm)
+    {
+        $this->authorizeVm($vm);
+        try {
+            app(ProxmoxService::class)->action($vm->proxmox_node, (int) $vm->proxmox_vmid, 'stop', $vm->vm_type ?? 'qemu');
+            $vm->update(['status' => 'stopped']);
+            return back()->with('success', 'VM arrêtée de force.');
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Erreur : ' . $e->getMessage());
+        }
+    }
+
     public function reboot(VirtualMachine $vm)
     {
         $this->authorizeVm($vm);
