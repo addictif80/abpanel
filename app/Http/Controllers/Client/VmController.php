@@ -258,6 +258,10 @@ class VmController extends Controller
 
             $newPassword = null;
 
+            // Resolve disk storage: use stored value, or read it from Proxmox config,
+            // or fall back to the panel default.
+            $diskStorage = $vm->disk_storage ?: $this->resolveDiskStorage($proxmox, $vm, $vmType);
+
             if ($vmType === 'lxc') {
                 $newPassword = \Illuminate\Support\Str::random(8) . '!' . \Illuminate\Support\Str::random(8);
                 $proxmox->deleteCT($vm->proxmox_node, (int) $vm->proxmox_vmid);
@@ -269,7 +273,7 @@ class VmController extends Controller
                     'cores'        => $vm->cores,
                     'memory'       => $vm->memory_mb,
                     'swap'         => $vm->swap_mb ?? 512,
-                    'rootfs'       => "{$vm->disk_storage}:{$vm->disk_gb}",
+                    'rootfs'       => "{$diskStorage}:{$vm->disk_gb}",
                     'net0'         => 'name=eth0,bridge=vmbr0,ip=dhcp',
                     'unprivileged' => 1,
                     'password'     => $newPassword,
@@ -279,7 +283,7 @@ class VmController extends Controller
                 $proxmox->unlinkVMDisk($vm->proxmox_node, (int) $vm->proxmox_vmid, 'scsi0');
                 sleep(2);
                 $proxmox->updateVMConfig($vm->proxmox_node, (int) $vm->proxmox_vmid, [
-                    'scsi0' => "{$vm->disk_storage}:{$vm->disk_gb}",
+                    'scsi0' => "{$diskStorage}:{$vm->disk_gb}",
                     'ide2'  => "{$template->proxmox_volume},media=cdrom",
                     'boot'  => 'order=ide2;scsi0',
                 ]);
@@ -314,6 +318,28 @@ class VmController extends Controller
         $vm->update(['custom_domain' => $request->custom_domain ?: null]);
 
         return back()->with('success', 'Domaine personnalisé mis à jour.');
+    }
+
+    private function resolveDiskStorage(ProxmoxService $proxmox, \App\Models\VirtualMachine $vm, string $vmType): string
+    {
+        // Try to read the storage name from the current Proxmox config (scsi0 or rootfs)
+        try {
+            $config = $proxmox->getConfig($vm->proxmox_node, (int) $vm->proxmox_vmid, $vmType);
+            $field  = $vmType === 'lxc' ? 'rootfs' : 'scsi0';
+            $value  = $config[$field] ?? '';
+            // Format is "storage:volume-name,..." — extract the storage part
+            if ($value && str_contains($value, ':')) {
+                $storage = explode(':', $value)[0];
+                if ($storage) {
+                    $vm->update(['disk_storage' => $storage]);
+                    return $storage;
+                }
+            }
+        } catch (\Throwable) {}
+
+        // Fall back to the panel default storage setting
+        $default = \App\Models\Setting::get('proxmox_default_storage', 'local-lvm');
+        return $default ?: 'local-lvm';
     }
 
     private function findPhpBinary(): string
