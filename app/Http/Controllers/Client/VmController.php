@@ -111,40 +111,46 @@ class VmController extends Controller
             return back()->with('error', 'Données VNC manquantes (host ou port).');
         }
 
-        // Find a free local port for the WebSocket proxy
-        $proxyPort = $this->findFreePort();
-        if (!$proxyPort) {
-            return back()->with('error', 'Aucun port disponible pour le proxy VNC.');
-        }
-
         $token = \Illuminate\Support\Str::random(48);
 
-        // Start the proxy as a background process
-        $artisan = base_path('artisan');
-        $cmd = sprintf(
-            'php %s vnc:proxy %d %s %d %s > /dev/null 2>&1 &',
-            escapeshellarg($artisan),
-            $proxyPort,
-            escapeshellarg($vncHost),
-            $vncPort,
-            escapeshellarg($token)
-        );
-        exec($cmd);
+        // Write session file for the daemon to pick up
+        $sessionFile = sys_get_temp_dir() . "/vnc-proxy-{$token}";
+        file_put_contents($sessionFile, json_encode([
+            'vnc_host' => $vncHost,
+            'vnc_port' => $vncPort,
+            'expires'  => time() + 30,
+        ]));
 
-        // Wait up to 2 s for the proxy to start listening
-        $ready = false;
-        for ($i = 0; $i < 20; $i++) {
-            usleep(100_000);
-            $test = @stream_socket_client("tcp://127.0.0.1:{$proxyPort}", $e, $es, 0.1);
-            if ($test) {
-                fclose($test);
-                $ready = true;
-                break;
+        // Start the daemon if it is not already listening on port 6080
+        $proxyPort = 6080;
+        $test = @stream_socket_client("tcp://127.0.0.1:{$proxyPort}", $errno, $errstr, 0.5);
+        if (!$test) {
+            $artisan = base_path('artisan');
+            $cmd = sprintf(
+                'php %s vnc:proxy-server --port=%d > /dev/null 2>&1 &',
+                escapeshellarg($artisan),
+                $proxyPort
+            );
+            exec($cmd);
+
+            // Wait up to 3 s for the daemon to start
+            $ready = false;
+            for ($i = 0; $i < 30; $i++) {
+                usleep(100_000);
+                $sock = @stream_socket_client("tcp://127.0.0.1:{$proxyPort}", $e, $es, 0.1);
+                if ($sock) {
+                    fclose($sock);
+                    $ready = true;
+                    break;
+                }
             }
-        }
 
-        if (!$ready) {
-            return back()->with('error', 'Le proxy VNC n\'a pas démarré à temps.');
+            if (!$ready) {
+                @unlink($sessionFile);
+                return back()->with('error', 'Le proxy VNC n\'a pas démarré à temps.');
+            }
+        } else {
+            fclose($test);
         }
 
         return view('client.vms.terminal', [
@@ -153,19 +159,6 @@ class VmController extends Controller
             'token'     => $token,
             'vncTicket' => $vncTicket,
         ]);
-    }
-
-    private function findFreePort(): ?int
-    {
-        for ($i = 0; $i < 20; $i++) {
-            $port = random_int(6100, 6300);
-            $test = @stream_socket_server("tcp://127.0.0.1:{$port}", $errno, $errstr);
-            if ($test) {
-                fclose($test);
-                return $port;
-            }
-        }
-        return null;
     }
 
     public function changeRootPassword(Request $request, VirtualMachine $vm)
