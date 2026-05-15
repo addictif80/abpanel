@@ -31,8 +31,12 @@ import RFB from 'https://cdn.jsdelivr.net/npm/@novnc/novnc@1.5.0/core/rfb.js';
 const proxyPort = {{ $proxyPort }};
 const token     = {{ json_encode($token) }};
 const ticket    = {{ json_encode($vncTicket) }};
-const wsScheme  = location.protocol === 'https:' ? 'wss' : 'ws';
-const wsUrl     = `${wsScheme}://${location.hostname}:${proxyPort}/?token=${encodeURIComponent(token)}`;
+
+// HTTPS panels: route through nginx reverse proxy to avoid mixed-content block
+// HTTP panels: connect directly to the proxy port
+const wsUrl = location.protocol === 'https:'
+    ? `wss://${location.host}/vnc-proxy/${proxyPort}/?token=${encodeURIComponent(token)}`
+    : `ws://${location.hostname}:${proxyPort}/?token=${encodeURIComponent(token)}`;
 
 const statusEl = document.getElementById('status');
 
