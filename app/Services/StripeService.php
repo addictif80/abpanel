@@ -39,19 +39,11 @@ class StripeService
         return $this->createCustomer($user);
     }
 
-    public function createPaymentIntent(float $amount, string $currency = 'eur', string $customerId = null): PaymentIntent
+    public function createPaymentIntent(array $params): PaymentIntent
     {
-        $data = [
-            'amount' => (int) ($amount * 100),
-            'currency' => $currency,
+        return PaymentIntent::create(array_merge([
             'automatic_payment_methods' => ['enabled' => true],
-        ];
-
-        if ($customerId) {
-            $data['customer'] = $customerId;
-        }
-
-        return PaymentIntent::create($data);
+        ], $params));
     }
 
     public function createSubscription(string $customerId, string $priceId): Subscription
