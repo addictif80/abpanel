@@ -23,6 +23,7 @@
     <div class="lg:col-span-2">
         <form method="POST" action="{{ route('admin.vms.import.store', [$vmInfo['node'], $vmInfo['vmid']]) }}" class="space-y-5">
             @csrf
+            <input type="hidden" name="vm_type" value="{{ $vmInfo['vm_type'] }}">
 
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
                 <h2 class="font-semibold text-gray-800">Assignation</h2>
