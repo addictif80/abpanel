@@ -69,6 +69,8 @@ Route::middleware('installed')->group(function () {
             Route::get('/{vm}/terminal', [Client\VmController::class, 'terminal'])->name('terminal');
             Route::post('/{vm}/domain', [Client\VmController::class, 'updateDomain'])->name('domain');
             Route::post('/{vm}/password', [Client\VmController::class, 'changeRootPassword'])->name('password');
+            Route::get('/{vm}/reinstall', [Client\VmController::class, 'reinstall'])->name('reinstall');
+            Route::post('/{vm}/reinstall', [Client\VmController::class, 'doReinstall'])->name('doReinstall');
         });
 
         // Hosting

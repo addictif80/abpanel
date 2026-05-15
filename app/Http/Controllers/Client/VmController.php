@@ -208,6 +208,89 @@ class VmController extends Controller
         }
     }
 
+    public function reinstall(VirtualMachine $vm)
+    {
+        $this->authorizeVm($vm);
+
+        $templateType = ($vm->vm_type ?? 'qemu') === 'lxc' ? 'ct' : 'iso';
+        $templates = \App\Models\OsTemplate::where('status', 'ready')
+            ->where('is_active', true)
+            ->where('template_type', $templateType)
+            ->get();
+
+        return view('client.vms.reinstall', compact('vm', 'templates'));
+    }
+
+    public function doReinstall(Request $request, VirtualMachine $vm)
+    {
+        $this->authorizeVm($vm);
+
+        $request->validate([
+            'os_template_id' => 'required|exists:os_templates,id',
+        ]);
+
+        $template = \App\Models\OsTemplate::findOrFail($request->os_template_id);
+        $proxmox  = app(ProxmoxService::class);
+        $vmType   = $vm->vm_type ?? 'qemu';
+
+        try {
+            // Force-stop the VM and wait up to 30 s
+            if ($vm->status !== 'stopped') {
+                $proxmox->action($vm->proxmox_node, (int) $vm->proxmox_vmid, 'stop', $vmType);
+                for ($i = 0; $i < 30; $i++) {
+                    sleep(1);
+                    $s = $proxmox->getStatus($vm->proxmox_node, (int) $vm->proxmox_vmid, $vmType);
+                    if (($s['status'] ?? '') === 'stopped') break;
+                }
+            }
+
+            $newPassword = null;
+
+            if ($vmType === 'lxc') {
+                $newPassword = \Illuminate\Support\Str::random(8) . '!' . \Illuminate\Support\Str::random(8);
+                $proxmox->deleteCT($vm->proxmox_node, (int) $vm->proxmox_vmid);
+                sleep(5);
+                $proxmox->createCT($vm->proxmox_node, [
+                    'vmid'         => (int) $vm->proxmox_vmid,
+                    'hostname'     => $vm->name,
+                    'ostemplate'   => $template->proxmox_volume,
+                    'cores'        => $vm->cores,
+                    'memory'       => $vm->memory_mb,
+                    'swap'         => $vm->swap_mb ?? 512,
+                    'rootfs'       => "{$vm->disk_storage}:{$vm->disk_gb}",
+                    'net0'         => 'name=eth0,bridge=vmbr0,ip=dhcp',
+                    'unprivileged' => 1,
+                    'password'     => $newPassword,
+                ]);
+            } else {
+                // Delete existing disk then recreate + swap ISO
+                $proxmox->unlinkVMDisk($vm->proxmox_node, (int) $vm->proxmox_vmid, 'scsi0');
+                sleep(2);
+                $proxmox->updateVMConfig($vm->proxmox_node, (int) $vm->proxmox_vmid, [
+                    'scsi0' => "{$vm->disk_storage}:{$vm->disk_gb}",
+                    'ide2'  => "{$template->proxmox_volume},media=cdrom",
+                    'boot'  => 'order=ide2;scsi0',
+                ]);
+            }
+
+            $proxmox->action($vm->proxmox_node, (int) $vm->proxmox_vmid, 'start', $vmType);
+
+            $vm->update([
+                'os_template'   => $template->name,
+                'status'        => 'running',
+                'root_password' => $newPassword,
+            ]);
+
+            $msg = $vmType === 'lxc'
+                ? 'Réinstallation terminée. Le nouveau mot de passe root est affiché ci-dessous.'
+                : 'Réinstallation terminée. Utilisez le terminal noVNC pour finaliser l\'installation de l\'OS.';
+
+            return redirect()->route('client.vms.show', $vm)->with('success', $msg);
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Erreur lors de la réinstallation : ' . $e->getMessage());
+        }
+    }
+
     public function updateDomain(Request $request, VirtualMachine $vm)
     {
         $this->authorizeVm($vm);

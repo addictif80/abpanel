@@ -132,6 +132,22 @@ class ProxmoxService
         return $this->request('post', "/nodes/{$node}/qemu/{$vmid}/vncproxy", ['websocket' => 1]);
     }
 
+    public function unlinkVMDisk(string $node, int $vmid, string $disk): array
+    {
+        return $this->request('put', "/nodes/{$node}/qemu/{$vmid}/unlink", [
+            'idlist' => $disk,
+            'force'  => 1,
+        ]);
+    }
+
+    public function updateVMConfig(string $node, int $vmid, array $config, string $type = 'qemu'): array
+    {
+        $path = $type === 'lxc'
+            ? "/nodes/{$node}/lxc/{$vmid}/config"
+            : "/nodes/{$node}/qemu/{$vmid}/config";
+        return $this->request('put', $path, $config);
+    }
+
     public function createVM(string $node, array $config): array
     {
         return $this->request('post', "/nodes/{$node}/qemu", $config);
