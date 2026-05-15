@@ -39,9 +39,11 @@ class PlanController extends Controller
             'memory_mb'          => 'nullable|integer|min:128',
             'disk_gb'            => 'nullable|integer|min:1',
             'cyberpanel_package' => 'nullable|string|max:100',
-            'limit_per_client'   => 'nullable|integer|min:1',
-            'limit_per_vm'       => 'nullable|integer|min:1',
-            'limit_per_hosting'  => 'nullable|integer|min:1',
+            'limit_per_client'    => 'nullable|integer|min:1',
+            'limit_per_vm'        => 'nullable|integer|min:1',
+            'limit_per_hosting'   => 'nullable|integer|min:1',
+            'limit_per_domain'    => 'nullable|integer|min:1',
+            'limit_per_subdomain' => 'nullable|integer|min:1',
         ]);
 
         $features         = array_filter(array_map('trim', explode("\n", $request->features ?? '')));
@@ -76,12 +78,14 @@ class PlanController extends Controller
             'cyberpanel_package' => $request->type === 'hosting' ? $request->cyberpanel_package : null,
             'stripe_price_id'    => $stripePrice,
             'is_active'          => $request->boolean('is_active', true),
-            'limit_per_client'   => $request->limit_per_client ?: null,
-            'limit_per_vm'       => $request->limit_per_vm ?: null,
-            'limit_per_hosting'  => $request->limit_per_hosting ?: null,
-            'requires_vm'        => $request->boolean('requires_vm'),
-            'requires_hosting'   => $request->boolean('requires_hosting'),
-            'plan_allowances'    => $planAllowances ?: null,
+            'limit_per_client'    => $request->limit_per_client ?: null,
+            'limit_per_vm'        => $request->limit_per_vm ?: null,
+            'limit_per_hosting'   => $request->limit_per_hosting ?: null,
+            'limit_per_domain'    => $request->limit_per_domain ?: null,
+            'limit_per_subdomain' => $request->limit_per_subdomain ?: null,
+            'requires_vm'         => $request->boolean('requires_vm'),
+            'requires_hosting'    => $request->boolean('requires_hosting'),
+            'plan_allowances'     => $planAllowances ?: null,
         ]);
 
         return redirect()->route('admin.plans.index')->with('success', 'Plan créé.');
@@ -107,9 +111,11 @@ class PlanController extends Controller
             'disk_gb'            => 'nullable|integer|min:1',
             'cyberpanel_package' => 'nullable|string|max:100',
             'sort_order'         => 'integer|min:0',
-            'limit_per_client'   => 'nullable|integer|min:1',
-            'limit_per_vm'       => 'nullable|integer|min:1',
-            'limit_per_hosting'  => 'nullable|integer|min:1',
+            'limit_per_client'    => 'nullable|integer|min:1',
+            'limit_per_vm'        => 'nullable|integer|min:1',
+            'limit_per_hosting'   => 'nullable|integer|min:1',
+            'limit_per_domain'    => 'nullable|integer|min:1',
+            'limit_per_subdomain' => 'nullable|integer|min:1',
         ]);
 
         $features       = array_filter(array_map('trim', explode("\n", $request->features ?? '')));
@@ -129,12 +135,14 @@ class PlanController extends Controller
             'stripe_price_id'    => $request->stripe_price_id ?: $plan->stripe_price_id,
             'is_active'          => $request->boolean('is_active'),
             'sort_order'         => $request->sort_order ?? 0,
-            'limit_per_client'   => $request->limit_per_client ?: null,
-            'limit_per_vm'       => $request->limit_per_vm ?: null,
-            'limit_per_hosting'  => $request->limit_per_hosting ?: null,
-            'requires_vm'        => $request->boolean('requires_vm'),
-            'requires_hosting'   => $request->boolean('requires_hosting'),
-            'plan_allowances'    => $planAllowances ?: null,
+            'limit_per_client'    => $request->limit_per_client ?: null,
+            'limit_per_vm'        => $request->limit_per_vm ?: null,
+            'limit_per_hosting'   => $request->limit_per_hosting ?: null,
+            'limit_per_domain'    => $request->limit_per_domain ?: null,
+            'limit_per_subdomain' => $request->limit_per_subdomain ?: null,
+            'requires_vm'         => $request->boolean('requires_vm'),
+            'requires_hosting'    => $request->boolean('requires_hosting'),
+            'plan_allowances'     => $planAllowances ?: null,
         ]);
 
         return back()->with('success', 'Plan mis à jour.');
