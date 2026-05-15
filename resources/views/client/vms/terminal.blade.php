@@ -28,8 +28,8 @@
 <script type="module">
 import RFB from 'https://cdn.jsdelivr.net/npm/@novnc/novnc@1.5.0/core/rfb.js';
 
-const token  = {{ json_encode($token) }};
-const ticket = {{ json_encode($vncTicket) }};
+const token  = {!! json_encode($token) !!};
+const ticket = {!! json_encode($vncTicket) !!};
 
 const wsUrl = location.protocol === 'https:'
     ? `wss://${location.host}/vnc-proxy/?token=${encodeURIComponent(token)}`
