@@ -150,6 +150,80 @@
     </div>
 
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
+        <div>
+            <h2 class="font-semibold text-gray-800">Limites & conditions d'achat</h2>
+            <p class="text-sm text-gray-500 mt-0.5">Laissez vide pour aucune limite. La plus restrictive s'applique.</p>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Max par client</label>
+                <input type="number" name="limit_per_client" value="{{ old('limit_per_client') }}"
+                    min="1" placeholder="Illimité"
+                    class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Max par VPS détenu</label>
+                <input type="number" name="limit_per_vm" value="{{ old('limit_per_vm') }}"
+                    min="1" placeholder="Non limité"
+                    class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Max par hébergement détenu</label>
+                <input type="number" name="limit_per_hosting" value="{{ old('limit_per_hosting') }}"
+                    min="1" placeholder="Non limité"
+                    class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            </div>
+        </div>
+        <div class="flex gap-6">
+            <label class="flex items-center gap-2 cursor-pointer text-sm">
+                <input type="checkbox" name="requires_vm" value="1" {{ old('requires_vm') ? 'checked' : '' }}
+                    class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                <span class="text-gray-700">Requiert au moins 1 VPS actif</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer text-sm">
+                <input type="checkbox" name="requires_hosting" value="1" {{ old('requires_hosting') ? 'checked' : '' }}
+                    class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                <span class="text-gray-700">Requiert au moins 1 hébergement actif</span>
+            </label>
+        </div>
+
+        <div x-data="allowancesEditor([], {{ Js::from($allPlans->map(fn($p) => ['id'=>$p->id,'label'=>$p->name.' ('.$p->type.')'])) }})" class="pt-2 border-t border-gray-100">
+            <div class="flex items-center justify-between mb-2">
+                <div>
+                    <p class="text-sm font-medium text-gray-700">Limite par plan possédé (optionnel)</p>
+                    <p class="text-xs text-gray-400">Additive : chaque unité du plan sélectionné offre N commandes supplémentaires de ce produit.</p>
+                </div>
+                <button type="button" @click="addRow()"
+                    class="text-sm text-indigo-600 hover:text-indigo-800 font-medium px-3 py-1 rounded hover:bg-indigo-50 transition">
+                    + Ajouter une règle
+                </button>
+            </div>
+            <input type="hidden" name="plan_allowances_json" :value="JSON.stringify(rows)">
+            <div class="space-y-2">
+                <template x-for="(row, i) in rows" :key="i">
+                    <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                        <span class="text-xs text-gray-500 shrink-0">1 unité de</span>
+                        <select x-model="row.plan_id" @change="row.plan_id = parseInt($event.target.value)"
+                            class="flex-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                            <option value="0">— Choisir un plan —</option>
+                            <template x-for="p in plans" :key="p.id">
+                                <option :value="p.id" :selected="row.plan_id === p.id" x-text="p.label"></option>
+                            </template>
+                        </select>
+                        <span class="text-xs text-gray-500 shrink-0">offre</span>
+                        <input type="number" x-model.number="row.limit_per_owned" min="1"
+                            class="w-20 rounded-lg border border-gray-300 px-2 py-1.5 text-sm text-center focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <span class="text-xs text-gray-500 shrink-0">de ce produit</span>
+                        <button type="button" @click="rows.splice(i, 1)"
+                            class="text-red-400 hover:text-red-600 text-lg leading-none shrink-0">×</button>
+                    </div>
+                </template>
+                <p x-show="rows.length === 0" class="text-xs text-gray-400 italic">Aucune règle par plan configurée.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
         <h2 class="font-semibold text-gray-800">Options</h2>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -204,6 +278,16 @@ function planForm(initialType, initialPackage) {
                 .finally(() => { this.loadingPackages = false; });
         }
     }
+}
+
+function allowancesEditor(initialRows, plans) {
+    return {
+        rows: initialRows.length ? initialRows : [],
+        plans: plans,
+        addRow() {
+            this.rows.push({ plan_id: 0, limit_per_owned: 1 });
+        },
+    };
 }
 </script>
 @endpush

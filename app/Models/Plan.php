@@ -11,7 +11,8 @@ class Plan extends Model
         'name', 'slug', 'type', 'vm_type', 'description', 'price', 'currency',
         'billing_period', 'stripe_price_id', 'features',
         'cores', 'memory_mb', 'disk_gb', 'cyberpanel_package', 'is_active', 'sort_order',
-        'limit_per_client', 'limit_per_vm', 'limit_per_hosting', 'requires_vm', 'requires_hosting',
+        'limit_per_client', 'limit_per_vm', 'limit_per_hosting',
+        'requires_vm', 'requires_hosting', 'plan_allowances',
     ];
 
     protected function casts(): array
@@ -22,6 +23,7 @@ class Plan extends Model
             'price'            => 'decimal:2',
             'requires_vm'      => 'boolean',
             'requires_hosting' => 'boolean',
+            'plan_allowances'  => 'array',
         ];
     }
 
@@ -61,7 +63,7 @@ class Plan extends Model
             return 'Vous devez posséder au moins un hébergement actif pour commander ce produit.';
         }
 
-        $maxAllowed = $this->computeMaxAllowed($vmCount, $hostingCount);
+        $maxAllowed = $this->computeMaxAllowed($user, $vmCount, $hostingCount);
 
         if ($maxAllowed !== null) {
             $currentCount = $this->currentUsageCount($user);
@@ -85,20 +87,53 @@ class Plan extends Model
             ->count();
     }
 
-    private function computeMaxAllowed(int $vmCount, int $hostingCount): ?int
+    private function computeMaxAllowed(User $user, int $vmCount, int $hostingCount): ?int
     {
-        $max = $this->limit_per_client;
+        $candidates = [];
 
+        // Plafond absolu par client
+        if ($this->limit_per_client !== null) {
+            $candidates[] = $this->limit_per_client;
+        }
+
+        // Limite générique : N par VPS possédé (quel que soit le plan)
         if ($this->limit_per_vm !== null) {
-            $vmBased = $vmCount * $this->limit_per_vm;
-            $max     = $max === null ? $vmBased : min($max, $vmBased);
+            $candidates[] = $vmCount * $this->limit_per_vm;
         }
 
+        // Limite générique : N par hébergement possédé
         if ($this->limit_per_hosting !== null) {
-            $hostingBased = $hostingCount * $this->limit_per_hosting;
-            $max          = $max === null ? $hostingBased : min($max, $hostingBased);
+            $candidates[] = $hostingCount * $this->limit_per_hosting;
         }
 
-        return $max;
+        // Limites par plan spécifique possédé (additif)
+        if (!empty($this->plan_allowances)) {
+            $allowanceTotal = 0;
+            foreach ($this->plan_allowances as $rule) {
+                $planId       = (int) ($rule['plan_id'] ?? 0);
+                $limitPerOwned = (int) ($rule['limit_per_owned'] ?? 0);
+                if (!$planId || !$limitPerOwned) continue;
+
+                // Compte les VMs de ce plan précis
+                $ownedVms = $user->virtualMachines()->where('plan_id', $planId)->count();
+
+                // Compte les hébergements via factures payées pour ce plan
+                $ownedHosting = Invoice::where('user_id', $user->id)
+                    ->where('plan_id', $planId)
+                    ->where('status', 'paid')
+                    ->count();
+
+                $allowanceTotal += ($ownedVms + $ownedHosting) * $limitPerOwned;
+            }
+            $candidates[] = $allowanceTotal;
+        }
+
+        // Aucune règle → pas de limite
+        if (empty($candidates)) {
+            return null;
+        }
+
+        // La règle la plus restrictive s'applique
+        return min($candidates);
     }
 }
