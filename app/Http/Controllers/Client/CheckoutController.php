@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Client;
 use App\Http\Controllers\Controller;
 use App\Models\Invoice;
 use App\Models\Plan;
+use App\Models\PromoCode;
 use App\Models\Setting;
 use App\Services\StripeService;
 use Illuminate\Http\Request;
@@ -26,6 +27,22 @@ class CheckoutController extends Controller
         return view('client.checkout.checkout', compact('plan', 'stripeKey'));
     }
 
+    public function validatePromo(Request $request)
+    {
+        $request->validate([
+            'code'    => 'required|string',
+            'plan_id' => 'required|integer|exists:plans,id',
+        ]);
+
+        $code = PromoCode::where('code', strtoupper($request->code))->first();
+        if (!$code) return response()->json(['valid' => false, 'error' => 'Code promo invalide.']);
+
+        $plan = Plan::findOrFail($request->plan_id);
+        $result = $code->validate($plan, $plan->price);
+
+        return response()->json($result);
+    }
+
     public function createIntent(Request $request, Plan $plan)
     {
         abort_if(!$plan->is_active, 404);
@@ -41,13 +58,28 @@ class CheckoutController extends Controller
         try {
             $customer = $stripe->getOrCreateCustomer(auth()->user());
 
+            $promoCode = null;
+            $discount = 0;
+            if ($request->promo_code) {
+                $promoCode = PromoCode::where('code', strtoupper($request->promo_code))->first();
+                if ($promoCode) {
+                    $promoResult = $promoCode->validate($plan, $plan->price);
+                    if ($promoResult['valid']) {
+                        $discount = $promoResult['discount'];
+                    }
+                }
+            }
+
+            $finalAmount = max(50, (int)(($plan->price - $discount) * 100));
+
             $intent = $stripe->createPaymentIntent([
-                'amount'   => (int) ($plan->price * 100),
+                'amount'   => $finalAmount,
                 'currency' => strtolower(Setting::get('default_currency', 'eur')),
                 'customer' => $customer->id,
                 'metadata' => [
-                    'user_id' => auth()->id(),
-                    'plan_id' => $plan->id,
+                    'user_id'    => auth()->id(),
+                    'plan_id'    => $plan->id,
+                    'promo_code' => $promoCode?->code,
                 ],
             ]);
 
@@ -64,10 +96,12 @@ class CheckoutController extends Controller
                 ]],
                 'subtotal'                 => $plan->price,
                 'tax'                      => 0,
-                'total'                    => $plan->price,
+                'total'                    => $plan->price - $discount,
                 'currency'                 => 'EUR',
                 'metadata'                 => $plan->type === 'hosting' ? ['domain' => strtolower(trim($request->domain))] : null,
                 'stripe_payment_intent_id' => $intent->id,
+                'promo_code_id'            => $promoCode?->id,
+                'discount'                 => $discount,
             ]);
 
             return response()->json([

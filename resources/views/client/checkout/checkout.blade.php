@@ -31,6 +31,28 @@
             @endif
 
             @if($stripeKey)
+            <div class="mb-5" x-data="promoBlock()">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Code promo</label>
+                <div class="flex gap-2">
+                    <input type="text" x-model="code" placeholder="CODE10"
+                        class="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono uppercase focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                        :disabled="applied !== null"
+                        @keydown.enter.prevent="applyCode()">
+                    <button type="button" @click="applyCode()"
+                        :disabled="loading || !code || applied !== null"
+                        class="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-200 transition disabled:opacity-50">
+                        <span x-text="loading ? '…' : (applied ? '✓' : 'Appliquer')"></span>
+                    </button>
+                    <button x-show="applied" type="button" @click="removeCode()"
+                        class="px-3 py-2 text-red-400 hover:text-red-600 text-sm">✕</button>
+                </div>
+                <p x-show="error" class="mt-1 text-xs text-red-600" x-text="error"></p>
+                <p x-show="applied" class="mt-1 text-xs text-green-600">
+                    Code appliqué : <span class="font-semibold" x-text="applied?.label"></span>
+                    — Nouveau total : <span class="font-semibold" x-text="applied?.newTotal + '€'"></span>
+                </p>
+            </div>
+
             <div id="payment-element" class="mb-5"></div>
 
             <button id="pay-btn" type="button"
@@ -86,6 +108,49 @@
 @push('scripts')
 <script src="https://js.stripe.com/v3/"></script>
 <script>
+window.promoCode = null;
+
+function promoBlock() {
+    return {
+        code: '',
+        applied: null,
+        loading: false,
+        error: '',
+        planPrice: {{ $plan->price }},
+        async applyCode() {
+            this.error = '';
+            if (!this.code) return;
+            this.loading = true;
+            try {
+                const res = await fetch('{{ route('client.checkout.validate-promo') }}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                    body: JSON.stringify({ code: this.code.toUpperCase(), plan_id: {{ $plan->id }} }),
+                });
+                const data = await res.json();
+                if (data.valid) {
+                    const newTotal = Math.max(0, this.planPrice - data.discount);
+                    this.applied = { label: data.label, discount: data.discount, newTotal: newTotal.toFixed(2) };
+                    window.promoCode = this.code.toUpperCase();
+                    document.getElementById('pay-btn').textContent = 'Payer ' + newTotal.toFixed(2).replace('.', ',') + '€';
+                } else {
+                    this.error = data.error;
+                }
+            } catch (e) {
+                this.error = 'Une erreur est survenue.';
+            }
+            this.loading = false;
+        },
+        removeCode() {
+            this.applied = null;
+            this.code = '';
+            this.error = '';
+            window.promoCode = null;
+            document.getElementById('pay-btn').textContent = 'Payer {{ number_format($plan->price, 2, ',', '') }}€';
+        },
+    };
+}
+
 (function () {
     const stripe  = Stripe('{{ $stripeKey }}');
     const btn     = document.getElementById('pay-btn');
@@ -99,11 +164,12 @@
 
     function resetBtn() {
         btn.disabled = false;
-        btn.textContent = PRICE;
+        btn.textContent = window.promoCode
+            ? btn.textContent
+            : PRICE;
     }
 
     @if($plan->type === 'hosting')
-    // ── Hébergement : créer l'intent au clic (après validation du domaine) ──
     const domainInput = document.getElementById('domain-input');
 
     btn.addEventListener('click', async () => {
@@ -119,10 +185,13 @@
         btn.textContent = 'Initialisation…';
 
         try {
+            const body = { domain };
+            if (window.promoCode) body.promo_code = window.promoCode;
+
             const res  = await fetch('{{ route('client.checkout.intent', $plan) }}', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-                body: JSON.stringify({ domain }),
+                body: JSON.stringify(body),
             });
             const data = await res.json();
 
@@ -136,16 +205,18 @@
     });
 
     @else
-    // ── VPS : créer l'intent dès le chargement, afficher les champs carte ──
     btn.disabled = true;
     btn.textContent = 'Chargement…';
 
     (async () => {
         try {
+            const body = {};
+            if (window.promoCode) body.promo_code = window.promoCode;
+
             const res  = await fetch('{{ route('client.checkout.intent', $plan) }}', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-                body: '{}',
+                body: JSON.stringify(body),
             });
             const data = await res.json();
 

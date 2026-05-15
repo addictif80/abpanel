@@ -49,6 +49,10 @@ class WebhookController extends Controller
 
         $invoice->update(['status' => 'paid', 'paid_at' => now()]);
 
+        if ($invoice->promo_code_id) {
+            $invoice->promoCode?->incrementUsage();
+        }
+
         try {
             app(NotificationService::class)->paymentConfirmed($invoice);
             app(NotificationService::class)->paymentReceived($invoice);

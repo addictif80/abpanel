@@ -99,6 +99,7 @@ Route::middleware('installed')->group(function () {
             Route::get('/plans/{plan}', [Client\CheckoutController::class, 'checkout'])->name('checkout');
             Route::post('/plans/{plan}/intent', [Client\CheckoutController::class, 'createIntent'])->name('intent');
             Route::get('/success', [Client\CheckoutController::class, 'success'])->name('success');
+            Route::post('/validate-promo', [Client\CheckoutController::class, 'validatePromo'])->name('validate-promo');
         });
 
         // Billing
@@ -254,6 +255,15 @@ Route::middleware('installed')->group(function () {
         Route::prefix('domains')->name('domains.')->group(function () {
             Route::get('/', [Admin\DomainController::class, 'index'])->name('index');
             Route::delete('/{domain}', [Admin\DomainController::class, 'destroy'])->name('destroy');
+        });
+
+        // Promo codes
+        Route::prefix('promo-codes')->name('promo-codes.')->group(function () {
+            Route::get('/', [Admin\PromoCodeController::class, 'index'])->name('index');
+            Route::get('/create', [Admin\PromoCodeController::class, 'create'])->name('create');
+            Route::post('/', [Admin\PromoCodeController::class, 'store'])->name('store');
+            Route::post('/{promoCode}/toggle', [Admin\PromoCodeController::class, 'toggle'])->name('toggle');
+            Route::delete('/{promoCode}', [Admin\PromoCodeController::class, 'destroy'])->name('destroy');
         });
 
         // Plans
