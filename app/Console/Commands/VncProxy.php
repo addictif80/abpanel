@@ -5,13 +5,14 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 
 /**
- * Multi-session WebSocket-to-VNC-TCP proxy (websockify-style).
+ * Multi-session WebSocket proxy daemon (websockify-style).
  *
- * Runs as a persistent daemon on a fixed port.  Each browser WebSocket
- * connection provides a one-time token; the proxy reads the matching
- * session file written by VmController::terminal() and connects to the
- * Proxmox raw VNC TCP port.  Raw VNC uses VNC-protocol auth (ticket =
- * VNC password), so no Proxmox HTTP cookies are required from the browser.
+ * Browser WebSocket  →  this daemon  →  Proxmox vncwebsocket (WSS on port 8006)
+ *
+ * Each browser connection supplies a one-time token; the daemon reads the
+ * matching session file written by VmController::terminal(), then connects
+ * to Proxmox's authenticated WebSocket VNC endpoint using the admin cookie.
+ * This avoids needing raw VNC TCP ports open between our server and Proxmox.
  */
 class VncProxy extends Command
 {
@@ -19,7 +20,6 @@ class VncProxy extends Command
 
     protected $description = 'Run the persistent VNC WebSocket proxy daemon';
 
-    // Per-session state keys: browser, state, headerBuf, vnc, browserBuf, deadline
     private array $sessions = [];
 
     public function handle(): int
@@ -58,19 +58,19 @@ class VncProxy extends Command
             return;
         }
 
-        // Accept new browser connections
         if (in_array($server, $read, true)) {
             $client = @stream_socket_accept($server, 0);
             if ($client) {
                 stream_set_blocking($client, false);
                 $id = (int) $client;
                 $this->sessions[$id] = [
-                    'browser'    => $client,
-                    'state'      => 'handshake',
-                    'headerBuf'  => '',
-                    'vnc'        => null,
-                    'browserBuf' => '',
-                    'deadline'   => time() + 7200,
+                    'browser'     => $client,
+                    'state'       => 'handshake',
+                    'headerBuf'   => '',
+                    'vnc'         => null,
+                    'browserBuf'  => '',
+                    'proxmoxBuf'  => '',
+                    'deadline'    => time() + 7200,
                 ];
             }
         }
@@ -78,7 +78,6 @@ class VncProxy extends Command
         $now = time();
 
         foreach ($this->sessions as $id => $sess) {
-            // Expire timed-out sessions
             if ($now > $sess['deadline']) {
                 $this->close($id);
                 continue;
@@ -108,10 +107,10 @@ class VncProxy extends Command
         $buf = $this->sessions[$id]['headerBuf'];
 
         if (!str_contains($buf, "\r\n\r\n")) {
-            return; // Headers not yet complete
+            return;
         }
 
-        // Parse headers
+        // Parse HTTP headers from browser
         $lines   = explode("\r\n", $buf);
         $headers = ['_request_line' => $lines[0] ?? ''];
         foreach (array_slice($lines, 1) as $line) {
@@ -121,7 +120,7 @@ class VncProxy extends Command
             }
         }
 
-        // Extract token
+        // Extract one-time token from query string
         preg_match('/[?&]token=([^& ]+)/', $headers['_request_line'], $m);
         $token = isset($m[1]) ? urldecode($m[1]) : '';
 
@@ -134,7 +133,7 @@ class VncProxy extends Command
         }
 
         $data = json_decode(file_get_contents($sessionFile), true);
-        @unlink($sessionFile); // one-time use
+        @unlink($sessionFile);
 
         if (!$data || ($data['expires'] ?? 0) < time()) {
             fwrite($browser, "HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\n\r\n");
@@ -142,8 +141,8 @@ class VncProxy extends Command
             return;
         }
 
-        // WebSocket handshake response to browser
-        $wsKey  = $headers['sec-websocket-key'] ?? '';
+        // Complete WebSocket handshake with browser
+        $wsKey = $headers['sec-websocket-key'] ?? '';
         if (!$wsKey) {
             $this->close($id);
             return;
@@ -161,20 +160,60 @@ class VncProxy extends Command
         $resp .= "\r\n";
         fwrite($browser, $resp);
 
-        // Connect to Proxmox raw VNC TCP port
-        $vnc = @stream_socket_client(
-            "tcp://{$data['vnc_host']}:{$data['vnc_port']}",
-            $errno, $errstr, 10
+        // Connect to Proxmox vncwebsocket via SSL on port 8006
+        $proxmoxPort = (int) ($data['proxmox_port'] ?? 8006);
+        $ctx = stream_context_create(['ssl' => [
+            'verify_peer'      => false,
+            'verify_peer_name' => false,
+        ]]);
+        $proxmox = @stream_socket_client(
+            "ssl://{$data['vnc_host']}:{$proxmoxPort}",
+            $errno, $errstr, 10,
+            STREAM_CLIENT_CONNECT,
+            $ctx
         );
-        if (!$vnc) {
-            fwrite($browser, "\x88\x00"); // WS close frame
+        if (!$proxmox) {
+            fwrite($browser, "\x88\x00");
             $this->close($id);
             return;
         }
-        stream_set_blocking($vnc, false);
 
-        $this->sessions[$id]['state'] = 'relay';
-        $this->sessions[$id]['vnc']   = $vnc;
+        // Send WebSocket upgrade request to Proxmox (we act as WS client)
+        $path = "/api2/json/nodes/{$data['node']}/qemu/{$data['vmid']}/vncwebsocket"
+              . "?port={$data['vnc_port']}&vncticket=" . urlencode($data['ticket']);
+        $key  = base64_encode(random_bytes(16));
+        $req  = "GET {$path} HTTP/1.1\r\n"
+              . "Host: {$data['vnc_host']}:{$proxmoxPort}\r\n"
+              . "Cookie: PVEAuthCookie={$data['auth_cookie']}\r\n"
+              . "Upgrade: websocket\r\n"
+              . "Connection: Upgrade\r\n"
+              . "Sec-WebSocket-Key: {$key}\r\n"
+              . "Sec-WebSocket-Version: 13\r\n"
+              . "Sec-WebSocket-Protocol: binary\r\n"
+              . "\r\n";
+        fwrite($proxmox, $req);
+
+        // Read Proxmox 101 response (blocking, 5 s timeout)
+        stream_set_timeout($proxmox, 5);
+        $pxResp = '';
+        while (!str_contains($pxResp, "\r\n\r\n")) {
+            $chunk = fread($proxmox, 4096);
+            if ($chunk === false || $chunk === '') break;
+            $pxResp .= $chunk;
+        }
+
+        if (!str_contains($pxResp, '101')) {
+            fwrite($browser, "\x88\x00");
+            fclose($proxmox);
+            $this->close($id);
+            return;
+        }
+
+        stream_set_blocking($proxmox, false);
+
+        $this->sessions[$id]['state']      = 'relay';
+        $this->sessions[$id]['vnc']        = $proxmox;
+        $this->sessions[$id]['proxmoxBuf'] = '';
     }
 
     // ── Relay phase ───────────────────────────────────────────────────────────
@@ -182,9 +221,9 @@ class VncProxy extends Command
     private function stepRelay(int $id, array $readable): void
     {
         $browser = $this->sessions[$id]['browser'];
-        $vnc     = $this->sessions[$id]['vnc'];
+        $proxmox = $this->sessions[$id]['vnc'];
 
-        // Browser → VNC
+        // Browser → Proxmox: unmask browser WS frames, forward as masked WS client frames
         if (in_array($browser, $readable, true)) {
             $data = @fread($browser, 65536);
             if ($data === false || ($data === '' && feof($browser))) {
@@ -199,20 +238,28 @@ class VncProxy extends Command
                     return;
                 }
                 if ($raw !== '') {
-                    fwrite($vnc, $raw);
+                    fwrite($proxmox, $this->wrapClientFrame($raw));
                 }
             }
         }
 
-        // VNC → Browser
-        if ($vnc && in_array($vnc, $readable, true)) {
-            $data = @fread($vnc, 65536);
-            if ($data === false || ($data === '' && feof($vnc))) {
+        // Proxmox → Browser: unwrap Proxmox WS frames, forward as unmasked WS server frames
+        if ($proxmox && in_array($proxmox, $readable, true)) {
+            $data = @fread($proxmox, 65536);
+            if ($data === false || ($data === '' && feof($proxmox))) {
                 $this->close($id);
                 return;
             }
             if ($data !== '') {
-                fwrite($browser, $this->wrapBinaryFrame($data));
+                $this->sessions[$id]['proxmoxBuf'] .= $data;
+                $raw = $this->unwrapWsFrames($this->sessions[$id]['proxmoxBuf']);
+                if ($raw === null) {
+                    $this->close($id);
+                    return;
+                }
+                if ($raw !== '') {
+                    fwrite($browser, $this->wrapBinaryFrame($raw));
+                }
             }
         }
     }
@@ -269,7 +316,7 @@ class VncProxy extends Command
                 }
             }
 
-            if ($opcode === 0x8) return null; // Close
+            if ($opcode === 0x8) return null; // Close frame
 
             $out .= $payload;
         }
@@ -277,6 +324,7 @@ class VncProxy extends Command
         return $out;
     }
 
+    /** Unmasked binary frame (server → client direction). */
     private function wrapBinaryFrame(string $payload): string
     {
         $len   = strlen($payload);
@@ -289,5 +337,25 @@ class VncProxy extends Command
             $frame .= chr(127) . "\x00\x00\x00\x00" . pack('N', $len);
         }
         return $frame . $payload;
+    }
+
+    /** Masked binary frame (client → server direction). */
+    private function wrapClientFrame(string $payload): string
+    {
+        $len   = strlen($payload);
+        $frame = "\x82";
+        if ($len < 126) {
+            $frame .= chr(0x80 | $len);
+        } elseif ($len < 65536) {
+            $frame .= chr(0x80 | 126) . pack('n', $len);
+        } else {
+            $frame .= chr(0x80 | 127) . "\x00\x00\x00\x00" . pack('N', $len);
+        }
+        $mask   = random_bytes(4);
+        $frame .= $mask;
+        for ($i = 0; $i < $len; $i++) {
+            $frame .= chr(ord($payload[$i]) ^ ord($mask[$i % 4]));
+        }
+        return $frame;
     }
 }
