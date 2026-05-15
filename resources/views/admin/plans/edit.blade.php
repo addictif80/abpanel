@@ -183,14 +183,18 @@
         </button>
         <a href="{{ route('admin.plans.index') }}" class="text-sm text-gray-500 hover:underline">Annuler</a>
 
-        <form method="POST" action="{{ route('admin.plans.destroy', $plan) }}" class="ml-auto"
-              onsubmit="return confirm('Supprimer définitivement ce plan ?')">
-            @csrf @method('DELETE')
-            <button type="submit" class="px-4 py-2 bg-red-50 text-red-600 text-sm font-semibold rounded-lg hover:bg-red-100 transition">
+        <div class="ml-auto">
+            <button type="button" form="delete-plan-form"
+                    onclick="if(confirm('Supprimer définitivement ce plan ?')) document.getElementById('delete-plan-form').submit()"
+                    class="px-4 py-2 bg-red-50 text-red-600 text-sm font-semibold rounded-lg hover:bg-red-100 transition">
                 Supprimer
             </button>
-        </form>
+        </div>
     </div>
+</form>
+
+<form id="delete-plan-form" method="POST" action="{{ route('admin.plans.destroy', $plan) }}">
+    @csrf @method('DELETE')
 </form>
 @endsection
 
