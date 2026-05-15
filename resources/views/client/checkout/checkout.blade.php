@@ -108,164 +108,192 @@
 @push('scripts')
 <script src="https://js.stripe.com/v3/"></script>
 <script>
-window.promoCode = null;
-
-function promoBlock() {
-    return {
-        code: '',
-        applied: null,
-        loading: false,
-        error: '',
-        planPrice: {{ $plan->price }},
-        async applyCode() {
-            this.error = '';
-            if (!this.code) return;
-            this.loading = true;
-            try {
-                const res = await fetch('{{ route('client.checkout.validate-promo') }}', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-                    body: JSON.stringify({ code: this.code.toUpperCase(), plan_id: {{ $plan->id }} }),
-                });
-                const data = await res.json();
-                if (data.valid) {
-                    const newTotal = Math.max(0, this.planPrice - data.discount);
-                    this.applied = { label: data.label, discount: data.discount, newTotal: newTotal.toFixed(2) };
-                    window.promoCode = this.code.toUpperCase();
-                    document.getElementById('pay-btn').textContent = 'Payer ' + newTotal.toFixed(2).replace('.', ',') + '€';
-                } else {
-                    this.error = data.error;
-                }
-            } catch (e) {
-                this.error = 'Une erreur est survenue.';
-            }
-            this.loading = false;
-        },
-        removeCode() {
-            this.applied = null;
-            this.code = '';
-            this.error = '';
-            window.promoCode = null;
-            document.getElementById('pay-btn').textContent = 'Payer {{ number_format($plan->price, 2, ',', '') }}€';
-        },
-    };
-}
-
 (function () {
-    const stripe  = Stripe('{{ $stripeKey }}');
-    const btn     = document.getElementById('pay-btn');
-    const errEl   = document.getElementById('payment-error');
-    const PRICE   = 'Payer {{ number_format($plan->price, 2, ',', '') }}€';
+    const stripe = Stripe('{{ $stripeKey }}');
+    const btn    = document.getElementById('pay-btn');
+    const errEl  = document.getElementById('payment-error');
+    const PLAN_PRICE = {{ $plan->price }};
+    const PLAN_ID    = {{ $plan->id }};
+    const INTENT_URL = '{{ route('client.checkout.intent', $plan) }}';
+    const SUCCESS_URL = '{{ route('client.checkout.success') }}';
+    const CSRF = '{{ csrf_token() }}';
+
+    let currentElements = null;
+    let currentPaymentEl = null;
+    let appliedPromoCode = null;
+
+    function fmtPrice(amount) {
+        return 'Payer ' + amount.toFixed(2).replace('.', ',') + '€';
+    }
 
     function showError(msg) {
         errEl.textContent = msg;
         errEl.classList.remove('hidden');
     }
 
-    function resetBtn() {
-        btn.disabled = false;
-        btn.textContent = window.promoCode
-            ? btn.textContent
-            : PRICE;
-    }
+    function hideError() { errEl.classList.add('hidden'); }
 
-    @if($plan->type === 'hosting')
-    const domainInput = document.getElementById('domain-input');
-
-    btn.addEventListener('click', async () => {
-        errEl.classList.add('hidden');
-        const domain = domainInput.value.trim();
-
-        if (!domain) {
-            showError('Veuillez saisir le domaine à héberger.');
-            return;
-        }
-
+    // ── VPS : créer / recréer l'intent et monter le payment element ──────
+    @if($plan->type !== 'hosting')
+    async function loadIntent(promoCode = null) {
+        hideError();
         btn.disabled = true;
-        btn.textContent = 'Initialisation…';
+        btn.textContent = 'Chargement…';
+        document.getElementById('payment-element').innerHTML = '';
+        currentElements = null;
 
         try {
-            const body = { domain };
-            if (window.promoCode) body.promo_code = window.promoCode;
-
-            const res  = await fetch('{{ route('client.checkout.intent', $plan) }}', {
+            const body = promoCode ? { promo_code: promoCode } : {};
+            const res  = await fetch(INTENT_URL, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-                body: JSON.stringify(body),
-            });
-            const data = await res.json();
-
-            if (data.error) { showError(data.error); resetBtn(); return; }
-
-            await mountAndPay(data.client_secret);
-        } catch (e) {
-            showError('Une erreur est survenue. Veuillez réessayer.');
-            resetBtn();
-        }
-    });
-
-    @else
-    btn.disabled = true;
-    btn.textContent = 'Chargement…';
-
-    (async () => {
-        try {
-            const body = {};
-            if (window.promoCode) body.promo_code = window.promoCode;
-
-            const res  = await fetch('{{ route('client.checkout.intent', $plan) }}', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
                 body: JSON.stringify(body),
             });
             const data = await res.json();
 
             if (data.error) { showError(data.error); btn.disabled = true; return; }
 
-            const elements      = stripe.elements({ clientSecret: data.client_secret });
-            const paymentEl     = elements.create('payment');
-            paymentEl.mount('#payment-element');
-
-            paymentEl.on('ready', () => {
+            currentElements = stripe.elements({ clientSecret: data.client_secret });
+            currentPaymentEl = currentElements.create('payment');
+            currentPaymentEl.mount('#payment-element');
+            currentPaymentEl.on('ready', () => {
                 btn.disabled = false;
-                btn.textContent = PRICE;
-            });
-
-            btn.addEventListener('click', async () => {
-                errEl.classList.add('hidden');
-                btn.disabled = true;
-                btn.textContent = 'Traitement…';
-
-                const { error } = await stripe.confirmPayment({
-                    elements,
-                    confirmParams: { return_url: '{{ route('client.checkout.success') }}' },
-                });
-
-                if (error) { showError(error.message); resetBtn(); }
+                btn.textContent = promoCode
+                    ? fmtPrice(Math.max(0, PLAN_PRICE - (window._promoDiscount || 0)))
+                    : fmtPrice(PLAN_PRICE);
             });
         } catch (e) {
             showError('Erreur d\'initialisation du paiement. Rechargez la page.');
             btn.disabled = true;
         }
-    })();
+    }
+
+    // Exposer pour que promoBlock() puisse déclencher le rechargement
+    window._reloadStripeIntent = (promoCode, discount) => {
+        window._promoDiscount = discount || 0;
+        appliedPromoCode = promoCode;
+        loadIntent(promoCode);
+    };
+    window._reloadStripeIntentNoPromo = () => {
+        window._promoDiscount = 0;
+        appliedPromoCode = null;
+        loadIntent(null);
+    };
+
+    loadIntent();
+
+    btn.addEventListener('click', async () => {
+        if (!currentElements) return;
+        hideError();
+        btn.disabled = true;
+        btn.textContent = 'Traitement…';
+        const { error } = await stripe.confirmPayment({
+            elements: currentElements,
+            confirmParams: { return_url: SUCCESS_URL },
+        });
+        if (error) {
+            showError(error.message);
+            btn.disabled = false;
+            btn.textContent = appliedPromoCode
+                ? fmtPrice(Math.max(0, PLAN_PRICE - (window._promoDiscount || 0)))
+                : fmtPrice(PLAN_PRICE);
+        }
+    });
+
+    @else
+    // ── Hébergement : intent créé au clic (domaine + promo) ───────────────
+    const domainInput = document.getElementById('domain-input');
+
+    btn.addEventListener('click', async () => {
+        hideError();
+        const domain = domainInput.value.trim();
+        if (!domain) { showError('Veuillez saisir le domaine à héberger.'); return; }
+
+        btn.disabled = true;
+        btn.textContent = 'Initialisation…';
+
+        try {
+            const body = { domain };
+            if (appliedPromoCode) body.promo_code = appliedPromoCode;
+
+            const res  = await fetch(INTENT_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
+                body: JSON.stringify(body),
+            });
+            const data = await res.json();
+            if (data.error) { showError(data.error); btn.disabled = false; btn.textContent = fmtPrice(PLAN_PRICE); return; }
+
+            currentElements = stripe.elements({ clientSecret: data.client_secret });
+            currentPaymentEl = currentElements.create('payment');
+            currentPaymentEl.mount('#payment-element');
+
+            await new Promise(resolve => currentPaymentEl.on('ready', resolve));
+
+            const { error } = await stripe.confirmPayment({
+                elements: currentElements,
+                confirmParams: { return_url: SUCCESS_URL },
+            });
+            if (error) {
+                showError(error.message);
+                btn.disabled = false;
+                btn.textContent = fmtPrice(PLAN_PRICE);
+            }
+        } catch (e) {
+            showError('Une erreur est survenue. Veuillez réessayer.');
+            btn.disabled = false;
+            btn.textContent = fmtPrice(PLAN_PRICE);
+        }
+    });
+
+    window._reloadStripeIntent = (promoCode, discount) => {
+        window._promoDiscount = discount || 0;
+        appliedPromoCode = promoCode;
+    };
+    window._reloadStripeIntentNoPromo = () => {
+        window._promoDiscount = 0;
+        appliedPromoCode = null;
+    };
     @endif
 
-    async function mountAndPay(clientSecret) {
-        const elements  = stripe.elements({ clientSecret });
-        const paymentEl = elements.create('payment');
-        paymentEl.mount('#payment-element');
-
-        await new Promise(resolve => paymentEl.on('ready', resolve));
-
-        btn.textContent = PRICE;
-
-        const { error } = await stripe.confirmPayment({
-            elements,
-            confirmParams: { return_url: '{{ route('client.checkout.success') }}' },
-        });
-
-        if (error) { showError(error.message); resetBtn(); }
-    }
+    // ── Alpine.js : bloc code promo ───────────────────────────────────────
+    window.promoBlock = function () {
+        return {
+            code: '',
+            applied: null,
+            loading: false,
+            error: '',
+            async applyCode() {
+                this.error = '';
+                if (!this.code) return;
+                this.loading = true;
+                try {
+                    const res  = await fetch('{{ route('client.checkout.validate-promo') }}', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
+                        body: JSON.stringify({ code: this.code.toUpperCase(), plan_id: PLAN_ID }),
+                    });
+                    const data = await res.json();
+                    if (data.valid) {
+                        const newTotal = Math.max(0, PLAN_PRICE - data.discount);
+                        this.applied = { label: data.label, discount: data.discount, newTotal: newTotal.toFixed(2) };
+                        window._reloadStripeIntent(this.code.toUpperCase(), data.discount);
+                    } else {
+                        this.error = data.error;
+                    }
+                } catch (e) {
+                    this.error = 'Une erreur est survenue.';
+                }
+                this.loading = false;
+            },
+            removeCode() {
+                this.applied = null;
+                this.code = '';
+                this.error = '';
+                window._reloadStripeIntentNoPromo();
+            },
+        };
+    };
 }());
 </script>
 @endpush
