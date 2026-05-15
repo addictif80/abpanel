@@ -11,14 +11,16 @@ class HostingAccount extends Model
         'user_id', 'cyberpanel_username', 'domain',
         'plan', 'disk_mb', 'is_active',
         'monthly_price', 'next_renewal_at',
+        'cancellation_code', 'cancellation_code_expires_at',
     ];
 
     protected function casts(): array
     {
         return [
-            'is_active' => 'boolean',
-            'monthly_price' => 'decimal:2',
-            'next_renewal_at' => 'datetime',
+            'is_active'                    => 'boolean',
+            'monthly_price'                => 'decimal:2',
+            'next_renewal_at'              => 'datetime',
+            'cancellation_code_expires_at' => 'datetime',
         ];
     }
 

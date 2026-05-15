@@ -14,15 +14,17 @@ class VirtualMachine extends Model
         'os_template', 'ip_address', 'tailscale_ip',
         'subdomain', 'custom_domain', 'domain_active',
         'plan', 'monthly_price', 'next_renewal_at',
+        'cancellation_code', 'cancellation_code_expires_at',
     ];
 
     protected function casts(): array
     {
         return [
-            'domain_active'   => 'boolean',
-            'monthly_price'   => 'decimal:2',
-            'next_renewal_at' => 'datetime',
-            'root_password'   => 'encrypted',
+            'domain_active'                  => 'boolean',
+            'monthly_price'                  => 'decimal:2',
+            'next_renewal_at'                => 'datetime',
+            'root_password'                  => 'encrypted',
+            'cancellation_code_expires_at'   => 'datetime',
         ];
     }
 

@@ -72,10 +72,16 @@ Route::middleware('installed')->group(function () {
             Route::post('/{vm}/force-stop', [Client\VmController::class, 'forceStop'])->name('forceStop');
             Route::get('/{vm}/reinstall', [Client\VmController::class, 'reinstall'])->name('reinstall');
             Route::post('/{vm}/reinstall', [Client\VmController::class, 'doReinstall'])->name('doReinstall');
+            Route::get('/{vm}/cancel', [Client\VmController::class, 'cancelRequest'])->name('cancel');
+            Route::post('/{vm}/cancel', [Client\VmController::class, 'cancelConfirm'])->name('cancelConfirm');
         });
 
         // Hosting
-        Route::get('/hosting', [Client\HostingController::class, 'index'])->name('hosting.index');
+        Route::prefix('hosting')->name('hosting.')->group(function () {
+            Route::get('/', [Client\HostingController::class, 'index'])->name('index');
+            Route::get('/{hosting}/cancel', [Client\HostingController::class, 'cancelRequest'])->name('cancel');
+            Route::post('/{hosting}/cancel', [Client\HostingController::class, 'cancelConfirm'])->name('cancelConfirm');
+        });
 
         // Plans & Checkout
         Route::prefix('checkout')->name('checkout.')->group(function () {

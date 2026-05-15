@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Client;
 
 use App\Http\Controllers\Controller;
 use App\Models\VirtualMachine;
+use App\Services\MailService;
 use App\Services\ProxmoxService;
 use Illuminate\Http\Request;
 
@@ -318,6 +319,65 @@ class VmController extends Controller
         $vm->update(['custom_domain' => $request->custom_domain ?: null]);
 
         return back()->with('success', 'Domaine personnalisé mis à jour.');
+    }
+
+    public function cancelRequest(VirtualMachine $vm)
+    {
+        $this->authorizeVm($vm);
+
+        $code    = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        $expires = now()->addMinutes(15);
+
+        $vm->update([
+            'cancellation_code'            => $code,
+            'cancellation_code_expires_at' => $expires,
+        ]);
+
+        try {
+            app(MailService::class)->sendFromTemplate('vm_cancellation_code', auth()->user()->email, [
+                'first_name' => auth()->user()->first_name ?? auth()->user()->name,
+                'vm_name'    => $vm->name,
+                'code'       => $code,
+                'expires_at' => $expires->format('H:i'),
+            ]);
+        } catch (\Throwable) {}
+
+        return view('client.vms.cancel', compact('vm'));
+    }
+
+    public function cancelConfirm(Request $request, VirtualMachine $vm)
+    {
+        $this->authorizeVm($vm);
+
+        $request->validate(['code' => 'required|string|size:6']);
+
+        if (!$vm->cancellation_code
+            || $vm->cancellation_code_expires_at?->isPast()
+            || $request->code !== $vm->cancellation_code
+        ) {
+            return back()->withErrors(['code' => 'Code invalide ou expiré.'])->withInput();
+        }
+
+        try {
+            $proxmox = app(ProxmoxService::class);
+            $vmType  = $vm->vm_type ?? 'qemu';
+
+            if ($vm->status !== 'stopped') {
+                $proxmox->action($vm->proxmox_node, (int) $vm->proxmox_vmid, 'stop', $vmType);
+                for ($i = 0; $i < 20; $i++) {
+                    sleep(1);
+                    $s = $proxmox->getStatus($vm->proxmox_node, (int) $vm->proxmox_vmid, $vmType);
+                    if (($s['status'] ?? '') === 'stopped') break;
+                }
+            }
+
+            $proxmox->deleteInstance($vm->proxmox_node, (int) $vm->proxmox_vmid, $vmType);
+        } catch (\Throwable) {}
+
+        $vm->delete();
+
+        return redirect()->route('client.vms.index')
+            ->with('success', "La VM « {$vm->name} » a été résiliée et supprimée définitivement.");
     }
 
     private function resolveDiskStorage(ProxmoxService $proxmox, \App\Models\VirtualMachine $vm, string $vmType): string
