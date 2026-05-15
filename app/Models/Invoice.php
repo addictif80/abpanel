@@ -5,7 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Invoice extends Model
 {
@@ -15,6 +14,7 @@ class Invoice extends Model
         'status', 'subtotal', 'tax', 'total', 'currency',
         'items', 'metadata', 'paid_at', 'due_at',
         'is_recurring', 'recurrence_period', 'next_billing_at',
+        'promo_code_id', 'discount',
     ];
 
     protected function casts(): array
@@ -28,6 +28,7 @@ class Invoice extends Model
             'subtotal'        => 'decimal:2',
             'tax'             => 'decimal:2',
             'total'           => 'decimal:2',
+            'discount'        => 'decimal:2',
             'is_recurring'    => 'boolean',
         ];
     }
@@ -50,6 +51,11 @@ class Invoice extends Model
     public function plan(): BelongsTo
     {
         return $this->belongsTo(Plan::class);
+    }
+
+    public function promoCode(): BelongsTo
+    {
+        return $this->belongsTo(PromoCode::class);
     }
 
     public function quote(): BelongsTo
