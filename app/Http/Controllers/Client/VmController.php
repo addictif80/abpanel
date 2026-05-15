@@ -24,7 +24,11 @@ class VmController extends Controller
         try {
             $proxmox = app(ProxmoxService::class);
             $status  = $proxmox->getStatus($vm->proxmox_node, (int) $vm->proxmox_vmid, $vm->vm_type ?? 'qemu');
-            $vm->update(['status' => $status['status'] ?? $vm->status]);
+            $proxmoxStatus = $status['status'] ?? $vm->status;
+            if ($proxmoxStatus === 'stopped' && ($status['lock'] ?? '') === 'suspended') {
+                $proxmoxStatus = 'hibernated';
+            }
+            $vm->update(['status' => $proxmoxStatus]);
         } catch (\Throwable) {}
 
         return view('client.vms.show', compact('vm', 'status'));
