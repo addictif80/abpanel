@@ -62,7 +62,10 @@ class ProxmoxService
 
         if ($response->failed()) {
             Log::error("Proxmox API error [{$method} {$path}]: " . $response->body());
-            throw new \RuntimeException("Proxmox API error: " . $response->status());
+            $detail = $response->json('errors')
+                ? implode(', ', array_map(fn($k, $v) => "{$k}: {$v}", array_keys($response->json('errors')), $response->json('errors')))
+                : ($response->json('message') ?? substr(strip_tags($response->body()), 0, 120));
+            throw new \RuntimeException($detail ?: "HTTP {$response->status()}");
         }
 
         return $response->json('data') ?? [];
