@@ -30,7 +30,7 @@ class BillingController extends Controller
         }
 
         $invoice->load('quote');
-        $stripeKey = Setting::get('stripe_publishable_key') ?: Setting::get('stripe_public_key');
+        $stripeKey = Setting::get('stripe_public_key');
 
         return view('client.billing.show', compact('invoice', 'stripeKey'));
     }
@@ -74,7 +74,7 @@ class BillingController extends Controller
                 ->with('info', 'Cette facture est déjà réglée.');
         }
 
-        $stripeKey = Setting::get('stripe_publishable_key') ?: Setting::get('stripe_public_key');
+        $stripeKey = Setting::get('stripe_public_key');
 
         if (! $stripeKey) {
             return redirect()->route('client.billing.invoice', $invoice)
