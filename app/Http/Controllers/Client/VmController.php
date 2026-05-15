@@ -25,7 +25,7 @@ class VmController extends Controller
             $proxmox = app(ProxmoxService::class);
             $status  = $proxmox->getStatus($vm->proxmox_node, (int) $vm->proxmox_vmid, $vm->vm_type ?? 'qemu');
             $vm->update(['status' => $status['status'] ?? $vm->status]);
-        } catch (\Exception) {}
+        } catch (\Throwable) {}
 
         return view('client.vms.show', compact('vm', 'status'));
     }
@@ -37,7 +37,7 @@ class VmController extends Controller
             app(ProxmoxService::class)->action($vm->proxmox_node, (int) $vm->proxmox_vmid, 'start', $vm->vm_type ?? 'qemu');
             $vm->update(['status' => 'running']);
             return back()->with('success', 'Démarré(e).');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return back()->with('error', 'Erreur : ' . $e->getMessage());
         }
     }
@@ -49,7 +49,7 @@ class VmController extends Controller
             app(ProxmoxService::class)->action($vm->proxmox_node, (int) $vm->proxmox_vmid, 'shutdown', $vm->vm_type ?? 'qemu');
             $vm->update(['status' => 'stopped']);
             return back()->with('success', 'Arrêté(e) proprement.');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return back()->with('error', 'Erreur : ' . $e->getMessage());
         }
     }
@@ -61,7 +61,7 @@ class VmController extends Controller
             app(ProxmoxService::class)->action($vm->proxmox_node, (int) $vm->proxmox_vmid, 'suspend', $vm->vm_type ?? 'qemu');
             $vm->update(['status' => 'hibernated']);
             return back()->with('success', 'Mis(e) en hibernation.');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return back()->with('error', 'Erreur : ' . $e->getMessage());
         }
     }
@@ -73,7 +73,7 @@ class VmController extends Controller
             app(ProxmoxService::class)->action($vm->proxmox_node, (int) $vm->proxmox_vmid, 'resume', $vm->vm_type ?? 'qemu');
             $vm->update(['status' => 'running']);
             return back()->with('success', 'Repris(e).');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return back()->with('error', 'Erreur : ' . $e->getMessage());
         }
     }
@@ -84,7 +84,7 @@ class VmController extends Controller
         try {
             app(ProxmoxService::class)->action($vm->proxmox_node, (int) $vm->proxmox_vmid, 'reboot', $vm->vm_type ?? 'qemu');
             return back()->with('success', 'Redémarré(e).');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return back()->with('error', 'Erreur : ' . $e->getMessage());
         }
     }
@@ -93,23 +93,31 @@ class VmController extends Controller
     {
         $this->authorizeVm($vm);
 
-        // VNC is only available for QEMU VMs
         if (($vm->vm_type ?? 'qemu') === 'lxc') {
             return back()->with('error', 'Le terminal noVNC n\'est pas disponible pour les conteneurs LXC.');
         }
 
-        $ticket = null;
         try {
             $proxmox = app(ProxmoxService::class);
             $proxmox->getVNCProxy($vm->proxmox_node, (int) $vm->proxmox_vmid);
             $ticket = $proxmox->getAuthTicket();
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return back()->with('error', 'Impossible d\'ouvrir le terminal : ' . $e->getMessage());
         }
 
         $proxmoxHost = rtrim(\App\Models\Setting::get('proxmox_host'), '/');
 
-        return view('client.vms.terminal', compact('vm', 'ticket', 'proxmoxHost'));
+        $consoleUrl = $proxmoxHost . '/?' . http_build_query([
+            'console' => 'kvm',
+            'novnc'   => '1',
+            'vmid'    => $vm->proxmox_vmid,
+            'vmname'  => $vm->name,
+            'node'    => $vm->proxmox_node,
+            'resize'  => 'scale',
+            'ticket'  => $ticket,
+        ]);
+
+        return redirect()->away($consoleUrl);
     }
 
     public function changeRootPassword(Request $request, VirtualMachine $vm)
@@ -132,7 +140,7 @@ class VmController extends Controller
             $vm->update(['root_password' => $request->password]);
 
             return back()->with('success', 'Mot de passe root mis à jour.');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return back()->with('error', 'Impossible de changer le mot de passe : ' . $e->getMessage());
         }
     }
