@@ -100,6 +100,7 @@ class VncProxy extends Command
         $chunk   = @fread($browser, 4096);
 
         if ($chunk === false || ($chunk === '' && feof($browser))) {
+            $this->info("[{$id}] hs-read: chunk=" . var_export($chunk, true) . " feof=" . var_export(feof($browser), true) . " len_buf=" . strlen($this->sessions[$id]['headerBuf']));
             $this->close($id);
             return;
         }
@@ -108,6 +109,9 @@ class VncProxy extends Command
         $buf = $this->sessions[$id]['headerBuf'];
 
         if (!str_contains($buf, "\r\n\r\n")) {
+            if ($chunk !== '') {
+                $this->info("[{$id}] hs partial " . strlen($buf) . "B so far");
+            }
             return;
         }
 
