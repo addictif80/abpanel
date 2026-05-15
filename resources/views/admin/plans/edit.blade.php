@@ -221,11 +221,11 @@
                 <template x-for="(row, i) in rows" :key="i">
                     <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                         <span class="text-xs text-gray-500 shrink-0">1 unité de</span>
-                        <select x-model="row.plan_id" @change="row.plan_id = parseInt($event.target.value)"
+                        <select x-model.number="row.plan_id"
                             class="flex-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                             <option value="0">— Choisir un plan —</option>
                             <template x-for="p in plans" :key="p.id">
-                                <option :value="p.id" :selected="row.plan_id === p.id" x-text="p.label"></option>
+                                <option :value="p.id" x-text="p.label"></option>
                             </template>
                         </select>
                         <span class="text-xs text-gray-500 shrink-0">offre</span>
