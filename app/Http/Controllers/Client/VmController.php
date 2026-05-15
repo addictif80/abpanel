@@ -129,11 +129,14 @@ class VmController extends Controller
         $proxyPort = 6080;
         $test = @stream_socket_client("tcp://127.0.0.1:{$proxyPort}", $errno, $errstr, 0.5);
         if (!$test) {
-            $artisan = base_path('artisan');
+            $artisan  = base_path('artisan');
+            $logFile  = sys_get_temp_dir() . '/vnc-proxy-daemon.log';
             $cmd = sprintf(
-                'php %s vnc:proxy-server --port=%d > /dev/null 2>&1 &',
+                '%s %s vnc:proxy-server --port=%d >> %s 2>&1 &',
+                PHP_BINARY,
                 escapeshellarg($artisan),
-                $proxyPort
+                $proxyPort,
+                escapeshellarg($logFile)
             );
             exec($cmd);
 
