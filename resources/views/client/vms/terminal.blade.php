@@ -20,9 +20,9 @@
 </div>
 
 <div class="flex-1 relative">
-    @if($vncData)
+    @if($ticket)
     <iframe
-        src="{{ $proxmoxHost }}/?console=kvm&novnc=1&vmid={{ $vm->proxmox_vmid }}&vmname={{ $vm->name }}&node={{ $vm->proxmox_node }}&resize=scale&ticket={{ urlencode($vncData['ticket'] ?? '') }}"
+        src="{{ $proxmoxHost }}/?console=kvm&novnc=1&vmid={{ $vm->proxmox_vmid }}&vmname={{ urlencode($vm->name) }}&node={{ $vm->proxmox_node }}&resize=scale&ticket={{ urlencode($ticket) }}"
         class="w-full h-full border-0"
         allowfullscreen>
     </iframe>

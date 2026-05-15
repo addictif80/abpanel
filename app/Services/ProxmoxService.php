@@ -107,6 +107,14 @@ class ProxmoxService
         return $this->request('post', "/nodes/{$node}/qemu/{$vmid}/status/reboot");
     }
 
+    public function getAuthTicket(): string
+    {
+        if (!$this->ticket) {
+            $this->authenticate();
+        }
+        return $this->ticket;
+    }
+
     public function getVNCProxy(string $node, int $vmid): array
     {
         return $this->request('post', "/nodes/{$node}/qemu/{$vmid}/vncproxy", ['websocket' => 1]);
