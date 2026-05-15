@@ -42,6 +42,22 @@ class DemoSeeder extends Seeder
         $this->createNotifications($clients);
     }
 
+    private function uniqueQuoteNumber(): string
+    {
+        do {
+            $number = Quote::generateNumber();
+        } while (Quote::where('number', $number)->exists());
+        return $number;
+    }
+
+    private function uniqueInvoiceNumber(): string
+    {
+        do {
+            $number = Invoice::generateNumber();
+        } while (Invoice::where('number', $number)->exists());
+        return $number;
+    }
+
     private function createClients(): array
     {
         $data = [
@@ -252,7 +268,7 @@ class DemoSeeder extends Seeder
 
             $quote = Quote::create([
                 'user_id'   => $qd['user']->id,
-                'number'    => Quote::generateNumber(),
+                'number'    => $this->uniqueQuoteNumber(),
                 'subject'   => $qd['subject'],
                 'status'    => $qd['status'],
                 'currency'  => 'EUR',
@@ -277,7 +293,7 @@ class DemoSeeder extends Seeder
                 Invoice::create([
                     'user_id'   => $qd['user']->id,
                     'quote_id'  => $quote->id,
-                    'number'    => Invoice::generateNumber(),
+                    'number'    => $this->uniqueInvoiceNumber(),
                     'status'    => $qd['invoice']['status'],
                     'items'     => collect($qd['items'])->map(fn($i) => [
                         'description' => $i['description'],
