@@ -106,14 +106,18 @@ class VmController extends Controller
         }
 
         try {
-            $vncData = app(ProxmoxService::class)->getVNCProxy($vm->proxmox_node, (int) $vm->proxmox_vmid);
+            $proxmox   = app(ProxmoxService::class);
+            $vncData   = $proxmox->getVNCProxy($vm->proxmox_node, (int) $vm->proxmox_vmid);
+            $authCookie = $proxmox->getAuthTicket();
         } catch (\Throwable $e) {
             return back()->with('error', 'Impossible d\'ouvrir le terminal : ' . $e->getMessage());
         }
 
-        $vncHost  = parse_url(\App\Models\Setting::get('proxmox_host'), PHP_URL_HOST);
-        $vncPort  = (int) ($vncData['port'] ?? 0);
-        $vncTicket = $vncData['ticket'] ?? '';
+        $proxmoxUrl  = \App\Models\Setting::get('proxmox_host');
+        $vncHost     = parse_url($proxmoxUrl, PHP_URL_HOST);
+        $proxmoxPort = (int) (parse_url($proxmoxUrl, PHP_URL_PORT) ?: 8006);
+        $vncPort     = (int) ($vncData['port'] ?? 0);
+        $vncTicket   = $vncData['ticket'] ?? '';
 
         if (!$vncHost || !$vncPort) {
             return back()->with('error', 'Données VNC manquantes (host ou port).');
@@ -124,9 +128,14 @@ class VmController extends Controller
         // Write session file for the daemon to pick up
         $sessionFile = sys_get_temp_dir() . "/vnc-proxy-{$token}";
         file_put_contents($sessionFile, json_encode([
-            'vnc_host' => $vncHost,
-            'vnc_port' => $vncPort,
-            'expires'  => time() + 30,
+            'vnc_host'     => $vncHost,
+            'proxmox_port' => $proxmoxPort,
+            'vnc_port'     => $vncPort,
+            'node'         => $vm->proxmox_node,
+            'vmid'         => (int) $vm->proxmox_vmid,
+            'ticket'       => $vncTicket,
+            'auth_cookie'  => $authCookie,
+            'expires'      => time() + 30,
         ]));
 
         // Start the daemon if it is not already listening on port 6080
