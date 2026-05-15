@@ -227,7 +227,7 @@ class VncProxy extends Command
         $browser = $this->sessions[$id]['browser'];
         $proxmox = $this->sessions[$id]['vnc'];
 
-        // Browser → Proxmox: unmask browser WS frames, forward as masked WS client frames
+        // Append new data from browser if readable
         if (in_array($browser, $readable, true)) {
             $data = @fread($browser, 65536);
             if ($data === false || ($data === '' && feof($browser))) {
@@ -236,40 +236,36 @@ class VncProxy extends Command
             }
             if ($data !== '') {
                 $this->sessions[$id]['browserBuf'] .= $data;
-                $raw = $this->unwrapWsFrames($this->sessions[$id]['browserBuf'], $proxmox, false);
-                if ($raw === null) {
-                    $this->close($id);
-                    return;
-                }
-                if ($raw !== '') {
-                    fwrite($proxmox, $this->wrapClientFrame($raw));
-                }
             }
         }
 
-        // Proxmox → Browser: unwrap Proxmox WS frames, forward as unmasked WS server frames
-        // Also flush any initial data that arrived with the 101 response
-        $hasInitial = $this->sessions[$id]['proxmoxBuf'] !== '';
-        if ($proxmox && ($hasInitial || in_array($proxmox, $readable, true))) {
-            if (!$hasInitial) {
-                $data = @fread($proxmox, 65536);
-                if ($data === false || ($data === '' && feof($proxmox))) {
-                    $this->close($id);
-                    return;
-                }
-                if ($data !== '') {
-                    $this->sessions[$id]['proxmoxBuf'] .= $data;
-                }
+        // Process all complete browser WS frames → Proxmox
+        if ($this->sessions[$id]['browserBuf'] !== '') {
+            $raw = $this->unwrapWsFrames($this->sessions[$id]['browserBuf'], $proxmox, false);
+            if ($raw === null) { $this->close($id); return; }
+            if ($raw !== '') {
+                fwrite($proxmox, $this->wrapClientFrame($raw));
             }
-            if ($this->sessions[$id]['proxmoxBuf'] !== '') {
-                $raw = $this->unwrapWsFrames($this->sessions[$id]['proxmoxBuf'], $browser, true);
-                if ($raw === null) {
-                    $this->close($id);
-                    return;
-                }
-                if ($raw !== '') {
-                    fwrite($browser, $this->wrapBinaryFrame($raw));
-                }
+        }
+
+        // Append new data from Proxmox if readable
+        if ($proxmox && in_array($proxmox, $readable, true)) {
+            $data = @fread($proxmox, 65536);
+            if ($data === false || ($data === '' && feof($proxmox))) {
+                $this->close($id);
+                return;
+            }
+            if ($data !== '') {
+                $this->sessions[$id]['proxmoxBuf'] .= $data;
+            }
+        }
+
+        // Process all complete Proxmox WS frames → Browser (inclut les données initiales)
+        if ($this->sessions[$id]['proxmoxBuf'] !== '') {
+            $raw = $this->unwrapWsFrames($this->sessions[$id]['proxmoxBuf'], $browser, true);
+            if ($raw === null) { $this->close($id); return; }
+            if ($raw !== '') {
+                fwrite($browser, $this->wrapBinaryFrame($raw));
             }
         }
     }
