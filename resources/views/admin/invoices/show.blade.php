@@ -9,6 +9,15 @@
         <h1 class="text-2xl font-bold text-gray-900 mt-1">{{ $invoice->number }}</h1>
     </div>
     <div class="flex items-center gap-3">
+        <a href="{{ route('admin.invoices.download', $invoice) }}"
+           class="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-200 transition">
+            PDF
+        </a>
+        <a href="{{ route('admin.invoices.facturx', $invoice) }}"
+           class="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-200 transition"
+           title="Télécharger le fichier Factur-X XML (EN 16931)">
+            Factur-X XML
+        </a>
         @if($invoice->status === 'pending')
         <form method="POST" action="{{ route('admin.invoices.mark-paid', $invoice) }}">
             @csrf

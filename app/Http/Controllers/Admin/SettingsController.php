@@ -163,6 +163,7 @@ class SettingsController extends Controller
         $request->validate([
             'company_name'       => 'nullable|string|max:100',
             'company_siren'      => 'nullable|string|max:20',
+            'company_vat_number' => 'nullable|string|max:20',
             'company_legal_form' => 'nullable|string|max:100',
             'company_rcs'        => 'nullable|string|max:100',
             'company_iban'       => 'nullable|string|max:34',
@@ -171,11 +172,23 @@ class SettingsController extends Controller
             'company_address'    => 'nullable|string|max:255',
         ]);
 
-        foreach (['company_name', 'company_siren', 'company_legal_form', 'company_rcs', 'company_iban', 'company_bic', 'company_phone', 'company_address'] as $key) {
+        foreach (['company_name', 'company_siren', 'company_vat_number', 'company_legal_form', 'company_rcs', 'company_iban', 'company_bic', 'company_phone', 'company_address'] as $key) {
             Setting::set($key, $request->input($key, ''), 'company');
         }
 
         return back()->with('success', 'Informations société enregistrées.');
+    }
+
+    public function saveEinvoicing(Request $request)
+    {
+        $request->validate([
+            'ppf_siret' => 'nullable|string|max:20',
+        ]);
+
+        Setting::set('einvoicing_enabled', $request->boolean('einvoicing_enabled') ? '1' : '0', 'company');
+        Setting::set('ppf_siret', $request->input('ppf_siret', ''), 'company');
+
+        return back()->with('success', 'Paramètres facturation électronique enregistrés.');
     }
 
     public function saveQuotes(Request $request)
