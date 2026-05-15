@@ -160,6 +160,52 @@
     </div>
 
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
+        <div>
+            <h2 class="font-semibold text-gray-800">Limites & conditions d'achat</h2>
+            <p class="text-sm text-gray-500 mt-0.5">Laissez vide pour aucune limite. Les limites par ressource se cumulent : la plus restrictive s'applique.</p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Max par client</label>
+                <input type="number" name="limit_per_client" value="{{ old('limit_per_client', $plan->limit_per_client) }}"
+                    min="1" placeholder="Illimité"
+                    class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                <p class="text-xs text-gray-400 mt-1">Ex : 3 → max 3 de ce produit par client.</p>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Max par VPS détenu</label>
+                <input type="number" name="limit_per_vm" value="{{ old('limit_per_vm', $plan->limit_per_vm) }}"
+                    min="1" placeholder="Non limité par VPS"
+                    class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                <p class="text-xs text-gray-400 mt-1">Ex : 1 → max = nombre de VPS actifs.</p>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Max par hébergement détenu</label>
+                <input type="number" name="limit_per_hosting" value="{{ old('limit_per_hosting', $plan->limit_per_hosting) }}"
+                    min="1" placeholder="Non limité par site"
+                    class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                <p class="text-xs text-gray-400 mt-1">Ex : 2 → max = hébergements actifs × 2.</p>
+            </div>
+        </div>
+
+        <div class="flex gap-6 pt-1">
+            <label class="flex items-center gap-2 cursor-pointer text-sm">
+                <input type="checkbox" name="requires_vm" value="1"
+                    {{ old('requires_vm', $plan->requires_vm) ? 'checked' : '' }}
+                    class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                <span class="text-gray-700">Requiert au moins 1 VPS actif</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer text-sm">
+                <input type="checkbox" name="requires_hosting" value="1"
+                    {{ old('requires_hosting', $plan->requires_hosting) ? 'checked' : '' }}
+                    class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                <span class="text-gray-700">Requiert au moins 1 hébergement actif</span>
+            </label>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
         <h2 class="font-semibold text-gray-800">Options</h2>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
