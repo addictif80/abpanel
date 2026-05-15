@@ -132,6 +132,22 @@ class ProxmoxService
         return $this->request('post', "/nodes/{$node}/qemu/{$vmid}/vncproxy", ['websocket' => 1]);
     }
 
+    public function unlinkVMDisk(string $node, int $vmid, string $disk): array
+    {
+        return $this->request('put', "/nodes/{$node}/qemu/{$vmid}/unlink", [
+            'idlist' => $disk,
+            'force'  => 1,
+        ]);
+    }
+
+    public function updateVMConfig(string $node, int $vmid, array $config, string $type = 'qemu'): array
+    {
+        $path = $type === 'lxc'
+            ? "/nodes/{$node}/lxc/{$vmid}/config"
+            : "/nodes/{$node}/qemu/{$vmid}/config";
+        return $this->request('put', $path, $config);
+    }
+
     public function createVM(string $node, array $config): array
     {
         return $this->request('post', "/nodes/{$node}/qemu", $config);
@@ -280,12 +296,27 @@ class ProxmoxService
 
     public function downloadTemplate(string $node, string $storage, string $url, string $filename, string $content = 'iso'): string
     {
-        $result = $this->request('post', "/nodes/{$node}/storage/{$storage}/download-url", [
-            'url'      => $url,
-            'filename' => $filename,
-            'content'  => $content,
-        ]);
-        return is_string($result) ? $result : ($result['upid'] ?? $result[0] ?? '');
+        if (!$this->ticket) {
+            $this->authenticate();
+        }
+
+        $response = Http::withoutVerifying()
+            ->withCookies(['PVEAuthCookie' => $this->ticket], parse_url($this->host, PHP_URL_HOST))
+            ->withHeaders(['CSRFPreventionToken' => $this->csrfToken])
+            ->asForm()
+            ->post("{$this->host}/api2/json/nodes/{$node}/storage/{$storage}/download-url", [
+                'url'      => $url,
+                'filename' => $filename,
+                'content'  => $content,
+            ]);
+
+        if ($response->failed()) {
+            Log::error("Proxmox downloadTemplate error: " . $response->body());
+            throw new \RuntimeException("HTTP {$response->status()}");
+        }
+
+        $data = $response->json('data');
+        return is_string($data) ? $data : ($data['upid'] ?? '');
     }
 
     public function getTaskStatus(string $node, string $upid): array
