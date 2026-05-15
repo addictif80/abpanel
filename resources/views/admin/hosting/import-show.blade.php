@@ -56,8 +56,6 @@
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
                 <h2 class="font-semibold text-gray-800">Informations hébergement <span class="text-xs font-normal text-gray-400">(pré-remplies depuis CyberPanel)</span></h2>
 
-                <input type="hidden" name="cyberpanel_username" value="{{ old('cyberpanel_username', $siteInfo['owner']) }}">
-
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Domaine</label>
@@ -66,8 +64,16 @@
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Utilisateur CyberPanel</label>
+                        @if($siteInfo['owner'])
+                        <input type="hidden" name="cyberpanel_username" value="{{ $siteInfo['owner'] }}">
                         <input type="text" value="{{ $siteInfo['owner'] }}" readonly
                             class="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500 font-mono">
+                        @else
+                        <input type="text" name="cyberpanel_username" value="{{ old('cyberpanel_username') }}"
+                            placeholder="laisser vide si aucun owner"
+                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none font-mono">
+                        <p class="text-xs text-gray-400 mt-1">Aucun owner détecté sur CyberPanel — vous pouvez laisser vide.</p>
+                        @endif
                     </div>
                 </div>
 

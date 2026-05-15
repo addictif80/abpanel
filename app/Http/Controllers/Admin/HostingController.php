@@ -74,12 +74,12 @@ class HostingController extends Controller
         }
 
         $request->validate([
-            'user_id'       => 'required|exists:users,id',
-            'cyberpanel_username' => 'required|string|max:100',
-            'plan'          => 'nullable|string|max:100',
-            'disk_mb'       => 'nullable|integer|min:0',
-            'monthly_price' => 'required|numeric|min:0',
-            'next_renewal_at' => 'nullable|date',
+            'user_id'             => 'required|exists:users,id',
+            'cyberpanel_username' => 'nullable|string|max:100',
+            'plan'                => 'nullable|string|max:100',
+            'disk_mb'             => 'nullable|integer|min:0',
+            'monthly_price'       => 'required|numeric|min:0',
+            'next_renewal_at'     => 'nullable|date',
         ]);
 
         $account = HostingAccount::create([
