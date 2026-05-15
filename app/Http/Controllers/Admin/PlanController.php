@@ -21,7 +21,8 @@ class PlanController extends Controller
 
     public function create()
     {
-        return view('admin.plans.create');
+        $allPlans = Plan::orderBy('type')->orderBy('name')->get();
+        return view('admin.plans.create', compact('allPlans'));
     }
 
     public function store(Request $request)
@@ -38,9 +39,13 @@ class PlanController extends Controller
             'memory_mb'          => 'nullable|integer|min:128',
             'disk_gb'            => 'nullable|integer|min:1',
             'cyberpanel_package' => 'nullable|string|max:100',
+            'limit_per_client'   => 'nullable|integer|min:1',
+            'limit_per_vm'       => 'nullable|integer|min:1',
+            'limit_per_hosting'  => 'nullable|integer|min:1',
         ]);
 
-        $features = array_filter(array_map('trim', explode("\n", $request->features ?? '')));
+        $features         = array_filter(array_map('trim', explode("\n", $request->features ?? '')));
+        $planAllowances   = $this->parsePlanAllowances($request->input('plan_allowances_json', ''));
 
         $stripePrice = null;
         if ($request->price > 0 && Setting::get('stripe_secret_key')) {
@@ -71,6 +76,12 @@ class PlanController extends Controller
             'cyberpanel_package' => $request->type === 'hosting' ? $request->cyberpanel_package : null,
             'stripe_price_id'    => $stripePrice,
             'is_active'          => $request->boolean('is_active', true),
+            'limit_per_client'   => $request->limit_per_client ?: null,
+            'limit_per_vm'       => $request->limit_per_vm ?: null,
+            'limit_per_hosting'  => $request->limit_per_hosting ?: null,
+            'requires_vm'        => $request->boolean('requires_vm'),
+            'requires_hosting'   => $request->boolean('requires_hosting'),
+            'plan_allowances'    => $planAllowances ?: null,
         ]);
 
         return redirect()->route('admin.plans.index')->with('success', 'Plan créé.');
@@ -78,7 +89,8 @@ class PlanController extends Controller
 
     public function edit(Plan $plan)
     {
-        return view('admin.plans.edit', compact('plan'));
+        $allPlans = Plan::orderBy('type')->orderBy('name')->get();
+        return view('admin.plans.edit', compact('plan', 'allPlans'));
     }
 
     public function update(Request $request, Plan $plan)
@@ -100,7 +112,8 @@ class PlanController extends Controller
             'limit_per_hosting'  => 'nullable|integer|min:1',
         ]);
 
-        $features = array_filter(array_map('trim', explode("\n", $request->features ?? '')));
+        $features       = array_filter(array_map('trim', explode("\n", $request->features ?? '')));
+        $planAllowances = $this->parsePlanAllowances($request->input('plan_allowances_json', ''));
 
         $plan->update([
             'name'               => $request->name,
@@ -121,6 +134,7 @@ class PlanController extends Controller
             'limit_per_hosting'  => $request->limit_per_hosting ?: null,
             'requires_vm'        => $request->boolean('requires_vm'),
             'requires_hosting'   => $request->boolean('requires_hosting'),
+            'plan_allowances'    => $planAllowances ?: null,
         ]);
 
         return back()->with('success', 'Plan mis à jour.');
@@ -140,5 +154,21 @@ class PlanController extends Controller
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()]);
         }
+    }
+
+    private function parsePlanAllowances(string $json): array
+    {
+        if (empty($json)) return [];
+
+        $decoded = json_decode($json, true);
+        if (!is_array($decoded)) return [];
+
+        return array_values(array_filter(
+            array_map(fn($r) => [
+                'plan_id'       => (int) ($r['plan_id'] ?? 0),
+                'limit_per_owned' => (int) ($r['limit_per_owned'] ?? 0),
+            ], $decoded),
+            fn($r) => $r['plan_id'] > 0 && $r['limit_per_owned'] > 0
+        ));
     }
 }

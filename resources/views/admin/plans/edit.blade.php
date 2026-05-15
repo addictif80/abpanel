@@ -203,6 +203,42 @@
                 <span class="text-gray-700">Requiert au moins 1 hébergement actif</span>
             </label>
         </div>
+
+        {{-- Règles par plan possédé --}}
+        <div x-data="allowancesEditor({{ Js::from($plan->plan_allowances ?? []) }}, {{ Js::from($allPlans->map(fn($p) => ['id'=>$p->id,'label'=>$p->name.' ('.$p->type.')'])) }})" class="pt-2 border-t border-gray-100">
+            <div class="flex items-center justify-between mb-2">
+                <div>
+                    <p class="text-sm font-medium text-gray-700">Limite par plan possédé (optionnel)</p>
+                    <p class="text-xs text-gray-400">Additive : 1 VPS Starter → N + 1 VPS Pro → M = max N+M. La plus restrictive avec les limites ci-dessus s'applique.</p>
+                </div>
+                <button type="button" @click="addRow()"
+                    class="text-sm text-indigo-600 hover:text-indigo-800 font-medium px-3 py-1 rounded hover:bg-indigo-50 transition">
+                    + Ajouter une règle
+                </button>
+            </div>
+            <input type="hidden" name="plan_allowances_json" :value="JSON.stringify(rows)">
+            <div class="space-y-2">
+                <template x-for="(row, i) in rows" :key="i">
+                    <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                        <span class="text-xs text-gray-500 shrink-0">1 unité de</span>
+                        <select x-model="row.plan_id" @change="row.plan_id = parseInt($event.target.value)"
+                            class="flex-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                            <option value="0">— Choisir un plan —</option>
+                            <template x-for="p in plans" :key="p.id">
+                                <option :value="p.id" :selected="row.plan_id === p.id" x-text="p.label"></option>
+                            </template>
+                        </select>
+                        <span class="text-xs text-gray-500 shrink-0">offre</span>
+                        <input type="number" x-model.number="row.limit_per_owned" min="1"
+                            class="w-20 rounded-lg border border-gray-300 px-2 py-1.5 text-sm text-center focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <span class="text-xs text-gray-500 shrink-0">de ce produit</span>
+                        <button type="button" @click="rows.splice(i, 1)"
+                            class="text-red-400 hover:text-red-600 text-lg leading-none shrink-0">×</button>
+                    </div>
+                </template>
+                <p x-show="rows.length === 0" class="text-xs text-gray-400 italic">Aucune règle par plan — ajoutez-en une ci-dessus si nécessaire.</p>
+            </div>
+        </div>
     </div>
 
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
@@ -272,6 +308,16 @@ function planForm(initialType, initialPackage) {
                 .finally(() => { this.loadingPackages = false; });
         }
     }
+}
+
+function allowancesEditor(initialRows, plans) {
+    return {
+        rows: initialRows.length ? initialRows : [],
+        plans: plans,
+        addRow() {
+            this.rows.push({ plan_id: 0, limit_per_owned: 1 });
+        },
+    };
 }
 </script>
 @endpush
