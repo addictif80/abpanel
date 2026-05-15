@@ -8,6 +8,7 @@ use App\Models\Setting;
 use App\Models\User;
 use App\Services\MailService;
 use App\Services\NotificationService;
+use App\Services\PdfService;
 use Illuminate\Http\Request;
 
 class InvoiceController extends Controller
@@ -110,6 +111,24 @@ class InvoiceController extends Controller
         }
 
         return back()->with('success', 'Facture marquée comme payée. Confirmation envoyée au client.');
+    }
+
+    public function download(Invoice $invoice)
+    {
+        $pdf = app(PdfService::class)->generateInvoicePdf($invoice);
+        return response($pdf, 200, [
+            'Content-Type'        => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="' . $invoice->number . '.pdf"',
+        ]);
+    }
+
+    public function downloadXml(Invoice $invoice)
+    {
+        $xml = app(PdfService::class)->generateFacturXXml($invoice);
+        return response($xml, 200, [
+            'Content-Type'        => 'application/xml',
+            'Content-Disposition' => 'attachment; filename="' . $invoice->number . '-facturx.xml"',
+        ]);
     }
 
     public function destroy(Invoice $invoice)

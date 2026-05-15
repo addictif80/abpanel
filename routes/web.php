@@ -138,6 +138,7 @@ Route::middleware('installed')->group(function () {
             Route::post('/general', [Admin\SettingsController::class, 'saveGeneral'])->name('general');
             Route::post('/company', [Admin\SettingsController::class, 'saveCompany'])->name('company');
             Route::post('/quotes', [Admin\SettingsController::class, 'saveQuotes'])->name('quotes');
+            Route::post('/einvoicing', [Admin\SettingsController::class, 'saveEinvoicing'])->name('einvoicing');
             Route::post('/proxmox', [Admin\SettingsController::class, 'saveProxmox'])->name('proxmox');
             Route::post('/cyberpanel', [Admin\SettingsController::class, 'saveCyberpanel'])->name('cyberpanel');
             Route::post('/npm', [Admin\SettingsController::class, 'saveNpm'])->name('npm');
@@ -245,6 +246,8 @@ Route::middleware('installed')->group(function () {
         // Invoices
         Route::resource('invoices', Admin\InvoiceController::class)->only(['index', 'show', 'create', 'store', 'destroy']);
         Route::post('/invoices/{invoice}/mark-paid', [Admin\InvoiceController::class, 'markPaid'])->name('invoices.mark-paid');
+        Route::get('/invoices/{invoice}/download', [Admin\InvoiceController::class, 'download'])->name('invoices.download');
+        Route::get('/invoices/{invoice}/facturx.xml', [Admin\InvoiceController::class, 'downloadXml'])->name('invoices.facturx');
 
         // Projects
         Route::prefix('projects')->name('projects.')->group(function () {
@@ -263,6 +266,14 @@ Route::middleware('installed')->group(function () {
             Route::get('/{ticket}', [Admin\TicketController::class, 'show'])->name('show');
             Route::post('/{ticket}/reply', [Admin\TicketController::class, 'reply'])->name('reply');
             Route::post('/{ticket}/status', [Admin\TicketController::class, 'updateStatus'])->name('status');
+        });
+
+        // Sandbox
+        Route::prefix('sandbox')->name('sandbox.')->group(function () {
+            Route::get('/', [Admin\SandboxController::class, 'index'])->name('index');
+            Route::post('/seed', [Admin\SandboxController::class, 'seed'])->name('seed');
+            Route::delete('/reset', [Admin\SandboxController::class, 'reset'])->name('reset');
+            Route::post('/command', [Admin\SandboxController::class, 'runCommand'])->name('command');
         });
     });
 

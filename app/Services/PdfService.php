@@ -6,6 +6,9 @@ use App\Models\Invoice;
 use App\Models\Quote;
 use App\Models\Setting;
 use Barryvdh\DomPDF\Facade\Pdf;
+use horstoeko\zugferd\ZugferdDocumentBuilder;
+use horstoeko\zugferd\ZugferdDocumentPdfBuilder;
+use horstoeko\zugferd\ZugferdProfiles;
 
 class PdfService
 {
@@ -25,10 +28,23 @@ class PdfService
         $invoice->load('user', 'quote');
         $settings = Setting::group('general') + Setting::group('company') + Setting::group('quotes');
 
-        $pdf = Pdf::loadView('pdf.invoice', compact('invoice', 'settings'))
-            ->setPaper('a4');
+        $pdfContent = Pdf::loadView('pdf.invoice', compact('invoice', 'settings'))
+            ->setPaper('a4')
+            ->output();
 
-        return $pdf->output();
+        // Embed Factur-X XML if e-invoicing is enabled
+        if (($settings['einvoicing_enabled'] ?? '0') === '1') {
+            try {
+                $builder = $this->buildEN16931Document($invoice, $settings);
+                $pdfBuilder = ZugferdDocumentPdfBuilder::fromPdfString($builder, $pdfContent);
+                $pdfBuilder->generateDocument();
+                return $pdfBuilder->downloadString();
+            } catch (\Throwable) {
+                // Fall back to plain PDF if XML embedding fails
+            }
+        }
+
+        return $pdfContent;
     }
 
     public function generateFacturXXml(Invoice $invoice): string
@@ -36,81 +52,143 @@ class PdfService
         $invoice->load('user');
         $settings = Setting::group('general') + Setting::group('company') + Setting::group('quotes');
 
-        $seller = [
-            'name'      => $settings['company_name'] ?? $settings['app_name'] ?? config('app.name'),
-            'siren'     => $settings['company_siren'] ?? '',
-            'address'   => '',
-            'legal_form'=> $settings['company_legal_form'] ?? 'Micro-entreprise',
-        ];
+        $builder = $this->buildEN16931Document($invoice, $settings);
+        return $builder->getContent();
+    }
 
-        $buyer = [
-            'name'    => $invoice->user->full_name,
-            'address' => trim(implode(', ', array_filter([
-                $invoice->user->address,
-                $invoice->user->zip,
-                $invoice->user->city,
-                $invoice->user->country,
-            ]))),
-            'siret'   => $invoice->user->siret ?? '',
-        ];
+    private function buildEN16931Document(Invoice $invoice, array $settings): ZugferdDocumentBuilder
+    {
+        $invoice->loadMissing('user');
 
-        $date        = $invoice->created_at->format('Ymd');
-        $dueDate     = $invoice->due_at ? $invoice->due_at->format('Ymd') : $date;
-        $totalAmount = number_format((float) $invoice->total, 2, '.', '');
-        $taxAmount   = number_format((float) $invoice->tax, 2, '.', '');
-        $vatMention  = $settings['vat_mention'] ?? 'TVA non applicable, art. 293 B du CGI';
+        $sellerName    = $settings['company_name'] ?? $settings['app_name'] ?? config('app.name');
+        $sellerVat     = $settings['company_vat_number'] ?? '';
+        $sellerSiren   = $settings['company_siren'] ?? '';
+        $sellerAddress = $settings['company_address'] ?? '';
+        $sellerPhone   = $settings['company_phone'] ?? '';
+        $vatMention    = $settings['vat_mention'] ?? 'TVA non applicable, art. 293 B du CGI';
+        $currency      = $invoice->currency ?? 'EUR';
 
-        $xml  = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
-        $xml .= '<rsm:CrossIndustryInvoice xmlns:rsm="urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100"';
-        $xml .= ' xmlns:ram="urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100"';
-        $xml .= ' xmlns:udt="urn:un:unece:uncefact:data:standard:UnqualifiedDataType:100">' . "\n";
+        $isVatExempt   = empty($sellerVat);
+        $taxRate       = $isVatExempt ? 0.0 : (float) ($settings['tax_rate'] ?? 20);
 
-        $xml .= "  <rsm:ExchangedDocumentContext>\n";
-        $xml .= "    <ram:GuidelineSpecifiedDocumentContextParameter>\n";
-        $xml .= "      <ram:ID>urn:factur-x.eu:1p0:minimum</ram:ID>\n";
-        $xml .= "    </ram:GuidelineSpecifiedDocumentContextParameter>\n";
-        $xml .= "  </rsm:ExchangedDocumentContext>\n";
+        $builder = ZugferdDocumentBuilder::createNew(ZugferdProfiles::PROFILE_EN16931);
 
-        $xml .= "  <rsm:ExchangedDocument>\n";
-        $xml .= "    <ram:ID>" . htmlspecialchars($invoice->number) . "</ram:ID>\n";
-        $xml .= "    <ram:TypeCode>380</ram:TypeCode>\n";
-        $xml .= "    <ram:IssueDateTime><udt:DateTimeString format=\"102\">{$date}</udt:DateTimeString></ram:IssueDateTime>\n";
-        $xml .= "    <ram:IncludedNote><ram:Content>" . htmlspecialchars($vatMention) . "</ram:Content></ram:IncludedNote>\n";
-        $xml .= "  </rsm:ExchangedDocument>\n";
+        $builder->setDocumentInformation(
+            $invoice->number,
+            '380',
+            $invoice->created_at->toDateTime(),
+            $currency
+        );
 
-        $xml .= "  <rsm:SupplyChainTradeTransaction>\n";
-        $xml .= "    <ram:ApplicableHeaderTradeAgreement>\n";
-        $xml .= "      <ram:SellerTradeParty>\n";
-        $xml .= "        <ram:Name>" . htmlspecialchars($seller['name']) . "</ram:Name>\n";
-        if ($seller['siren']) {
-            $xml .= "        <ram:SpecifiedLegalOrganization><ram:ID schemeID=\"0002\">" . htmlspecialchars($seller['siren']) . "</ram:ID></ram:SpecifiedLegalOrganization>\n";
+        if ($isVatExempt) {
+            $builder->addDocumentNote($vatMention);
         }
-        $xml .= "      </ram:SellerTradeParty>\n";
-        $xml .= "      <ram:BuyerTradeParty>\n";
-        $xml .= "        <ram:Name>" . htmlspecialchars($buyer['name']) . "</ram:Name>\n";
-        if ($buyer['siret']) {
-            $xml .= "        <ram:SpecifiedLegalOrganization><ram:ID schemeID=\"0009\">" . htmlspecialchars($buyer['siret']) . "</ram:ID></ram:SpecifiedLegalOrganization>\n";
+
+        // Seller
+        $builder->setDocumentSeller($sellerName);
+        if ($sellerVat) {
+            $builder->addDocumentSellerTaxRegistration('VA', $sellerVat);
         }
-        $xml .= "      </ram:BuyerTradeParty>\n";
-        $xml .= "    </ram:ApplicableHeaderTradeAgreement>\n";
+        if ($sellerSiren) {
+            $builder->setDocumentSellerLegalOrganisation($sellerSiren, '0002', $sellerName);
+        }
+        if ($sellerAddress) {
+            // Parse "12 rue X, 75001 Paris, France" style
+            [$line1, $zip, $city, $country] = $this->parseAddress($sellerAddress);
+            $builder->setDocumentSellerAddress($line1, null, null, $zip, $city, $country ?: 'FR');
+        } else {
+            $builder->setDocumentSellerAddress(null, null, null, null, null, 'FR');
+        }
+        if ($sellerPhone) {
+            $builder->setDocumentSellerContact(null, null, $sellerPhone, null, null);
+        }
 
-        $xml .= "    <ram:ApplicableHeaderTradeDelivery/>\n";
+        // Buyer
+        $buyer = $invoice->user;
+        $builder->setDocumentBuyer($buyer->full_name ?? $buyer->name ?? 'Client');
+        if ($buyer->siret) {
+            $builder->setDocumentBuyerLegalOrganisation($buyer->siret, '0009', $buyer->full_name);
+        }
+        $builder->setDocumentBuyerAddress(
+            $buyer->address ?? null,
+            null,
+            null,
+            $buyer->zip ?? null,
+            $buyer->city ?? null,
+            $buyer->country ?? 'FR'
+        );
 
-        $xml .= "    <ram:ApplicableHeaderTradeSettlement>\n";
-        $xml .= "      <ram:InvoiceCurrencyCode>" . htmlspecialchars($invoice->currency ?? 'EUR') . "</ram:InvoiceCurrencyCode>\n";
-        $xml .= "      <ram:SpecifiedTradePaymentTerms>\n";
-        $xml .= "        <ram:DueDateDateTime><udt:DateTimeString format=\"102\">{$dueDate}</udt:DateTimeString></ram:DueDateDateTime>\n";
-        $xml .= "      </ram:SpecifiedTradePaymentTerms>\n";
-        $xml .= "      <ram:SpecifiedTradeSettlementHeaderMonetarySummation>\n";
-        $xml .= "        <ram:TaxBasisTotalAmount>" . number_format((float) $invoice->subtotal, 2, '.', '') . "</ram:TaxBasisTotalAmount>\n";
-        $xml .= "        <ram:TaxTotalAmount currencyID=\"" . htmlspecialchars($invoice->currency ?? 'EUR') . "\">{$taxAmount}</ram:TaxTotalAmount>\n";
-        $xml .= "        <ram:GrandTotalAmount>{$totalAmount}</ram:GrandTotalAmount>\n";
-        $xml .= "        <ram:DuePayableAmount>{$totalAmount}</ram:DuePayableAmount>\n";
-        $xml .= "      </ram:SpecifiedTradeSettlementHeaderMonetarySummation>\n";
-        $xml .= "    </ram:ApplicableHeaderTradeSettlement>\n";
-        $xml .= "  </rsm:SupplyChainTradeTransaction>\n";
-        $xml .= "</rsm:CrossIndustryInvoice>\n";
+        // Delivery
+        $builder->setDocumentSupplyChainEvent($invoice->created_at->toDateTime());
 
-        return $xml;
+        // Payment terms / due date
+        if ($invoice->due_at) {
+            $builder->addDocumentPaymentTerm(null, $invoice->due_at->toDateTime());
+        }
+
+        // Tax — EN 16931 requires at least one tax entry
+        $subtotal = (float) ($invoice->subtotal ?? $invoice->total ?? 0);
+        $taxAmount = (float) ($invoice->tax ?? 0);
+
+        if ($isVatExempt) {
+            $builder->addDocumentTax('S', 'VAT', $subtotal, 0.0, 0.0);
+        } else {
+            $builder->addDocumentTax('S', 'VAT', $subtotal, $taxAmount, $taxRate);
+        }
+
+        // Line items
+        $items = $invoice->items ?? [];
+        $lineNumber = 1;
+        foreach ($items as $item) {
+            $qty       = (float) ($item['quantity'] ?? 1);
+            $unitPrice = (float) ($item['unit_price'] ?? 0);
+            $lineTotal = round($qty * $unitPrice, 2);
+            $desc      = $item['description'] ?? 'Prestation';
+
+            $builder->addNewPosition((string) $lineNumber);
+            $builder->setDocumentPositionProductDetails($desc);
+            $builder->setDocumentPositionNetPrice($unitPrice);
+            $builder->setDocumentPositionQuantity($qty, 'C62');
+            if ($isVatExempt) {
+                $builder->addDocumentPositionTax('S', 'VAT', 0.0);
+            } else {
+                $builder->addDocumentPositionTax('S', 'VAT', $taxRate);
+            }
+            $builder->setDocumentPositionLineSummation($lineTotal);
+
+            $lineNumber++;
+        }
+
+        // Monetary summary
+        $total = (float) ($invoice->total ?? 0);
+        $builder->setDocumentSummation(
+            $total,
+            $total,
+            $subtotal,
+            0.0,
+            0.0,
+            $subtotal,
+            $taxAmount
+        );
+
+        return $builder;
+    }
+
+    private function parseAddress(string $address): array
+    {
+        $parts = array_map('trim', explode(',', $address));
+        $line1   = $parts[0] ?? '';
+        $zipCity = $parts[1] ?? '';
+        $country = $parts[2] ?? '';
+
+        // Try to split zip and city: "75001 Paris"
+        $zip  = '';
+        $city = $zipCity;
+        if (preg_match('/^(\d{4,6})\s+(.+)$/', $zipCity, $m)) {
+            $zip  = $m[1];
+            $city = $m[2];
+        }
+
+        return [$line1, $zip, $city, $country];
     }
 }

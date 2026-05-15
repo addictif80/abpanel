@@ -21,6 +21,7 @@
                 ['general',    '⚙️', 'Général'],
                 ['company',    '🏢', 'Société'],
                 ['quotes',     '📋', 'Devis & Fact.'],
+                ['einvoicing', '🧾', 'Fact. électron.'],
                 ['proxmox',    '🖥️', 'Proxmox'],
                 ['cyberpanel', '🌐', 'CyberPanel'],
                 ['npm',        '🔀', 'Nginx PM'],
@@ -85,6 +86,14 @@
                             placeholder="12 rue de la Paix, 75001 Paris">
                         <p class="text-xs text-gray-400 mt-1">Apparaît sur les devis et factures PDF.</p>
                     </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">N° TVA intracommunautaire</label>
+                    <input type="text" name="company_vat_number" value="{{ $settings['company_vat_number'] ?? '' }}"
+                        class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                        placeholder="FR12345678901">
+                    <p class="text-xs text-gray-400 mt-1">Obligatoire pour la facturation électronique EN 16931 (B2B assujettis à TVA).</p>
                 </div>
 
                 <div class="border-t border-gray-100 pt-4">
@@ -224,6 +233,51 @@
                         {{ ($settings['registration_open'] ?? '1') === '1' ? 'checked' : '' }}
                         class="rounded border-gray-300 text-indigo-600">
                     <label for="reg_open" class="text-sm text-gray-700">Inscriptions ouvertes au public</label>
+                </div>
+
+                <div class="pt-4 border-t border-gray-100">
+                    <button type="submit" class="px-5 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition">
+                        Enregistrer
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        {{-- E-invoicing --}}
+        <div x-show="tab === 'einvoicing'">
+            <form method="POST" action="{{ route('admin.settings.einvoicing') }}" class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
+                @csrf
+                <h2 class="font-semibold text-gray-800 mb-1">Facturation électronique (Factur-X EN 16931)</h2>
+                <p class="text-sm text-gray-500 -mt-1">Obligatoire pour le B2B français à partir de septembre 2026. Active l'intégration de l'XML Factur-X dans les PDF de factures et prépare la transmission via PPF (Chorus Pro).</p>
+
+                <div class="flex items-center gap-3 py-2 px-4 rounded-lg bg-amber-50 border border-amber-200">
+                    <svg class="w-5 h-5 text-amber-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+                    <p class="text-sm text-amber-700">Avant d'activer, renseignez votre N° TVA intracommunautaire dans l'onglet <strong>Société</strong>.</p>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" name="einvoicing_enabled" id="einvoicing_enabled" value="1"
+                        {{ ($settings['einvoicing_enabled'] ?? '0') === '1' ? 'checked' : '' }}
+                        class="rounded border-gray-300 text-indigo-600">
+                    <label for="einvoicing_enabled" class="text-sm text-gray-700 font-medium">Activer la facturation électronique (PDF/A-3 + Factur-X EN 16931)</label>
+                </div>
+
+                <div class="border-t border-gray-100 pt-4">
+                    <h3 class="text-sm font-semibold text-gray-700 mb-3">Intégration PPF / Chorus Pro <span class="text-xs font-normal text-gray-400 ml-2">(transmission obligatoire vers les clients B2B assujettis)</span></h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">SIRET émetteur (pour PPF)</label>
+                            <input type="text" name="ppf_siret" value="{{ $settings['ppf_siret'] ?? '' }}"
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                                placeholder="12345678900012">
+                            <p class="text-xs text-gray-400 mt-1">SIRET à 14 chiffres utilisé pour l'authentification PPF.</p>
+                        </div>
+                    </div>
+                    <div class="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p class="text-xs text-blue-700">
+                            <strong>Prochaine étape :</strong> L'intégration API Chorus Pro (PPF) est préparée. Dès que votre compte Chorus Pro est ouvert, renseignez le SIRET ci-dessus pour activer la transmission automatique des factures B2B.
+                        </p>
+                    </div>
                 </div>
 
                 <div class="pt-4 border-t border-gray-100">
