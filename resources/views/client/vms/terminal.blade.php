@@ -26,7 +26,7 @@
 <div id="screen" class="flex-1 overflow-hidden"></div>
 
 <script type="module">
-import RFB from 'https://cdn.jsdelivr.net/npm/@novnc/novnc@1.5.0/core/rfb.js';
+import RFB from 'https://cdn.jsdelivr.net/npm/@novnc/novnc@1.4.0/core/rfb.js';
 
 const token  = {!! json_encode($token) !!};
 const ticket = {!! json_encode($vncTicket) !!};
