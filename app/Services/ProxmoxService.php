@@ -25,7 +25,7 @@ class ProxmoxService
 
     private function authenticate(): void
     {
-        $response = Http::withoutVerifying()->timeout(10)->post("{$this->host}/api2/json/access/ticket", [
+        $response = Http::withoutVerifying()->timeout(10)->asForm()->post("{$this->host}/api2/json/access/ticket", [
             'username' => "{$this->user}@{$this->realm}",
             'password' => $this->password,
         ]);
@@ -48,6 +48,7 @@ class ProxmoxService
         $response = Http::withoutVerifying()
             ->withCookies(['PVEAuthCookie' => $this->ticket], parse_url($this->host, PHP_URL_HOST))
             ->withHeaders(['CSRFPreventionToken' => $this->csrfToken])
+            ->asForm()
             ->$method("{$this->host}/api2/json{$path}", $data);
 
         if ($response->failed()) {
