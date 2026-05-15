@@ -12,7 +12,7 @@ class ClientDomain extends Model
 
     protected $fillable = [
         'user_id', 'virtual_machine_id', 'hosting_account_id',
-        'domain', 'type', 'target_ip', 'target_port',
+        'domain', 'is_subdomain', 'type', 'target_ip', 'target_port',
         'forward_scheme', 'www_redirect',
         'ssl_enabled', 'npm_proxy_id', 'ssl_certificate_id', 'ssl_expires_at',
         'dns_ok', 'dns_checked_at',
@@ -21,12 +21,30 @@ class ClientDomain extends Model
     protected function casts(): array
     {
         return [
+            'is_subdomain'   => 'boolean',
             'www_redirect'   => 'boolean',
             'ssl_enabled'    => 'boolean',
             'dns_ok'         => 'boolean',
             'ssl_expires_at' => 'datetime',
             'dns_checked_at' => 'datetime',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $cd) {
+            $cd->is_subdomain ??= self::detectSubdomain($cd->domain);
+        });
+    }
+
+    /**
+     * A domain with 3+ labels is a subdomain (www.example.com treated as apex).
+     * Edge case: example.co.uk incorrectly returns true — acceptable for FR market.
+     */
+    public static function detectSubdomain(string $domain): bool
+    {
+        $d = preg_replace('/^www\./i', '', strtolower(trim($domain)));
+        return substr_count($d, '.') >= 2;
     }
 
     public function user(): BelongsTo        { return $this->belongsTo(User::class); }

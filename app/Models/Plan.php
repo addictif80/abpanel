@@ -12,6 +12,7 @@ class Plan extends Model
         'billing_period', 'stripe_price_id', 'features',
         'cores', 'memory_mb', 'disk_gb', 'cyberpanel_package', 'is_active', 'sort_order',
         'limit_per_client', 'limit_per_vm', 'limit_per_hosting',
+        'limit_per_domain', 'limit_per_subdomain',
         'requires_vm', 'requires_hosting', 'plan_allowances',
     ];
 
@@ -104,6 +105,18 @@ class Plan extends Model
         // Limite générique : N par hébergement possédé
         if ($this->limit_per_hosting !== null) {
             $candidates[] = $hostingCount * $this->limit_per_hosting;
+        }
+
+        // Limite générique : N par domaine apex possédé
+        if ($this->limit_per_domain !== null) {
+            $domainCount = $user->clientDomains()->where('is_subdomain', false)->count();
+            $candidates[] = $domainCount * $this->limit_per_domain;
+        }
+
+        // Limite générique : N par sous-domaine possédé
+        if ($this->limit_per_subdomain !== null) {
+            $subdomainCount = $user->clientDomains()->where('is_subdomain', true)->count();
+            $candidates[] = $subdomainCount * $this->limit_per_subdomain;
         }
 
         // Limites par plan spécifique possédé (additif)

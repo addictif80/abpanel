@@ -173,6 +173,20 @@
                     min="1" placeholder="Non limité"
                     class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
             </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Max par domaine détenu</label>
+                <input type="number" name="limit_per_domain" value="{{ old('limit_per_domain') }}"
+                    min="1" placeholder="Non limité"
+                    class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                <p class="text-xs text-gray-400 mt-1">Ex : 1 → max = domaines apex configurés.</p>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Max par sous-domaine détenu</label>
+                <input type="number" name="limit_per_subdomain" value="{{ old('limit_per_subdomain') }}"
+                    min="1" placeholder="Non limité"
+                    class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                <p class="text-xs text-gray-400 mt-1">Ex : 2 → max = sous-domaines configurés × 2.</p>
+            </div>
         </div>
         <div class="flex gap-6">
             <label class="flex items-center gap-2 cursor-pointer text-sm">

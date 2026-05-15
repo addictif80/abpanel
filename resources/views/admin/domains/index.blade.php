@@ -31,6 +31,13 @@
                     @if($domain->www_redirect)
                     <span class="ml-1 text-xs text-gray-400">+www</span>
                     @endif
+                    <div class="mt-0.5">
+                        @if($domain->is_subdomain)
+                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700">Sous-domaine</span>
+                        @else
+                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">Domaine</span>
+                        @endif
+                    </div>
                 </td>
                 <td class="px-4 py-3">
                     <div class="font-medium text-gray-800">{{ $domain->user->full_name }}</div>
