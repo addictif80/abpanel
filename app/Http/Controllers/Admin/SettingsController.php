@@ -8,6 +8,7 @@ use App\Services\CyberPanelService;
 use App\Services\NginxProxyManagerService;
 use App\Services\ProxmoxService;
 use App\Services\StripeService;
+use App\Services\TailscaleService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 
@@ -134,6 +135,21 @@ class SettingsController extends Controller
         return back()->with('success', 'Configuration mail enregistrée.');
     }
 
+    public function saveTailscale(Request $request)
+    {
+        $request->validate([
+            'tailscale_api_key'   => 'nullable|string|max:200',
+            'tailscale_tailnet'   => 'nullable|string|max:200',
+            'tailscale_auth_key'  => 'nullable|string|max:200',
+        ]);
+
+        foreach (['tailscale_api_key', 'tailscale_tailnet', 'tailscale_auth_key'] as $key) {
+            Setting::set($key, $request->input($key, ''), 'tailscale');
+        }
+
+        return back()->with('success', 'Configuration Tailscale enregistrée.');
+    }
+
     public function testConnection(Request $request, string $service)
     {
         try {
@@ -143,6 +159,7 @@ class SettingsController extends Controller
                 'npm'        => app(NginxProxyManagerService::class)->testConnection(),
                 'stripe'     => app(StripeService::class)->testConnection(),
                 'mail'       => $this->testMail($request->input('email', auth()->user()->email)),
+                'tailscale'  => count(app(TailscaleService::class)->getDevices()) >= 0,
                 default      => false,
             };
 
