@@ -135,9 +135,10 @@ class VmController extends Controller
         if (!$test) {
             $artisan  = base_path('artisan');
             $logFile  = sys_get_temp_dir() . '/vnc-proxy-daemon.log';
+            $phpBin   = $this->findPhpBinary();
             $cmd = sprintf(
                 '%s %s vnc:proxy-server --port=%d >> %s 2>&1 &',
-                PHP_BINARY,
+                escapeshellarg($phpBin),
                 escapeshellarg($artisan),
                 $proxyPort,
                 escapeshellarg($logFile)
@@ -208,6 +209,24 @@ class VmController extends Controller
         $vm->update(['custom_domain' => $request->custom_domain ?: null]);
 
         return back()->with('success', 'Domaine personnalisé mis à jour.');
+    }
+
+    private function findPhpBinary(): string
+    {
+        // PHP_BINARY may be lsphp or php-fpm on managed hosts (CyberPanel/OpenLiteSpeed).
+        // Search for an actual CLI php binary instead.
+        $candidates = ['/usr/bin/php', '/usr/local/bin/php'];
+        foreach (['8.3', '8.2', '8.1', '8.0'] as $ver) {
+            $candidates[] = "/usr/bin/php{$ver}";
+            $candidates[] = "/usr/local/bin/php{$ver}";
+            $candidates[] = "/usr/local/lsws/lsphp" . str_replace('.', '', $ver) . "/bin/php";
+        }
+        foreach ($candidates as $path) {
+            if (is_executable($path)) {
+                return $path;
+            }
+        }
+        return PHP_BINARY;
     }
 
     private function authorizeVm(VirtualMachine $vm): void
