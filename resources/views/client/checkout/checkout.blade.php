@@ -86,70 +86,116 @@
 @push('scripts')
 <script src="https://js.stripe.com/v3/"></script>
 <script>
-(async () => {
-    const stripe = Stripe('{{ $stripeKey }}');
+(function () {
+    const stripe  = Stripe('{{ $stripeKey }}');
+    const btn     = document.getElementById('pay-btn');
+    const errEl   = document.getElementById('payment-error');
+    const PRICE   = 'Payer {{ number_format($plan->price, 2, ',', '') }}€';
 
-    @if($plan->type === 'hosting')
-    const domainInput = document.getElementById('domain-input');
-    document.getElementById('pay-btn').addEventListener('click', () => {
-        if (!domainInput.value.trim()) {
-            const errEl = document.getElementById('payment-error');
-            errEl.textContent = 'Veuillez saisir le domaine à héberger.';
-            errEl.classList.remove('hidden');
-            return;
-        }
-    }, { capture: true });
-    @endif
-
-    const body = @if($plan->type === 'hosting')
-        JSON.stringify({ domain: domainInput?.value?.trim() })
-    @else
-        '{}'
-    @endif;
-
-    const res = await fetch('{{ route('client.checkout.intent', $plan) }}', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-        },
-        body
-    });
-
-    const data = await res.json();
-
-    if (data.error) {
-        document.getElementById('payment-error').textContent = data.error;
-        document.getElementById('payment-error').classList.remove('hidden');
-        document.getElementById('pay-btn').disabled = true;
-        return;
+    function showError(msg) {
+        errEl.textContent = msg;
+        errEl.classList.remove('hidden');
     }
 
-    const elements = stripe.elements({ clientSecret: data.client_secret });
-    const paymentElement = elements.create('payment');
-    paymentElement.mount('#payment-element');
+    function resetBtn() {
+        btn.disabled = false;
+        btn.textContent = PRICE;
+    }
 
-    document.getElementById('pay-btn').addEventListener('click', async () => {
-        const btn = document.getElementById('pay-btn');
+    @if($plan->type === 'hosting')
+    // ── Hébergement : créer l'intent au clic (après validation du domaine) ──
+    const domainInput = document.getElementById('domain-input');
+
+    btn.addEventListener('click', async () => {
+        errEl.classList.add('hidden');
+        const domain = domainInput.value.trim();
+
+        if (!domain) {
+            showError('Veuillez saisir le domaine à héberger.');
+            return;
+        }
+
         btn.disabled = true;
-        btn.textContent = 'Traitement…';
+        btn.textContent = 'Initialisation…';
+
+        try {
+            const res  = await fetch('{{ route('client.checkout.intent', $plan) }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                body: JSON.stringify({ domain }),
+            });
+            const data = await res.json();
+
+            if (data.error) { showError(data.error); resetBtn(); return; }
+
+            await mountAndPay(data.client_secret);
+        } catch (e) {
+            showError('Une erreur est survenue. Veuillez réessayer.');
+            resetBtn();
+        }
+    });
+
+    @else
+    // ── VPS : créer l'intent dès le chargement, afficher les champs carte ──
+    btn.disabled = true;
+    btn.textContent = 'Chargement…';
+
+    (async () => {
+        try {
+            const res  = await fetch('{{ route('client.checkout.intent', $plan) }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                body: '{}',
+            });
+            const data = await res.json();
+
+            if (data.error) { showError(data.error); btn.disabled = true; return; }
+
+            const elements      = stripe.elements({ clientSecret: data.client_secret });
+            const paymentEl     = elements.create('payment');
+            paymentEl.mount('#payment-element');
+
+            paymentEl.on('ready', () => {
+                btn.disabled = false;
+                btn.textContent = PRICE;
+            });
+
+            btn.addEventListener('click', async () => {
+                errEl.classList.add('hidden');
+                btn.disabled = true;
+                btn.textContent = 'Traitement…';
+
+                const { error } = await stripe.confirmPayment({
+                    elements,
+                    confirmParams: { return_url: '{{ route('client.checkout.success') }}' },
+                });
+
+                if (error) { showError(error.message); resetBtn(); }
+            });
+        } catch (e) {
+            showError('Erreur d\'initialisation du paiement. Rechargez la page.');
+            btn.disabled = true;
+        }
+    })();
+    @endif
+
+    async function mountAndPay(clientSecret) {
+        const elements  = stripe.elements({ clientSecret });
+        const paymentEl = elements.create('payment');
+        paymentEl.mount('#payment-element');
+
+        await new Promise(resolve => paymentEl.on('ready', resolve));
+
+        btn.textContent = PRICE;
 
         const { error } = await stripe.confirmPayment({
             elements,
-            confirmParams: {
-                return_url: '{{ route('client.checkout.success') }}'
-            }
+            confirmParams: { return_url: '{{ route('client.checkout.success') }}' },
         });
 
-        if (error) {
-            const errEl = document.getElementById('payment-error');
-            errEl.textContent = error.message;
-            errEl.classList.remove('hidden');
-            btn.disabled = false;
-            btn.textContent = 'Payer {{ number_format($plan->price, 2) }}€';
-        }
-    });
-})();
+        if (error) { showError(error.message); resetBtn(); }
+    }
+}());
 </script>
 @endpush
 @endif
