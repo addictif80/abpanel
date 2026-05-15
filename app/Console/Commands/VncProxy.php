@@ -63,6 +63,7 @@ class VncProxy extends Command
             if ($client) {
                 stream_set_blocking($client, false);
                 $id = (int) $client;
+                $this->info("[{$id}] Browser connected");
                 $this->sessions[$id] = [
                     'browser'     => $client,
                     'state'       => 'handshake',
@@ -123,10 +124,12 @@ class VncProxy extends Command
         // Extract one-time token from query string
         preg_match('/[?&]token=([^& ]+)/', $headers['_request_line'], $m);
         $token = isset($m[1]) ? urldecode($m[1]) : '';
+        $this->info("[{$id}] Headers received, token=" . substr($token, 0, 8) . "…");
 
         // Load session file written by VmController
         $sessionFile = sys_get_temp_dir() . "/vnc-proxy-{$token}";
         if (!$token || !file_exists($sessionFile)) {
+            $this->info("[{$id}] Session file not found → 403");
             fwrite($browser, "HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\n\r\n");
             $this->close($id);
             return;
@@ -136,14 +139,18 @@ class VncProxy extends Command
         @unlink($sessionFile);
 
         if (!$data || ($data['expires'] ?? 0) < time()) {
+            $this->info("[{$id}] Session expired → 403");
             fwrite($browser, "HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\n\r\n");
             $this->close($id);
             return;
         }
 
+        $this->info("[{$id}] Session OK → {$data['vnc_host']}:{$data['proxmox_port']} node={$data['node']} vmid={$data['vmid']} vncport={$data['vnc_port']}");
+
         // Complete WebSocket handshake with browser
         $wsKey = $headers['sec-websocket-key'] ?? '';
         if (!$wsKey) {
+            $this->info("[{$id}] Missing Sec-WebSocket-Key");
             $this->close($id);
             return;
         }
@@ -166,6 +173,7 @@ class VncProxy extends Command
             'verify_peer'      => false,
             'verify_peer_name' => false,
         ]]);
+        $this->info("[{$id}] Connecting to Proxmox ssl://{$data['vnc_host']}:{$proxmoxPort}");
         $proxmox = @stream_socket_client(
             "ssl://{$data['vnc_host']}:{$proxmoxPort}",
             $errno, $errstr, 10,
@@ -173,10 +181,12 @@ class VncProxy extends Command
             $ctx
         );
         if (!$proxmox) {
+            $this->info("[{$id}] SSL connect failed: {$errstr} ({$errno})");
             fwrite($browser, "\x88\x00");
             $this->close($id);
             return;
         }
+        $this->info("[{$id}] SSL connected");
 
         // Send WebSocket upgrade request to Proxmox (we act as WS client)
         $path = "/api2/json/nodes/{$data['node']}/qemu/{$data['vmid']}/vncwebsocket"
@@ -202,7 +212,10 @@ class VncProxy extends Command
             $pxResp .= $chunk;
         }
 
+        $this->info("[{$id}] Proxmox response: " . substr($pxResp, 0, 80));
+
         if (!str_contains($pxResp, '101')) {
+            $this->info("[{$id}] Proxmox WS upgrade failed");
             fwrite($browser, "\x88\x00");
             fclose($proxmox);
             $this->close($id);
@@ -212,6 +225,8 @@ class VncProxy extends Command
         // Any bytes after the HTTP headers are the start of the VNC WS stream
         $headerEnd   = strpos($pxResp, "\r\n\r\n");
         $initialData = $headerEnd !== false ? substr($pxResp, $headerEnd + 4) : '';
+
+        $this->info("[{$id}] Relay started, initial=" . strlen($initialData) . "B");
 
         stream_set_blocking($proxmox, false);
 
@@ -273,6 +288,7 @@ class VncProxy extends Command
     private function close(int $id): void
     {
         if (isset($this->sessions[$id])) {
+            $this->info("[{$id}] Session closed (state={$this->sessions[$id]['state']})");
             @fclose($this->sessions[$id]['browser']);
             if ($this->sessions[$id]['vnc']) {
                 @fclose($this->sessions[$id]['vnc']);
