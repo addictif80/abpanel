@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Jobs\SyncVmProxyHostJob;
 use App\Models\VirtualMachine;
 use App\Services\TailscaleService;
 use Illuminate\Console\Command;
@@ -62,6 +63,9 @@ class SyncTailscaleIps extends Command
 
             if ($vm->tailscale_ip !== $ip) {
                 $vm->update(['tailscale_ip' => $ip]);
+                if ($vm->subdomain) {
+                    SyncVmProxyHostJob::dispatch($vm->id);
+                }
                 $this->info("  ✓ {$vm->name} → {$ip}");
                 $updated++;
             } else {

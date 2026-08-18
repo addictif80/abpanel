@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Client;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\JoinTailscaleJob;
 use App\Models\VirtualMachine;
 use App\Services\MailService;
 use App\Services\ProxmoxService;
@@ -46,6 +47,11 @@ class VmController extends Controller
         try {
             app(ProxmoxService::class)->action($vm->proxmox_node, (int) $vm->proxmox_vmid, 'start', $vm->vm_type ?? 'qemu');
             $vm->update(['status' => 'running']);
+
+            if (($vm->vm_type ?? 'qemu') !== 'lxc' && !$vm->tailscale_ip) {
+                JoinTailscaleJob::dispatch($vm->id)->delay(now()->addSeconds(15));
+            }
+
             return back()->with('success', 'Démarré(e).');
         } catch (\Throwable $e) {
             return back()->with('error', 'Erreur : ' . $e->getMessage());
