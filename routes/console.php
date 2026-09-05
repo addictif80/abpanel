@@ -10,3 +10,6 @@ Artisan::command('inspire', function () {
 
 // Run reminder checks every day at 8h
 Schedule::command('reminders:send')->dailyAt('08:00');
+
+// Check daily whether it's the configured day to send the monthly URSSAF report
+Schedule::command('urssaf:report')->dailyAt('09:00');
