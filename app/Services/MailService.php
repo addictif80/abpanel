@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Mail;
 
 class MailService
 {
-    public function sendFromTemplate(string $templateKey, string $to, array $variables = []): void
+    public function sendFromTemplate(string $templateKey, string $to, array $variables = [], array $attachments = []): void
     {
         $template = MailTemplate::where('key', $templateKey)->where('is_active', true)->first();
 
@@ -26,13 +26,21 @@ class MailService
         $html = $template->render($variables);
 
         try {
-            Mail::html($html, function ($message) use ($to, $subject) {
+            Mail::html($html, function ($message) use ($to, $subject, $attachments) {
                 $message->to($to)
                     ->subject($subject)
                     ->from(
                         Setting::get('mail_from_address', config('mail.from.address')),
                         Setting::get('mail_from_name', config('mail.from.name'))
                     );
+
+                foreach ($attachments as $attachment) {
+                    $message->attachData(
+                        $attachment['data'],
+                        $attachment['name'],
+                        ['mime' => $attachment['mime'] ?? 'application/octet-stream']
+                    );
+                }
             });
 
             MailLog::create([

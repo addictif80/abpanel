@@ -231,17 +231,20 @@ class SettingsController extends Controller
     public function saveQuotes(Request $request)
     {
         $request->validate([
-            'quote_validity_days'  => 'required|integer|min:1|max:365',
-            'invoice_payment_days' => 'required|integer|min:1|max:365',
-            'invoice_late_penalty' => 'required|numeric|min:0|max:100',
-            'invoice_recovery_fee' => 'required|numeric|min:0',
-            'vat_mention'          => 'nullable|string|max:200',
-            'quote_default_notes'  => 'nullable|string',
+            'quote_validity_days'    => 'required|integer|min:1|max:365',
+            'invoice_payment_days'   => 'required|integer|min:1|max:365',
+            'invoice_late_penalty'   => 'required|numeric|min:0|max:100',
+            'invoice_recovery_fee'   => 'required|numeric|min:0',
+            'vat_mention'            => 'nullable|string|max:200',
+            'quote_default_notes'    => 'nullable|string',
+            'urssaf_report_day'      => 'required|integer|min:1|max:28',
+            'urssaf_recipient_email' => 'nullable|email',
         ]);
 
-        foreach (['quote_validity_days', 'invoice_payment_days', 'invoice_late_penalty', 'invoice_recovery_fee', 'vat_mention', 'quote_default_notes'] as $key) {
+        foreach (['quote_validity_days', 'invoice_payment_days', 'invoice_late_penalty', 'invoice_recovery_fee', 'vat_mention', 'quote_default_notes', 'urssaf_report_day', 'urssaf_recipient_email'] as $key) {
             Setting::set($key, $request->input($key, ''), 'quotes');
         }
+        Setting::set('urssaf_report_enabled', $request->boolean('urssaf_report_enabled') ? '1' : '0', 'quotes');
 
         if ($request->hasFile('cgv_file')) {
             $request->validate(['cgv_file' => 'file|mimes:pdf|max:5120']);

@@ -179,6 +179,33 @@
                     @endif
                 </div>
 
+                <div class="border-t border-gray-100 pt-4">
+                    <h3 class="text-sm font-semibold text-gray-700 mb-1">Déclaration URSSAF (auto-entrepreneur)</h3>
+                    <p class="text-xs text-gray-500 mb-3">Génère automatiquement chaque mois un PDF récapitulatif du chiffre d'affaires encaissé le mois précédent et l'envoie par email en rappel de la déclaration URSSAF.</p>
+
+                    <div class="flex items-center gap-2 mb-3">
+                        <input type="checkbox" name="urssaf_report_enabled" id="urssaf_report_enabled" value="1"
+                            {{ ($settings['urssaf_report_enabled'] ?? '0') === '1' ? 'checked' : '' }}
+                            class="rounded border-gray-300 text-indigo-600">
+                        <label for="urssaf_report_enabled" class="text-sm text-gray-700">Activer l'envoi automatique du rapport mensuel</label>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Jour du mois d'envoi</label>
+                            <input type="number" name="urssaf_report_day" value="{{ $settings['urssaf_report_day'] ?? 1 }}"
+                                min="1" max="28"
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                            <p class="text-xs text-gray-400 mt-1">Le rapport du mois précédent est envoyé ce jour-là (max 28 pour couvrir février)</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Email destinataire</label>
+                            <input type="email" name="urssaf_recipient_email" value="{{ $settings['urssaf_recipient_email'] ?? $settings['support_email'] ?? '' }}"
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        </div>
+                    </div>
+                </div>
+
                 <div class="pt-4 border-t border-gray-100">
                     <button type="submit" class="px-5 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition">
                         Enregistrer
