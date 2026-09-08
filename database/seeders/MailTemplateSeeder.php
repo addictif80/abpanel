@@ -45,6 +45,13 @@ class MailTemplateSeeder extends Seeder
                 'variables' => ['first_name', 'reset_url', 'expiry'],
                 'html_content' => $this->passwordResetTemplate(),
             ],
+            [
+                'key' => 'urssaf_monthly_report',
+                'name' => 'Rapport mensuel URSSAF',
+                'subject' => 'Déclaration URSSAF {{period_label}} — {{total_amount}} à déclarer',
+                'variables' => ['period_label', 'total_amount', 'invoices_count', 'company_name'],
+                'html_content' => $this->urssafMonthlyReportTemplate(),
+            ],
         ];
 
         foreach ($templates as $template) {
@@ -109,5 +116,11 @@ HTML;
     {
         $body = '<h2>Réinitialisation du mot de passe</h2><p>Bonjour {{first_name}},</p><p>Vous avez demandé la réinitialisation de votre mot de passe. Cliquez sur le bouton ci-dessous pour en définir un nouveau. Ce lien expire dans {{expiry}}.</p><p><a href="{{reset_url}}" class="btn">Réinitialiser mon mot de passe</a></p><p>Si vous n\'êtes pas à l\'origine de cette demande, ignorez cet email.</p>';
         return $this->baseTemplate('Réinitialisation du mot de passe', $body);
+    }
+
+    private function urssafMonthlyReportTemplate(): string
+    {
+        $body = '<h2>Rapport mensuel — {{period_label}}</h2><p>Bonjour,</p><p>Vous trouverez ci-joint le récapitulatif des transactions encaissées pour <strong>{{period_label}}</strong> ({{invoices_count}} facture(s) réglée(s)).</p><p style="font-size:18px;font-weight:bold;color:#4338ca;margin:16px 0;">Chiffre d\'affaires à déclarer : {{total_amount}}</p><p><strong>N\'oubliez pas d\'effectuer votre déclaration de chiffre d\'affaires sur le site de l\'URSSAF avant la date limite :</strong></p><p><a href="https://www.autoentrepreneur.urssaf.fr" class="btn">Faire ma déclaration URSSAF</a></p>';
+        return $this->baseTemplate('Rappel déclaration URSSAF', $body);
     }
 }
