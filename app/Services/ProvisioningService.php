@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Jobs\ProvisionHostingProxyJob;
+use App\Jobs\SyncVmProxyHostJob;
 use App\Models\Invoice;
 use App\Models\Plan;
 use App\Models\Setting;
@@ -14,7 +16,6 @@ class ProvisioningService
 {
     public function __construct(
         private ProxmoxService $proxmox,
-        private NginxProxyManagerService $npm,
         private MailService $mail,
         private CyberPanelService $cyberPanel,
     ) {}
@@ -78,6 +79,8 @@ class ProvisioningService
                 ]);
             }
 
+            ProvisionHostingProxyJob::dispatch($user->id, $domain);
+
             $panelUrl = Setting::get('cyberpanel_host', '');
 
             $this->mail->sendFromTemplate('hosting_provisioned', $user->email, [
@@ -134,14 +137,8 @@ class ProvisioningService
                 Log::warning("Could not set root password via API for VMID {$vmid}: " . $e->getMessage());
             }
 
-            // NPM subdomain
             $baseDomain = Setting::get('vms_base_domain');
             $subdomain  = $baseDomain ? "vm{$vmid}.{$baseDomain}" : null;
-            if ($subdomain) {
-                try {
-                    $this->npm->createProxyHost($subdomain, '');
-                } catch (\Exception) {}
-            }
 
             $vm->update([
                 'proxmox_vmid'        => $vmid,
@@ -150,6 +147,13 @@ class ProvisioningService
                 'subdomain'           => $subdomain,
                 'status'              => $isLxc ? 'stopped' : 'stopped',
             ]);
+
+            // Create the NPM proxy host asynchronously (retries on failure). It will
+            // point nowhere until the VM is started and joins Tailscale — see
+            // JoinTailscaleJob, dispatched from Client\VmController::start().
+            if ($subdomain) {
+                SyncVmProxyHostJob::dispatch($vm->id);
+            }
 
             $this->sendProvisioningEmail($user, $vm, $plan, $password);
 

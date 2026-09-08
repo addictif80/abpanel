@@ -375,6 +375,50 @@ class ProxmoxService
         }
     }
 
+    // ── QEMU guest agent ─────────────────────────────────────────────────────
+
+    /** True if the QEMU guest agent responds inside the VM (i.e. it has booted and the agent is running). */
+    public function pingGuestAgent(string $node, int $vmid): bool
+    {
+        try {
+            $this->request('post', "/nodes/{$node}/qemu/{$vmid}/agent/ping");
+            return true;
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    /** Run a command inside the VM via the guest agent. Returns the PID of the exec'd process. */
+    public function execInGuest(string $node, int $vmid, array $command): int
+    {
+        if (!$this->ticket) {
+            $this->authenticate();
+        }
+
+        // PVE expects the argv list as repeated `command` fields (command=a&command=b&...),
+        // which Http::asForm()'s array handling does not produce, so the body is built manually.
+        $body = implode('&', array_map(
+            fn (string $arg) => 'command=' . rawurlencode($arg),
+            $command
+        ));
+
+        $response = Http::withoutVerifying()
+            ->withCookies(['PVEAuthCookie' => $this->ticket], parse_url($this->host, PHP_URL_HOST))
+            ->withHeaders([
+                'CSRFPreventionToken' => $this->csrfToken,
+                'Content-Type'        => 'application/x-www-form-urlencoded',
+            ])
+            ->withBody($body, 'application/x-www-form-urlencoded')
+            ->post("{$this->host}/api2/json/nodes/{$node}/qemu/{$vmid}/agent/exec");
+
+        if ($response->failed()) {
+            Log::error("Proxmox guest exec error: " . $response->body());
+            throw new \RuntimeException("HTTP {$response->status()}");
+        }
+
+        return (int) ($response->json('data.pid') ?? 0);
+    }
+
     // ── Cluster ───────────────────────────────────────────────────────────────
 
     public function getNextVMID(): int

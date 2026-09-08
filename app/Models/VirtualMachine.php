@@ -12,7 +12,7 @@ class VirtualMachine extends Model
         'status', 'root_password', 'provisioning_status', 'provisioning_error',
         'cores', 'memory_mb', 'swap_mb', 'disk_gb', 'disk_storage',
         'os_template', 'ip_address', 'tailscale_ip',
-        'subdomain', 'custom_domain', 'domain_active',
+        'subdomain', 'custom_domain', 'domain_active', 'npm_proxy_id',
         'plan', 'monthly_price', 'next_renewal_at',
         'cancellation_code', 'cancellation_code_expires_at',
     ];

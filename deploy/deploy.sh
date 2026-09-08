@@ -25,5 +25,6 @@ echo "==> Rechargement Supervisor"
 supervisorctl reread
 supervisorctl update
 supervisorctl restart abpanel-queue:*
+supervisorctl restart abpanel-scheduler
 
 echo "✓ Déploiement terminé"

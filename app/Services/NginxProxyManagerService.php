@@ -172,6 +172,18 @@ class NginxProxyManagerService
         return $this->request('put', "/nginx/proxy-hosts/{$hostId}", $data);
     }
 
+    /** Repoint an existing proxy host at a new forward target, keeping its other settings. */
+    public function updateForwardTarget(int $hostId, string $forwardHost, ?int $forwardPort = null): array
+    {
+        $host = $this->getProxyHost($hostId);
+        $data = array_merge($host, ['forward_host' => $forwardHost]);
+        if ($forwardPort !== null) {
+            $data['forward_port'] = $forwardPort;
+        }
+
+        return $this->request('put', "/nginx/proxy-hosts/{$hostId}", $data);
+    }
+
     public function testConnection(): bool
     {
         $this->authenticate();
