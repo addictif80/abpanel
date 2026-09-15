@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Jobs\ProvisionHostingProxyJob;
+use App\Jobs\ProvisionLdapAccountJob;
 use App\Jobs\SyncVmProxyHostJob;
 use App\Models\Invoice;
 use App\Models\Plan;
@@ -18,6 +19,7 @@ class ProvisioningService
         private ProxmoxService $proxmox,
         private MailService $mail,
         private CyberPanelService $cyberPanel,
+        private LdapService $ldap,
     ) {}
 
     /**
@@ -36,10 +38,13 @@ class ProvisioningService
 
         if ($plan->type === 'hosting') {
             $this->provisionHosting($user, $plan, $invoice);
-            return;
+        } else {
+            $this->provisionVm($user, $plan, $invoice);
         }
 
-        $this->provisionVm($user, $plan, $invoice);
+        if ($plan->ldap_group) {
+            ProvisionLdapAccountJob::dispatch($user->id, $plan->id);
+        }
     }
 
     public function provisionHosting(User $user, Plan $plan, ?Invoice $invoice = null): void
@@ -170,6 +175,50 @@ class ProvisioningService
         }
 
         return $vm->fresh();
+    }
+
+    /**
+     * Create (or update the group of) the client's LDAP account.
+     * Reuses the CyberPanel identity when there is one, so the client keeps
+     * a single username/password across hosting and LDAP.
+     */
+    public function provisionLdap(User $user, Plan $plan): void
+    {
+        if (!$plan->ldap_group) {
+            return;
+        }
+
+        try {
+            $username = $user->ldap_username ?: ($user->cyberpanel_username ?: $this->generateCyberPanelUsername($user));
+            $password = $user->ldap_password ?: ($user->cyberpanel_password ?: $this->generatePassword());
+
+            $dn = $this->ldap->provisionUser($username, $password, $user->email, $user->full_name, $plan->ldap_group);
+
+            if ($user->ldap_group && $user->ldap_group !== $plan->ldap_group) {
+                $this->ldap->switchGroup($username, $user->ldap_group, $plan->ldap_group);
+            }
+
+            $isNewAccount = !$user->ldap_username;
+
+            $user->update([
+                'ldap_username' => $username,
+                'ldap_password' => $isNewAccount ? $password : $user->ldap_password,
+                'ldap_dn'       => $dn,
+                'ldap_group'    => $plan->ldap_group,
+            ]);
+
+            if ($isNewAccount) {
+                $this->mail->sendFromTemplate('ldap_provisioned', $user->email, [
+                    'first_name' => $user->first_name ?: $user->name,
+                    'username'   => $username,
+                    'password'   => $password,
+                    'group'      => $plan->ldap_group,
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::error("LDAP provisioning failed for user {$user->id}, plan {$plan->id}: " . $e->getMessage());
+            throw $e;
+        }
     }
 
     private function createQemuInstance(string $node, int $vmid, VirtualMachine $vm, Plan $plan, string $storage): void

@@ -19,10 +19,11 @@ class User extends Authenticatable
         'phone', 'company', 'address', 'city', 'zip', 'country',
         'siret', 'vat_number',
         'is_admin', 'is_active', 'cyberpanel_username', 'cyberpanel_password',
+        'ldap_username', 'ldap_password', 'ldap_dn', 'ldap_group',
         'stripe_customer_id', 'newsletter_subscribed',
     ];
 
-    protected $hidden = ['password', 'remember_token', 'cyberpanel_password'];
+    protected $hidden = ['password', 'remember_token', 'cyberpanel_password', 'ldap_password'];
 
     protected function casts(): array
     {
@@ -30,6 +31,7 @@ class User extends Authenticatable
             'email_verified_at'  => 'datetime',
             'password'           => 'hashed',
             'cyberpanel_password' => 'encrypted',
+            'ldap_password'      => 'encrypted',
             'is_admin'           => 'boolean',
             'is_active'          => 'boolean',
             'newsletter_subscribed' => 'boolean',

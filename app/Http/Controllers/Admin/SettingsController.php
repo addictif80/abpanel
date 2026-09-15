@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Setting;
 use App\Services\CyberPanelService;
+use App\Services\LdapService;
 use App\Services\NginxProxyManagerService;
 use App\Services\ProxmoxService;
 use App\Services\StripeService;
@@ -72,6 +73,25 @@ class SettingsController extends Controller
         }
 
         return back()->with('success', 'Configuration CyberPanel enregistrée.');
+    }
+
+    public function saveLdap(Request $request)
+    {
+        $request->validate([
+            'ldap_host'           => 'required|string',
+            'ldap_port'           => 'required|integer',
+            'ldap_bind_dn'        => 'required|string',
+            'ldap_bind_password'  => 'required|string',
+            'ldap_users_dn'       => 'required|string',
+            'ldap_groups_dn'      => 'required|string',
+            'ldap_default_gid'    => 'required|integer',
+        ]);
+
+        foreach (['ldap_host', 'ldap_port', 'ldap_bind_dn', 'ldap_bind_password', 'ldap_users_dn', 'ldap_groups_dn', 'ldap_default_gid'] as $key) {
+            Setting::set($key, $request->input($key, ''), 'ldap');
+        }
+
+        return back()->with('success', 'Configuration LDAP enregistrée.');
     }
 
     public function saveNpm(Request $request)
@@ -176,6 +196,7 @@ class SettingsController extends Controller
             $result = match($service) {
                 'proxmox'    => app(ProxmoxService::class)->testConnection(),
                 'cyberpanel' => app(CyberPanelService::class)->testConnection(),
+                'ldap'       => app(LdapService::class)->testConnection(),
                 'npm'        => app(NginxProxyManagerService::class)->testConnection(),
                 'stripe'     => app(StripeService::class)->testConnection(),
                 'mail'       => $this->testMail($request->input('email', auth()->user()->email)),
