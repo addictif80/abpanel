@@ -9,7 +9,7 @@ class Plan extends Model
 {
     protected $fillable = [
         'name', 'slug', 'type', 'vm_type', 'description', 'price', 'currency',
-        'billing_period', 'stripe_price_id', 'features',
+        'billing_period', 'stripe_price_id', 'stripe_product_id', 'features',
         'cores', 'memory_mb', 'disk_gb', 'cyberpanel_package', 'ldap_group', 'is_active', 'sort_order',
         'limit_per_client', 'limit_per_vm', 'limit_per_hosting',
         'limit_per_domain', 'limit_per_subdomain',

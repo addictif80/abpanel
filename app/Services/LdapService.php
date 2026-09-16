@@ -109,6 +109,74 @@ class LdapService
         }, $entries));
     }
 
+    /**
+     * Discover the base DN (via rootDSE, falling back to the "dc=" suffix of
+     * the bind DN) and its immediate child containers, with a rough
+     * users/groups posixAccount/posixGroup count for each — lets the admin
+     * pick the right DN for "DN des utilisateurs"/"DN des groupes" instead
+     * of typing it from memory.
+     *
+     * @return array{base_dn: string, containers: array<int, array{dn: string, name: string, users_count: int, groups_count: int}>}
+     */
+    public function discoverContainers(): array
+    {
+        $conn   = $this->connect();
+        $baseDn = $this->discoverBaseDn($conn);
+
+        $result = @ldap_list($conn, $baseDn, '(objectClass=*)', ['cn', 'ou']);
+        if ($result === false) {
+            throw new RuntimeException("Impossible de lister les conteneurs sous {$baseDn} : " . ldap_error($conn));
+        }
+
+        $entries = ldap_get_entries($conn, $result);
+        unset($entries['count']);
+
+        $containers = array_map(function ($entry) use ($conn) {
+            $dn = $entry['dn'];
+            return [
+                'dn'            => $dn,
+                'name'          => $entry['cn'][0] ?? $entry['ou'][0] ?? $this->rdnValue($dn),
+                'users_count'   => $this->countEntries($conn, $dn, '(objectClass=posixAccount)'),
+                'groups_count'  => $this->countEntries($conn, $dn, '(objectClass=posixGroup)'),
+            ];
+        }, $entries);
+
+        return ['base_dn' => $baseDn, 'containers' => array_values($containers)];
+    }
+
+    /** @return resource|\LDAP\Connection $conn */
+    private function discoverBaseDn($conn): string
+    {
+        $result = @ldap_read($conn, '', '(objectClass=*)', ['namingContexts']);
+        if ($result !== false) {
+            $entries  = ldap_get_entries($conn, $result);
+            $contexts = $entries[0]['namingcontexts'] ?? [];
+            unset($contexts['count']);
+            if (! empty($contexts)) {
+                return $contexts[0];
+            }
+        }
+
+        if (preg_match('/dc=.+/i', $this->bindDn, $matches)) {
+            return $matches[0];
+        }
+
+        throw new RuntimeException('Impossible de déterminer le DN de base (rootDSE inaccessible et le DN de bind ne contient pas "dc=").');
+    }
+
+    /** @param resource|\LDAP\Connection $conn */
+    private function countEntries($conn, string $baseDn, string $filter): int
+    {
+        $result = @ldap_search($conn, $baseDn, $filter, ['dn']);
+        return $result !== false ? ldap_count_entries($conn, $result) : 0;
+    }
+
+    private function rdnValue(string $dn): string
+    {
+        $firstComponent = explode(',', $dn, 2)[0];
+        return explode('=', $firstComponent, 2)[1] ?? $dn;
+    }
+
     public function userExists(string $username): bool
     {
         $conn   = $this->connect();

@@ -7,10 +7,8 @@ use App\Models\Plan;
 use App\Models\Setting;
 use App\Services\CyberPanelService;
 use App\Services\LdapService;
+use App\Services\StripeService;
 use Illuminate\Http\Request;
-use Stripe\Price;
-use Stripe\Product;
-use Stripe\Stripe;
 
 class PlanController extends Controller
 {
@@ -51,22 +49,7 @@ class PlanController extends Controller
         $features         = array_filter(array_map('trim', explode("\n", $request->features ?? '')));
         $planAllowances   = $this->parsePlanAllowances($request->input('plan_allowances_json', ''));
 
-        $stripePrice = null;
-        if ($request->price > 0 && Setting::get('stripe_secret_key')) {
-            try {
-                Stripe::setApiKey(Setting::get('stripe_secret_key'));
-                $product = Product::create(['name' => $request->name]);
-                $price = Price::create([
-                    'product'     => $product->id,
-                    'unit_amount' => (int) ($request->price * 100),
-                    'currency'    => strtolower(Setting::get('default_currency', 'eur')),
-                    'recurring'   => ['interval' => $request->billing_period === 'yearly' ? 'year' : 'month'],
-                ]);
-                $stripePrice = $price->id;
-            } catch (\Exception) {}
-        }
-
-        Plan::create([
+        $plan = Plan::create([
             'name'               => $request->name,
             'type'               => $request->type,
             'vm_type'            => $request->type === 'vm' ? ($request->vm_type ?? 'qemu') : null,
@@ -79,7 +62,6 @@ class PlanController extends Controller
             'disk_gb'            => $request->type === 'vm' ? $request->disk_gb : null,
             'cyberpanel_package' => $request->type === 'hosting' ? $request->cyberpanel_package : null,
             'ldap_group'         => $request->ldap_group ?: null,
-            'stripe_price_id'    => $stripePrice,
             'is_active'          => $request->boolean('is_active', true),
             'limit_per_client'    => $request->limit_per_client ?: null,
             'limit_per_vm'        => $request->limit_per_vm ?: null,
@@ -91,7 +73,13 @@ class PlanController extends Controller
             'plan_allowances'     => $planAllowances ?: null,
         ]);
 
-        return redirect()->route('admin.plans.index')->with('success', 'Plan créé.');
+        $redirect = redirect()->route('admin.plans.index')->with('success', 'Plan créé.');
+
+        if ($stripeWarning = $this->syncStripe($plan)) {
+            $redirect->with('stripe_warning', $stripeWarning);
+        }
+
+        return $redirect;
     }
 
     public function edit(Plan $plan)
@@ -137,7 +125,6 @@ class PlanController extends Controller
             'disk_gb'            => $request->type === 'vm' ? $request->disk_gb : null,
             'cyberpanel_package' => $request->type === 'hosting' ? $request->cyberpanel_package : null,
             'ldap_group'         => $request->ldap_group ?: null,
-            'stripe_price_id'    => $request->stripe_price_id ?: $plan->stripe_price_id,
             'is_active'          => $request->boolean('is_active'),
             'sort_order'         => $request->sort_order ?? 0,
             'limit_per_client'    => $request->limit_per_client ?: null,
@@ -150,7 +137,24 @@ class PlanController extends Controller
             'plan_allowances'     => $planAllowances ?: null,
         ]);
 
-        return back()->with('success', 'Plan mis à jour.');
+        $redirect = back()->with('success', 'Plan mis à jour.');
+
+        if ($stripeWarning = $this->syncStripe($plan)) {
+            $redirect->with('stripe_warning', $stripeWarning);
+        }
+
+        return $redirect;
+    }
+
+    /** Returns a user-facing warning string on failure, null on success/skip. */
+    private function syncStripe(Plan $plan): ?string
+    {
+        try {
+            app(StripeService::class)->syncPlan($plan->fresh());
+            return null;
+        } catch (\Exception $e) {
+            return 'Le plan a été enregistré mais la synchronisation Stripe a échoué : ' . $e->getMessage();
+        }
     }
 
     public function destroy(Plan $plan)

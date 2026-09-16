@@ -3,10 +3,13 @@
 namespace App\Services;
 
 use App\Models\Invoice;
+use App\Models\Plan;
 use App\Models\Setting;
 use App\Models\User;
 use Stripe\Customer;
 use Stripe\PaymentIntent;
+use Stripe\Price;
+use Stripe\Product;
 use Stripe\Stripe;
 use Stripe\Subscription;
 
@@ -74,6 +77,75 @@ class StripeService
     public function retrievePaymentIntent(string $intentId): PaymentIntent
     {
         return PaymentIntent::retrieve($intentId);
+    }
+
+    /**
+     * Keep the plan's Stripe Product/Price in sync with what's configured in
+     * ABPanel, so admins never have to copy IDs by hand. Stripe Prices are
+     * immutable — changing amount/currency/period means creating a fresh
+     * Price and archiving the old one, same as the product name/description
+     * can just be updated in place.
+     */
+    public function syncPlan(Plan $plan): void
+    {
+        if ($plan->price <= 0 || ! Setting::get('stripe_secret_key')) {
+            return;
+        }
+
+        $productId = $plan->stripe_product_id;
+
+        if (! $productId) {
+            $product = Product::create([
+                'name'        => $plan->name,
+                'description' => $plan->description ?: null,
+            ]);
+            $productId = $product->id;
+        } else {
+            Product::update($productId, [
+                'name'        => $plan->name,
+                'description' => $plan->description ?: null,
+            ]);
+        }
+
+        $wantedAmount   = (int) round($plan->price * 100);
+        $wantedCurrency = strtolower($plan->currency ?: 'eur');
+        $wantedInterval = $plan->billing_period === 'yearly' ? 'year' : 'month';
+
+        $priceChanged = true;
+        if ($plan->stripe_price_id) {
+            try {
+                $existing = Price::retrieve($plan->stripe_price_id);
+                $priceChanged = $existing->unit_amount !== $wantedAmount
+                    || $existing->currency !== $wantedCurrency
+                    || ($existing->recurring->interval ?? null) !== $wantedInterval;
+            } catch (\Exception) {
+                $priceChanged = true;
+            }
+        }
+
+        $priceId = $plan->stripe_price_id;
+
+        if ($priceChanged) {
+            $newPrice = Price::create([
+                'product'     => $productId,
+                'unit_amount' => $wantedAmount,
+                'currency'    => $wantedCurrency,
+                'recurring'   => ['interval' => $wantedInterval],
+            ]);
+
+            if ($priceId) {
+                try {
+                    Price::update($priceId, ['active' => false]);
+                } catch (\Exception) {}
+            }
+
+            $priceId = $newPrice->id;
+        }
+
+        $plan->update([
+            'stripe_product_id' => $productId,
+            'stripe_price_id'   => $priceId,
+        ]);
     }
 
     public function testConnection(): bool

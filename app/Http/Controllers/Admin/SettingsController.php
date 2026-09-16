@@ -94,6 +94,16 @@ class SettingsController extends Controller
         return back()->with('success', 'Configuration LDAP enregistrée.');
     }
 
+    public function discoverLdap()
+    {
+        try {
+            $result = app(LdapService::class)->discoverContainers();
+            return response()->json(['success' => true] + $result);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
     public function saveNpm(Request $request)
     {
         $request->validate([
