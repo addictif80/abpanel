@@ -9,6 +9,7 @@ use App\Services\LdapService;
 use App\Services\NginxProxyManagerService;
 use App\Services\ProxmoxService;
 use App\Services\StripeService;
+use App\Services\SynologyService;
 use App\Services\TailscaleService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -104,6 +105,22 @@ class SettingsController extends Controller
             Log::error('LDAP discover failed: ' . $e->getMessage(), ['exception' => $e]);
             return response()->json(['success' => false, 'message' => $e->getMessage()]);
         }
+    }
+
+    public function saveSynology(Request $request)
+    {
+        $request->validate([
+            'synology_host'                => 'required|url',
+            'synology_user'                => 'required|string',
+            'synology_password'            => 'required|string',
+            'synology_cloud_shared_folder' => 'nullable|string',
+        ]);
+
+        foreach (['synology_host', 'synology_user', 'synology_password', 'synology_cloud_shared_folder'] as $key) {
+            Setting::set($key, $request->input($key) ?? '', 'synology');
+        }
+
+        return back()->with('success', 'Configuration Synology enregistrée.');
     }
 
     public function saveNpm(Request $request)
@@ -208,6 +225,7 @@ class SettingsController extends Controller
             $result = match($service) {
                 'proxmox'    => app(ProxmoxService::class)->testConnection(),
                 'cyberpanel' => app(CyberPanelService::class)->testConnection(),
+                'synology'   => app(SynologyService::class)->testConnection(),
                 'ldap'       => app(LdapService::class)->testConnection(),
                 'npm'        => app(NginxProxyManagerService::class)->testConnection(),
                 'stripe'     => app(StripeService::class)->testConnection(),

@@ -162,6 +162,7 @@ Route::middleware('installed')->group(function () {
             Route::post('/proxmox', [Admin\SettingsController::class, 'saveProxmox'])->name('proxmox');
             Route::post('/cyberpanel', [Admin\SettingsController::class, 'saveCyberpanel'])->name('cyberpanel');
             Route::post('/ldap', [Admin\SettingsController::class, 'saveLdap'])->name('ldap');
+            Route::post('/synology', [Admin\SettingsController::class, 'saveSynology'])->name('synology');
             Route::get('/ldap/discover', [Admin\SettingsController::class, 'discoverLdap'])->name('ldap.discover');
             Route::post('/npm', [Admin\SettingsController::class, 'saveNpm'])->name('npm');
             Route::post('/stripe', [Admin\SettingsController::class, 'saveStripe'])->name('stripe');

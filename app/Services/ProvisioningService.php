@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Jobs\ProvisionHostingProxyJob;
 use App\Jobs\ProvisionLdapAccountJob;
+use App\Jobs\SyncSynologyQuotaJob;
 use App\Jobs\SyncVmProxyHostJob;
 use App\Models\Invoice;
 use App\Models\Plan;
@@ -214,6 +215,10 @@ class ProvisioningService
                     'password'   => $password,
                     'group'      => $plan->ldap_group,
                 ]);
+            }
+
+            if ($plan->storage_quota_gb) {
+                SyncSynologyQuotaJob::dispatch($user->id, $plan->storage_quota_gb);
             }
         } catch (\Exception $e) {
             Log::error("LDAP provisioning failed for user {$user->id}, plan {$plan->id}: " . $e->getMessage());
