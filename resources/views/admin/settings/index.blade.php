@@ -655,8 +655,9 @@
                     </div>
                     <div class="sm:col-span-2">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Nom expéditeur</label>
-                        <input type="text" name="mail_from_name" value="{{ $settings['mail_from_name'] ?? config('app.name') }}"
+                        <input type="text" name="mail_from_name" value="{{ $settings['mail_from_name'] ?? $settings['company_name'] ?? config('app.name') }}"
                             class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <p class="text-xs text-gray-400 mt-1">Si le nom de la société (onglet "Société") est renseigné, il prime toujours sur ce champ dans les emails réellement envoyés.</p>
                     </div>
                 </div>
                 <div class="pt-4 border-t border-gray-100 flex flex-wrap items-center gap-3">
