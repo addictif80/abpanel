@@ -177,13 +177,14 @@ class VmController extends Controller
     public function update(Request $request, VirtualMachine $vm)
     {
         $request->validate([
-            'name'          => 'required|string|max:50',
-            'monthly_price' => 'required|numeric|min:0',
-            'tailscale_ip'  => 'nullable|string',
-            'custom_domain' => 'nullable|string',
+            'name'             => 'required|string|max:50',
+            'monthly_price'    => 'required|numeric|min:0',
+            'tailscale_ip'     => 'nullable|string',
+            'custom_domain'    => 'nullable|string',
+            'next_renewal_at'  => 'nullable|date',
         ]);
 
-        $vm->update($request->only(['name', 'monthly_price', 'tailscale_ip', 'custom_domain', 'status']));
+        $vm->update($request->only(['name', 'monthly_price', 'tailscale_ip', 'custom_domain', 'status', 'next_renewal_at']));
 
         return back()->with('success', 'VM mise à jour.');
     }
@@ -303,6 +304,7 @@ class VmController extends Controller
             'monthly_price' => 'required|numeric|min:0',
             'tailscale_ip'  => 'nullable|ip',
             'status'        => 'required|in:running,stopped,hibernated',
+            'next_renewal_at' => 'nullable|date',
         ]);
 
         $baseDomain = \App\Models\Setting::get('vms_base_domain');
@@ -328,6 +330,7 @@ class VmController extends Controller
             'tailscale_ip'  => $request->tailscale_ip,
             'subdomain'     => $subdomain,
             'monthly_price' => $request->monthly_price,
+            'next_renewal_at' => $request->next_renewal_at,
         ]);
 
         return redirect()->route('admin.vms.edit', $vm)
