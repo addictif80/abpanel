@@ -755,7 +755,14 @@ function ldapSettings(initialUsersDn, initialGroupsDn) {
             this.containers = [];
             try {
                 const res = await fetch('{{ route('admin.settings.ldap.discover') }}');
-                const data = await res.json();
+                const text = await res.text();
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch (e) {
+                    this.discoverError = `Réponse inattendue du serveur (HTTP ${res.status}). Vérifiez que le serveur a bien été mis à jour (git pull) et que l'extension PHP ldap est installée.`;
+                    return;
+                }
                 if (data.success && data.containers && data.containers.length > 0) {
                     this.baseDn = data.base_dn;
                     this.containers = data.containers;
@@ -763,7 +770,7 @@ function ldapSettings(initialUsersDn, initialGroupsDn) {
                     this.discoverError = data.message || 'Aucun conteneur trouvé. Enregistrez d\'abord la connexion ci-dessus.';
                 }
             } catch (e) {
-                this.discoverError = 'Erreur réseau';
+                this.discoverError = 'Erreur réseau : ' + e.message;
             } finally {
                 this.discovering = false;
             }
