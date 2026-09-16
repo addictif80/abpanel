@@ -28,7 +28,7 @@ class PlanController extends Controller
     {
         $request->validate([
             'name'               => 'required|string|max:100',
-            'type'               => 'required|in:vm,hosting',
+            'type'               => 'required|in:vm,hosting,service',
             'vm_type'            => 'nullable|in:qemu,lxc',
             'price'              => 'required|numeric|min:0',
             'billing_period'     => 'required|in:monthly,yearly',
@@ -94,7 +94,7 @@ class PlanController extends Controller
     {
         $request->validate([
             'name'               => 'required|string|max:100',
-            'type'               => 'required|in:vm,hosting',
+            'type'               => 'required|in:vm,hosting,service',
             'vm_type'            => 'nullable|in:qemu,lxc',
             'price'              => 'required|numeric|min:0',
             'description'        => 'nullable|string',

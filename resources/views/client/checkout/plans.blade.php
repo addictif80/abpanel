@@ -10,7 +10,14 @@
 
 @foreach($plans as $type => $typePlans)
 <div class="mb-10">
-    <h2 class="text-lg font-semibold text-gray-700 mb-4">{{ $type === 'vm' ? 'Serveurs virtuels (VPS)' : 'Hébergements web' }}</h2>
+    @php
+        $typeLabels = [
+            'vm'      => 'Serveurs virtuels (VPS)',
+            'hosting' => 'Hébergements web',
+            'service' => 'Services',
+        ];
+    @endphp
+    <h2 class="text-lg font-semibold text-gray-700 mb-4">{{ $typeLabels[$type] ?? ucfirst($type) }}</h2>
     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
         @foreach($typePlans as $plan)
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col">
@@ -25,7 +32,7 @@
                     <span class="text-gray-400 text-sm">/{{ $plan->billing_period === 'yearly' ? 'an' : 'mois' }}</span>
                 </div>
 
-                @if($plan->cores || $plan->memory_mb || $plan->disk_gb)
+                @if($plan->cores || $plan->memory_mb || $plan->disk_gb || $plan->storage_quota_gb)
                 <div class="bg-gray-50 rounded-lg p-3 mb-4 grid grid-cols-3 gap-2 text-center text-xs">
                     @if($plan->cores)
                     <div>
@@ -42,6 +49,12 @@
                     @if($plan->disk_gb)
                     <div>
                         <div class="font-bold text-gray-800">{{ $plan->disk_gb }} GB</div>
+                        <div class="text-gray-500">Stockage</div>
+                    </div>
+                    @endif
+                    @if($plan->storage_quota_gb)
+                    <div>
+                        <div class="font-bold text-gray-800">{{ $plan->storage_quota_gb }} GB</div>
                         <div class="text-gray-500">Stockage</div>
                     </div>
                     @endif

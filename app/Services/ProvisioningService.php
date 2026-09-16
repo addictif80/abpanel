@@ -39,9 +39,11 @@ class ProvisioningService
 
         if ($plan->type === 'hosting') {
             $this->provisionHosting($user, $plan, $invoice);
-        } else {
+        } elseif ($plan->type === 'vm') {
             $this->provisionVm($user, $plan, $invoice);
         }
+        // 'service' plans (cloud, mail, password manager, ...) have no
+        // infrastructure to provision — only the LDAP step below applies.
 
         if ($plan->ldap_group) {
             ProvisionLdapAccountJob::dispatch($user->id, $plan->id);
