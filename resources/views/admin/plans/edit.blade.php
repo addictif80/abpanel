@@ -160,14 +160,32 @@
     </div>
 
     {{-- Groupe LDAP --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
-        <h2 class="font-semibold text-gray-800">Annuaire (LDAP)</h2>
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4" x-data="{ selectedGroup: '{{ old('ldap_group', $plan->ldap_group) }}' }">
+        <div class="flex items-center justify-between">
+            <h2 class="font-semibold text-gray-800">Annuaire (LDAP)</h2>
+            <button type="button" @click="loadLdapGroups()"
+                class="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
+                x-text="loadingLdapGroups ? 'Chargement...' : '↻ Charger les groupes'">
+            </button>
+        </div>
+        <div x-show="ldapGroupError" class="text-xs text-red-500" x-text="ldapGroupError"></div>
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Groupe LDAP</label>
-            <input type="text" name="ldap_group" value="{{ old('ldap_group', $plan->ldap_group) }}"
-                placeholder="ex: plan-pro"
-                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none font-mono">
-            <p class="text-xs text-gray-400 mt-1">Si renseigné, le compte client est créé/mis à jour dans ce groupe LDAP (cn) après paiement. Laissez vide pour ne pas provisionner de compte annuaire pour ce plan.</p>
+            <template x-if="ldapGroups.length > 0">
+                <select name="ldap_group" x-model="selectedGroup"
+                    class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    <option value="">— Aucun (pas de provisioning LDAP) —</option>
+                    <template x-for="group in ldapGroups" :key="group.cn">
+                        <option :value="group.cn" x-text="group.cn"></option>
+                    </template>
+                </select>
+            </template>
+            <template x-if="ldapGroups.length === 0">
+                <input type="text" name="ldap_group" x-model="selectedGroup"
+                    placeholder="ex: plan-pro"
+                    class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none font-mono">
+            </template>
+            <p class="text-xs text-gray-400 mt-1">Groupe actuel : <strong>{{ $plan->ldap_group ?: '(non défini)' }}</strong>. Si renseigné, le compte client est créé/mis à jour dans ce groupe LDAP (cn) après paiement.</p>
         </div>
     </div>
 
@@ -315,6 +333,9 @@ function planForm(initialType, initialPackage) {
         selectedPackage: initialPackage || '',
         loadingPackages: false,
         packageError: '',
+        ldapGroups: [],
+        loadingLdapGroups: false,
+        ldapGroupError: '',
         get selectedPackageData() {
             return this.packages.find(p => p.packageName === this.selectedPackage) ?? null;
         },
@@ -332,6 +353,21 @@ function planForm(initialType, initialPackage) {
                 })
                 .catch(() => { this.packageError = 'Erreur de connexion.'; })
                 .finally(() => { this.loadingPackages = false; });
+        },
+        loadLdapGroups() {
+            this.loadingLdapGroups = true;
+            this.ldapGroupError = '';
+            fetch('{{ route('admin.plans.ldap-groups') }}')
+                .then(r => r.json())
+                .then(d => {
+                    if (d.success && d.groups && d.groups.length > 0) {
+                        this.ldapGroups = d.groups;
+                    } else {
+                        this.ldapGroupError = d.message || 'Aucun groupe trouvé. Vérifiez la connexion LDAP dans les settings.';
+                    }
+                })
+                .catch(() => { this.ldapGroupError = 'Erreur de connexion.'; })
+                .finally(() => { this.loadingLdapGroups = false; });
         }
     }
 }
