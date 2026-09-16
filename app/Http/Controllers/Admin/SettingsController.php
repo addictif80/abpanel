@@ -11,6 +11,7 @@ use App\Services\ProxmoxService;
 use App\Services\StripeService;
 use App\Services\TailscaleService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
 class SettingsController extends Controller
@@ -99,7 +100,8 @@ class SettingsController extends Controller
         try {
             $result = app(LdapService::class)->discoverContainers();
             return response()->json(['success' => true] + $result);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            Log::error('LDAP discover failed: ' . $e->getMessage(), ['exception' => $e]);
             return response()->json(['success' => false, 'message' => $e->getMessage()]);
         }
     }
