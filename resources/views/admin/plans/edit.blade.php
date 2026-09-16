@@ -192,6 +192,13 @@
             </template>
             <p class="text-xs text-gray-400 mt-1">Groupe actuel : <strong>{{ $plan->ldap_group ?: '(non défini)' }}</strong>. Si renseigné, le compte client est créé/mis à jour dans ce groupe LDAP (cn) après paiement.</p>
         </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Quota de stockage (Go)</label>
+            <input type="number" name="storage_quota_gb" value="{{ old('storage_quota_gb', $plan->storage_quota_gb) }}" min="1"
+                placeholder="ex: 100"
+                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            <p class="text-xs text-gray-400 mt-1">Si renseigné, ce quota est appliqué sur le dossier partagé Synology "cloud" du client après provisioning. Laissez vide pour les plans sans quota (mail, gestionnaire de mots de passe, etc.).</p>
+        </div>
     </div>
 
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
