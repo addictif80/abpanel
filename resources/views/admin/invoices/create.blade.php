@@ -36,6 +36,38 @@
                 <input type="date" name="due_date" value="{{ old('due_date') }}"
                     class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
             </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Plan lié <span class="text-xs font-normal text-gray-400">(optionnel)</span></label>
+                <select name="plan_id" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    <option value="">— Aucun —</option>
+                    @foreach($plans as $plan)
+                    <option value="{{ $plan->id }}" {{ old('plan_id') == $plan->id ? 'selected' : '' }}>{{ $plan->name }} ({{ $plan->formattedPrice() }})</option>
+                    @endforeach
+                </select>
+                <p class="text-xs text-gray-400 mt-1">Nécessaire pour qu'un code promo restreint à certains plans s'applique, et pour les limites d'achat par plan.</p>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Code promo <span class="text-xs font-normal text-gray-400">(optionnel)</span></label>
+                <input type="text" name="promo_code" value="{{ old('promo_code') }}" placeholder="CODE10"
+                    class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono uppercase focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                <p class="text-xs text-gray-400 mt-1">Validé et déduit du total à la création (remise recalculée, pas prévisualisée ici).</p>
+            </div>
+        </div>
+
+        {{-- Déjà payée --}}
+        <div class="border-t border-gray-100 pt-4" x-data="{ paid: {{ old('mark_paid') ? 'true' : 'false' }} }">
+            <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer mb-3">
+                <input type="checkbox" name="mark_paid" value="1" x-model="paid"
+                    {{ old('mark_paid') ? 'checked' : '' }}
+                    class="rounded border-gray-300 text-indigo-600">
+                Déjà payée (import / paiement reçu hors Stripe)
+            </label>
+            <div x-show="paid">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Date de paiement</label>
+                <input type="date" name="paid_at" value="{{ old('paid_at', now()->format('Y-m-d')) }}"
+                    class="w-full sm:w-1/2 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                <p class="text-xs text-gray-400 mt-1">Peut être une date passée — utile pour enregistrer un paiement déjà reçu sur un ancien système.</p>
+            </div>
         </div>
 
         {{-- Récurrence --}}

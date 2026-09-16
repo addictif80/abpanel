@@ -57,23 +57,22 @@
             <div><strong>Sous-domaine :</strong> {{ $vm->subdomain ?: '—' }}</div>
         </div>
 
-        <div class="pt-4 border-t border-gray-100 flex items-center justify-between">
-            <div class="flex gap-3">
-                <button type="submit" class="px-5 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition">
-                    Enregistrer
-                </button>
-                <a href="{{ route('admin.vms.index') }}" class="px-5 py-2 bg-gray-100 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-200 transition">
-                    Annuler
-                </a>
-            </div>
-            <form method="POST" action="{{ route('admin.vms.destroy', $vm) }}"
-                onsubmit="return confirm('Supprimer ce VPS de Proxmox ? Cette action est irréversible.')">
-                @csrf @method('DELETE')
-                <button type="submit" class="px-4 py-2 bg-red-50 text-red-600 text-sm font-semibold rounded-lg hover:bg-red-100 transition">
-                    Supprimer
-                </button>
-            </form>
+        <div class="pt-4 border-t border-gray-100 flex items-center gap-3">
+            <button type="submit" class="px-5 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition">
+                Enregistrer
+            </button>
+            <a href="{{ route('admin.vms.index') }}" class="px-5 py-2 bg-gray-100 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-200 transition">
+                Annuler
+            </a>
         </div>
+    </form>
+
+    <form method="POST" action="{{ route('admin.vms.destroy', $vm) }}" class="mt-3"
+        onsubmit="return confirm('Supprimer ce VPS de Proxmox ? Cette action est irréversible.')">
+        @csrf @method('DELETE')
+        <button type="submit" class="px-4 py-2 bg-red-50 text-red-600 text-sm font-semibold rounded-lg hover:bg-red-100 transition">
+            Supprimer
+        </button>
     </form>
 </div>
 @endsection

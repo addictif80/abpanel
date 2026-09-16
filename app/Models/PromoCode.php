@@ -19,7 +19,7 @@ class PromoCode extends Model
         ];
     }
 
-    public function validate(Plan $plan, float $amount): array
+    public function validate(?Plan $plan, float $amount): array
     {
         if (!$this->is_active) {
             return ['valid' => false, 'error' => 'Ce code promo n\'est plus actif.'];
@@ -30,7 +30,7 @@ class PromoCode extends Model
         if ($this->max_uses !== null && $this->used_count >= $this->max_uses) {
             return ['valid' => false, 'error' => 'Ce code promo a atteint sa limite d\'utilisation.'];
         }
-        if ($this->plan_ids !== null && !in_array($plan->id, $this->plan_ids)) {
+        if ($this->plan_ids !== null && (!$plan || !in_array($plan->id, $this->plan_ids))) {
             return ['valid' => false, 'error' => 'Ce code promo n\'est pas valable pour ce produit.'];
         }
         if ($this->min_amount !== null && $amount < $this->min_amount) {
