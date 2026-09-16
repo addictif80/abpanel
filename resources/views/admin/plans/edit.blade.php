@@ -197,7 +197,7 @@
             <input type="number" name="storage_quota_gb" value="{{ old('storage_quota_gb', $plan->storage_quota_gb) }}" min="1"
                 placeholder="ex: 100"
                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-            <p class="text-xs text-gray-400 mt-1">Si renseigné, ce quota est appliqué sur le dossier partagé Synology "cloud" du client après provisioning. Laissez vide pour les plans sans quota (mail, gestionnaire de mots de passe, etc.).</p>
+            <p class="text-xs text-gray-400 mt-1">Si renseigné, ce quota est appliqué sur l'espace personnel Synology du client (dossier privé sous "Utilisateur personnel") après provisioning. Laissez vide pour les plans sans quota (mail, gestionnaire de mots de passe, etc.).</p>
         </div>
     </div>
 
