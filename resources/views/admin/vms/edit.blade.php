@@ -43,6 +43,12 @@
                 <input type="number" name="monthly_price" value="{{ old('monthly_price', $vm->monthly_price) }}" step="0.01" min="0"
                     class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
             </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Prochain renouvellement</label>
+                <input type="date" name="next_renewal_at" value="{{ old('next_renewal_at', $vm->next_renewal_at?->format('Y-m-d')) }}"
+                    class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                <p class="text-xs text-gray-400 mt-1">Déclenche le rappel de renouvellement au client 7 jours avant. Vide = pas de facturation automatique pour cette VM.</p>
+            </div>
         </div>
 
         <div class="bg-gray-50 rounded-lg p-4 text-xs text-gray-500 space-y-1">
