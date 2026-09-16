@@ -55,6 +55,9 @@
 
     <div class="totals">
         <div><span>Sous-total HT</span><span>{{ number_format($invoice->subtotal, 2) }}€</span></div>
+        @if($invoice->discount > 0)
+        <div><span>Remise{{ $invoice->promoCode ? ' (' . $invoice->promoCode->code . ')' : '' }}</span><span>-{{ number_format($invoice->discount, 2) }}€</span></div>
+        @endif
         <div><span>TVA</span><span>{{ number_format($invoice->tax, 2) }}€</span></div>
         <div class="grand"><span>Total TTC</span><span>{{ number_format($invoice->total, 2) }}€</span></div>
     </div>

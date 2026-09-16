@@ -29,7 +29,7 @@ class BillingController extends Controller
             abort(403);
         }
 
-        $invoice->load('quote');
+        $invoice->load('quote', 'promoCode');
         $stripeKey = Setting::get('stripe_public_key');
 
         return view('client.billing.show', compact('invoice', 'stripeKey'));

@@ -81,6 +81,12 @@
 
     <div class="border-t border-gray-100 pt-4 space-y-1 text-sm">
         <div class="flex justify-between text-gray-600"><span>Sous-total HT</span><span>{{ number_format($invoice->subtotal, 2) }}€</span></div>
+        @if($invoice->discount > 0)
+        <div class="flex justify-between text-green-600">
+            <span>Remise{{ $invoice->promoCode ? ' (' . $invoice->promoCode->code . ')' : '' }}</span>
+            <span>-{{ number_format($invoice->discount, 2) }}€</span>
+        </div>
+        @endif
         <div class="flex justify-between text-gray-600"><span>TVA</span><span>{{ number_format($invoice->tax, 2) }}€</span></div>
         <div class="flex justify-between font-bold text-gray-900 text-base pt-1 border-t border-gray-100">
             <span>Total TTC</span><span>{{ number_format($invoice->total, 2) }}€</span>

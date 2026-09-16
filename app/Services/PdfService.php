@@ -25,7 +25,7 @@ class PdfService
 
     public function generateInvoicePdf(Invoice $invoice): string
     {
-        $invoice->load('user', 'quote');
+        $invoice->load('user', 'quote', 'promoCode');
         $settings = Setting::group('general') + Setting::group('company') + Setting::group('quotes');
 
         $pdfContent = Pdf::loadView('pdf.invoice', compact('invoice', 'settings'))

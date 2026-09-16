@@ -39,7 +39,7 @@ class InvoiceController extends Controller
 
     public function show(Invoice $invoice)
     {
-        $invoice->load('user');
+        $invoice->load('user', 'promoCode');
         return view('admin.invoices.show', compact('invoice'));
     }
 
