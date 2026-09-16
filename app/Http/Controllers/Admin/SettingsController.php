@@ -89,7 +89,7 @@ class SettingsController extends Controller
         ]);
 
         foreach (['ldap_host', 'ldap_port', 'ldap_bind_dn', 'ldap_bind_password', 'ldap_users_dn', 'ldap_groups_dn', 'ldap_default_gid'] as $key) {
-            Setting::set($key, $request->input($key, ''), 'ldap');
+            Setting::set($key, $request->input($key) ?? '', 'ldap');
         }
 
         return back()->with('success', 'Configuration LDAP enregistrée.');
