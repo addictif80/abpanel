@@ -8,7 +8,10 @@
         <h1 class="text-2xl font-bold text-gray-900">Annuaire LDAP</h1>
         <p class="text-gray-500 text-sm mt-0.5">Comptes et groupes lus en direct sur le serveur LDAP configuré.</p>
     </div>
-    <a href="{{ route('admin.settings.index') }}" class="text-sm text-indigo-600 hover:text-indigo-800 font-medium">⚙️ Configuration LDAP</a>
+    <div class="flex items-center gap-4">
+        <a href="{{ route('admin.ldap.import.index') }}" class="text-sm text-indigo-600 hover:text-indigo-800 font-medium">📥 Importer un compte</a>
+        <a href="{{ route('admin.settings.index') }}" class="text-sm text-indigo-600 hover:text-indigo-800 font-medium">⚙️ Configuration LDAP</a>
+    </div>
 </div>
 
 @if($error)

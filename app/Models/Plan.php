@@ -54,6 +54,19 @@ class Plan extends Model
         return $this->yearly_price !== null;
     }
 
+    /**
+     * 'yearly' only if this plan actually offers the choice and that's what
+     * was requested; the plan's own fixed billing_period otherwise.
+     */
+    public function resolvePeriod(?string $requested): string
+    {
+        if ($this->hasYearlyOption()) {
+            return $requested === 'yearly' ? 'yearly' : 'monthly';
+        }
+
+        return $this->billing_period === 'yearly' ? 'yearly' : 'monthly';
+    }
+
     /** The amount due for the given billing period ('monthly' or 'yearly'). */
     public function priceFor(string $period): float
     {

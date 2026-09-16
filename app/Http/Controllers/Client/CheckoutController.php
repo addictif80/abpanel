@@ -39,20 +39,10 @@ class CheckoutController extends Controller
         if (!$code) return response()->json(['valid' => false, 'error' => 'Code promo invalide.']);
 
         $plan   = Plan::findOrFail($request->plan_id);
-        $period = $this->resolvePeriod($plan, $request);
+        $period = $plan->resolvePeriod($request->input('billing_period'));
         $result = $code->validate($plan, $plan->priceFor($period));
 
         return response()->json($result);
-    }
-
-    /** 'yearly' only if the plan actually offers it and the client asked for it; the plan's own billing_period otherwise. */
-    private function resolvePeriod(Plan $plan, Request $request): string
-    {
-        if ($plan->hasYearlyOption()) {
-            return $request->input('billing_period') === 'yearly' ? 'yearly' : 'monthly';
-        }
-
-        return $plan->billing_period === 'yearly' ? 'yearly' : 'monthly';
     }
 
     public function createIntent(Request $request, Plan $plan)
@@ -72,7 +62,7 @@ class CheckoutController extends Controller
         }
 
         $stripe = new StripeService();
-        $period = $this->resolvePeriod($plan, $request);
+        $period = $plan->resolvePeriod($request->input('billing_period'));
         $price  = $plan->priceFor($period);
         $periodLabel = $period === 'yearly' ? 'Annuel' : 'Mensuel';
 
