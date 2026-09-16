@@ -24,13 +24,13 @@ class LdapService
 
     public function __construct()
     {
-        $this->host         = Setting::get('ldap_host', '');
-        $this->port         = (int) Setting::get('ldap_port', '389');
-        $this->bindDn       = Setting::get('ldap_bind_dn', '');
-        $this->bindPassword = Setting::get('ldap_bind_password', '');
-        $this->usersDn      = Setting::get('ldap_users_dn', '');
-        $this->groupsDn     = Setting::get('ldap_groups_dn', '');
-        $this->defaultGid   = (int) Setting::get('ldap_default_gid', '100');
+        $this->host         = Setting::get('ldap_host', '') ?? '';
+        $this->port         = (int) (Setting::get('ldap_port', '389') ?? 389);
+        $this->bindDn       = Setting::get('ldap_bind_dn', '') ?? '';
+        $this->bindPassword = Setting::get('ldap_bind_password', '') ?? '';
+        $this->usersDn      = Setting::get('ldap_users_dn', '') ?? '';
+        $this->groupsDn     = Setting::get('ldap_groups_dn', '') ?? '';
+        $this->defaultGid   = (int) (Setting::get('ldap_default_gid', '100') ?? 100);
     }
 
     /** @return resource|\LDAP\Connection */
