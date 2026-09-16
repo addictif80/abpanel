@@ -6,7 +6,9 @@
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: DejaVu Sans, Arial, sans-serif; font-size: 12px; color: #111; padding: 40px; }
-.header { display: flex; justify-content: space-between; margin-bottom: 28px; }
+.header { display: table; width: 100%; margin-bottom: 28px; }
+.header > div { display: table-cell; vertical-align: top; }
+.header > div:last-child { text-align: right; }
 .brand { font-size: 22px; font-weight: bold; color: #4f46e5; }
 .company-meta { font-size: 10px; color: #6b7280; margin-top: 3px; line-height: 1.6; }
 .doc-title { font-size: 20px; font-weight: bold; color: #111; }
@@ -20,9 +22,10 @@ th { background: #f3f4f6; text-align: left; padding: 8px 10px; font-size: 9px; t
 td { padding: 9px 10px; border-bottom: 1px solid #f3f4f6; font-size: 11px; vertical-align: top; }
 td.right { text-align: right; }
 td.bold { font-weight: bold; }
-.totals { width: 220px; margin-left: auto; }
-.totals-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 11px; color: #555; }
-.totals-total { display: flex; justify-content: space-between; padding: 8px 0 4px; font-weight: bold; font-size: 14px; color: #111; border-top: 2px solid #111; margin-top: 4px; }
+.totals { width: 100%; border-collapse: collapse; }
+.totals td { padding: 4px 0; font-size: 11px; color: #555; border: none; }
+.totals td.value { text-align: right; }
+.totals .totals-total td { padding: 8px 0 4px; font-weight: bold; font-size: 14px; color: #111; border-top: 2px solid #111; }
 .vat-note { font-size: 9px; color: #9ca3af; margin-top: 6px; }
 .status-badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 10px; font-weight: bold; }
 .paid { background: #d1fae5; color: #065f46; }
@@ -97,15 +100,17 @@ td.bold { font-weight: bold; }
     </tbody>
 </table>
 
-<div class="totals">
-    <div class="totals-row"><span>Sous-total HT</span><span>{{ number_format($invoice->subtotal, 2) }} €</span></div>
-    @if($invoice->discount > 0)
-    <div class="totals-row"><span>Remise{{ $invoice->promoCode ? ' (' . $invoice->promoCode->code . ')' : '' }}</span><span>-{{ number_format($invoice->discount, 2) }} €</span></div>
-    @endif
-    @if($invoice->tax > 0)
-    <div class="totals-row"><span>TVA</span><span>{{ number_format($invoice->tax, 2) }} €</span></div>
-    @endif
-    <div class="totals-total"><span>Total TTC</span><span>{{ number_format($invoice->total, 2) }} {{ $invoice->currency ?? 'EUR' }}</span></div>
+<div style="width:220px;margin-left:auto;">
+    <table class="totals">
+        <tr><td>Sous-total HT</td><td class="value">{{ number_format($invoice->subtotal, 2) }} €</td></tr>
+        @if($invoice->discount > 0)
+        <tr><td>Remise{{ $invoice->promoCode ? ' (' . $invoice->promoCode->code . ')' : '' }}</td><td class="value">-{{ number_format($invoice->discount, 2) }} €</td></tr>
+        @endif
+        @if($invoice->tax > 0)
+        <tr><td>TVA</td><td class="value">{{ number_format($invoice->tax, 2) }} €</td></tr>
+        @endif
+        <tr class="totals-total"><td>Total TTC</td><td class="value">{{ number_format($invoice->total, 2) }} {{ $invoice->currency ?? 'EUR' }}</td></tr>
+    </table>
     <div class="vat-note">{{ $settings['vat_mention'] ?? 'TVA non applicable, art. 293 B du CGI' }}</div>
     @if($invoice->isPaid() && $invoice->paid_at)
     <div style="margin-top:8px;font-size:10px;color:#16a34a;font-weight:bold;">Payée le {{ $invoice->paid_at->format('d/m/Y') }}</div>
