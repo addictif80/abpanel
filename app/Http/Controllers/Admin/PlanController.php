@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Plan;
 use App\Models\Setting;
 use App\Services\CyberPanelService;
+use App\Services\LdapService;
 use Illuminate\Http\Request;
 use Stripe\Price;
 use Stripe\Product;
@@ -163,6 +164,16 @@ class PlanController extends Controller
         try {
             $packages = app(CyberPanelService::class)->listPackages();
             return response()->json(['success' => true, 'packages' => $packages]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+    public function ldapGroups()
+    {
+        try {
+            $groups = app(LdapService::class)->listGroups();
+            return response()->json(['success' => true, 'groups' => $groups]);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()]);
         }

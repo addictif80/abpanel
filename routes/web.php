@@ -269,7 +269,13 @@ Route::middleware('installed')->group(function () {
 
         // Plans
         Route::get('/plans/cyberpanel-packages', [Admin\PlanController::class, 'cyberpanelPackages'])->name('plans.cyberpanel-packages');
+        Route::get('/plans/ldap-groups', [Admin\PlanController::class, 'ldapGroups'])->name('plans.ldap-groups');
         Route::resource('plans', Admin\PlanController::class);
+
+        // LDAP directory browser
+        Route::prefix('ldap')->name('ldap.')->group(function () {
+            Route::get('/', [Admin\LdapController::class, 'index'])->name('index');
+        });
 
         // OS Templates
         Route::prefix('os-templates')->name('os-templates.')->group(function () {

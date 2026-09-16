@@ -64,6 +64,51 @@ class LdapService
         return true;
     }
 
+    /** @return array<int, array{uid: string, cn: string, mail: string, uidNumber: string}> */
+    public function listUsers(): array
+    {
+        $conn   = $this->connect();
+        $result = @ldap_search($conn, $this->usersDn, '(objectClass=posixAccount)', ['uid', 'cn', 'mail', 'uidNumber']);
+
+        if ($result === false) {
+            throw new RuntimeException('Recherche des utilisateurs LDAP échouée : ' . ldap_error($conn));
+        }
+
+        $entries = ldap_get_entries($conn, $result);
+        unset($entries['count']);
+
+        return array_values(array_map(fn($entry) => [
+            'uid'       => $entry['uid'][0] ?? '',
+            'cn'        => $entry['cn'][0] ?? '',
+            'mail'      => $entry['mail'][0] ?? '',
+            'uidNumber' => $entry['uidnumber'][0] ?? '',
+        ], $entries));
+    }
+
+    /** @return array<int, array{cn: string, gidNumber: string, members: string[]}> */
+    public function listGroups(): array
+    {
+        $conn   = $this->connect();
+        $result = @ldap_search($conn, $this->groupsDn, '(objectClass=posixGroup)', ['cn', 'gidNumber', 'memberUid']);
+
+        if ($result === false) {
+            throw new RuntimeException('Recherche des groupes LDAP échouée : ' . ldap_error($conn));
+        }
+
+        $entries = ldap_get_entries($conn, $result);
+        unset($entries['count']);
+
+        return array_values(array_map(function ($entry) {
+            $members = $entry['memberuid'] ?? [];
+            unset($members['count']);
+            return [
+                'cn'        => $entry['cn'][0] ?? '',
+                'gidNumber' => $entry['gidnumber'][0] ?? '',
+                'members'   => array_values($members),
+            ];
+        }, $entries));
+    }
+
     public function userExists(string $username): bool
     {
         $conn   = $this->connect();
