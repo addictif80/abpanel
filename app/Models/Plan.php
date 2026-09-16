@@ -10,7 +10,7 @@ class Plan extends Model
     protected $fillable = [
         'name', 'slug', 'type', 'vm_type', 'description', 'price', 'currency',
         'billing_period', 'stripe_price_id', 'stripe_product_id', 'features',
-        'cores', 'memory_mb', 'disk_gb', 'cyberpanel_package', 'ldap_group', 'storage_quota_gb', 'is_active', 'sort_order',
+        'cores', 'memory_mb', 'disk_gb', 'cyberpanel_package', 'ldap_group', 'storage_quota_gb', 'requires_ldap_group', 'is_active', 'sort_order',
         'limit_per_client', 'limit_per_vm', 'limit_per_hosting',
         'limit_per_domain', 'limit_per_subdomain',
         'requires_vm', 'requires_hosting', 'plan_allowances',
@@ -62,6 +62,17 @@ class Plan extends Model
 
         if ($this->requires_hosting && $hostingCount === 0) {
             return 'Vous devez posséder au moins un hébergement actif pour commander ce produit.';
+        }
+
+        if ($this->requires_ldap_group) {
+            $hasGroup = Invoice::where('user_id', $user->id)
+                ->where('status', 'paid')
+                ->whereHas('plan', fn($q) => $q->where('ldap_group', $this->requires_ldap_group))
+                ->exists();
+
+            if (!$hasGroup) {
+                return "Vous devez d'abord souscrire à un plan du groupe \"{$this->requires_ldap_group}\" pour commander ce produit.";
+            }
         }
 
         $maxAllowed = $this->computeMaxAllowed($user, $vmCount, $hostingCount);

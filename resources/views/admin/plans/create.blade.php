@@ -187,7 +187,25 @@
             <input type="number" name="storage_quota_gb" value="{{ old('storage_quota_gb') }}" min="1"
                 placeholder="ex: 100"
                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-            <p class="text-xs text-gray-400 mt-1">Si renseigné, ce quota est appliqué sur l'espace personnel Synology du client (dossier privé sous "Utilisateur personnel") après provisioning. Laissez vide pour les plans sans quota (mail, gestionnaire de mots de passe, etc.).</p>
+            <p class="text-xs text-gray-400 mt-1">Si renseigné, ce quota est appliqué sur l'espace personnel Synology du client (dossier privé sous "Utilisateur personnel") après provisioning. Cumulatif : le total poussé sur DSM est la somme de ce champ sur toutes les factures payées du client partageant le même groupe LDAP (plan de base + options). Laissez vide pour les plans sans quota (mail, gestionnaire de mots de passe, etc.).</p>
+        </div>
+        <div x-data="{ requiredGroup: '{{ old('requires_ldap_group') }}' }">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Groupe LDAP requis (prérequis)</label>
+            <template x-if="ldapGroups.length > 0">
+                <select name="requires_ldap_group" x-model="requiredGroup"
+                    class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    <option value="">— Aucun prérequis —</option>
+                    <template x-for="group in ldapGroups" :key="group.cn">
+                        <option :value="group.cn" x-text="group.cn"></option>
+                    </template>
+                </select>
+            </template>
+            <template x-if="ldapGroups.length === 0">
+                <input type="text" name="requires_ldap_group" x-model="requiredGroup"
+                    placeholder="ex: cloud"
+                    class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none font-mono">
+            </template>
+            <p class="text-xs text-gray-400 mt-1">Si renseigné, le client doit déjà avoir une facture payée pour un plan de ce groupe avant de pouvoir commander celui-ci (utile pour une option qui suppose le plan de base déjà souscrit).</p>
         </div>
     </div>
 
