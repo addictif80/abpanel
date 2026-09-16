@@ -711,6 +711,17 @@
                             class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none font-mono">
                         <p class="text-xs text-gray-400 mt-1">Votre organisation Tailscale. Laissez <code>-</code> pour le tailnet par défaut.</p>
                     </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Tag des VM clientes</label>
+                        <input type="text" name="tailscale_client_vm_tag" value="{{ $settings['tailscale_client_vm_tag'] ?? 'tag:client-vm' }}"
+                            placeholder="tag:client-vm"
+                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none font-mono">
+                        <p class="text-xs text-gray-400 mt-1">Appliqué automatiquement à chaque VM cliente rejoignant le tailnet. <strong>Sans ACL Tailscale configurée pour isoler ce tag, il ne sert à rien</strong> — voir l'encart ci-dessous.</p>
+                    </div>
+                </div>
+
+                <div class="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-800">
+                    <strong>⚠️ Isolation réseau — à faire une fois dans Tailscale :</strong> le tag seul n'isole rien tant que la politique d'ACL du tailnet (<a href="https://login.tailscale.com/admin/acls" target="_blank" class="underline">Tailscale → Access controls</a>) n'interdit pas explicitement à ce tag de joindre le reste. Sans ACL restrictive, une VM cliente reste sur la politique "tout le monde voit et joint tout le monde" et <code class="bg-amber-100 px-1 rounded">tailscale status</code> y listera votre infra perso.
                 </div>
 
                 <div class="pt-2 flex items-center gap-3 flex-wrap">
@@ -727,7 +738,7 @@
 
             {{-- Génération manuelle d'une auth key --}}
             <div class="mt-4 bg-white rounded-xl shadow-sm border border-gray-100 p-5"
-                 x-data="{ loading: false, key: '', error: '', expiry: 3600, ephemeral: true }">
+                 x-data="{ loading: false, key: '', error: '', expiry: 3600, ephemeral: true, tagged: true }">
                 <h3 class="font-semibold text-gray-800 text-sm mb-1">Générer une auth key à la demande</h3>
                 <p class="text-sm text-gray-500 mb-3">
                     Pour les templates Proxmox ou les installations manuelles. La clé est générée via l'API et valable pour la durée choisie.
@@ -742,12 +753,16 @@
                         <input type="checkbox" x-model="ephemeral" class="rounded border-gray-300 text-indigo-600">
                         Éphémère (device supprimé quand hors ligne)
                     </label>
+                    <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                        <input type="checkbox" x-model="tagged" class="rounded border-gray-300 text-indigo-600">
+                        Tag VM cliente (décochez pour un device infra sans tag)
+                    </label>
                     <button type="button" @click="
                         loading = true; key = ''; error = '';
                         fetch('{{ route('admin.settings.tailscale.generate-key') }}', {
                             method: 'POST',
                             headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content},
-                            body: JSON.stringify({expiry, ephemeral})
+                            body: JSON.stringify({expiry, ephemeral, tagged})
                         }).then(r => r.json()).then(d => {
                             if (d.key) key = d.key; else error = d.error || 'Erreur';
                         }).catch(() => error = 'Erreur réseau').finally(() => loading = false)

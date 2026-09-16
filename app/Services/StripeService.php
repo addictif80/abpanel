@@ -107,45 +107,74 @@ class StripeService
             ]);
         }
 
-        $wantedAmount   = (int) round($plan->price * 100);
-        $wantedCurrency = strtolower($plan->currency ?: 'eur');
-        $wantedInterval = $plan->billing_period === 'yearly' ? 'year' : 'month';
+        $currency = strtolower($plan->currency ?: 'eur');
 
-        $priceChanged = true;
-        if ($plan->stripe_price_id) {
-            try {
-                $existing = Price::retrieve($plan->stripe_price_id);
-                $priceChanged = $existing->unit_amount !== $wantedAmount
-                    || $existing->currency !== $wantedCurrency
-                    || ($existing->recurring->interval ?? null) !== $wantedInterval;
-            } catch (\Exception) {
-                $priceChanged = true;
-            }
-        }
+        $priceId = $this->syncPrice(
+            $productId,
+            $plan->stripe_price_id,
+            (float) $plan->price,
+            $currency,
+            $plan->billing_period === 'yearly' ? 'year' : 'month',
+        );
 
-        $priceId = $plan->stripe_price_id;
-
-        if ($priceChanged) {
-            $newPrice = Price::create([
-                'product'     => $productId,
-                'unit_amount' => $wantedAmount,
-                'currency'    => $wantedCurrency,
-                'recurring'   => ['interval' => $wantedInterval],
-            ]);
-
-            if ($priceId) {
-                try {
-                    Price::update($priceId, ['active' => false]);
-                } catch (\Exception) {}
-            }
-
-            $priceId = $newPrice->id;
+        $yearlyPriceId = $plan->stripe_yearly_price_id;
+        if ($plan->yearly_price !== null) {
+            $yearlyPriceId = $this->syncPrice(
+                $productId,
+                $plan->stripe_yearly_price_id,
+                (float) $plan->yearly_price,
+                $currency,
+                'year',
+            );
         }
 
         $plan->update([
-            'stripe_product_id' => $productId,
-            'stripe_price_id'   => $priceId,
+            'stripe_product_id'      => $productId,
+            'stripe_price_id'        => $priceId,
+            'stripe_yearly_price_id' => $yearlyPriceId,
         ]);
+    }
+
+    /**
+     * Create a fresh Price (and archive the old one, since Stripe Prices are
+     * immutable) only if the amount/currency/interval actually changed.
+     * Returns the Price ID to keep — either the untouched existing one or
+     * the freshly created replacement.
+     */
+    private function syncPrice(string $productId, ?string $existingPriceId, float $amount, string $currency, string $interval): string
+    {
+        $wantedAmount = (int) round($amount * 100);
+
+        $changed = true;
+        if ($existingPriceId) {
+            try {
+                $existing = Price::retrieve($existingPriceId);
+                $changed = $existing->unit_amount !== $wantedAmount
+                    || $existing->currency !== $currency
+                    || ($existing->recurring->interval ?? null) !== $interval;
+            } catch (\Exception) {
+                $changed = true;
+            }
+        }
+
+        if (! $changed) {
+            return $existingPriceId;
+        }
+
+        $newPrice = Price::create([
+            'product'     => $productId,
+            'unit_amount' => $wantedAmount,
+            'currency'    => $currency,
+            'recurring'   => ['interval' => $interval],
+        ]);
+
+        if ($existingPriceId) {
+            try {
+                Price::update($existingPriceId, ['active' => false]);
+            } catch (\Exception) {}
+        }
+
+        return $newPrice->id;
     }
 
     public function testConnection(): bool

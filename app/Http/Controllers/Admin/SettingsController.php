@@ -191,10 +191,11 @@ class SettingsController extends Controller
             'tailscale_oauth_client_id'     => 'nullable|string|max:200',
             'tailscale_oauth_client_secret' => 'nullable|string|max:200',
             'tailscale_tailnet'             => 'nullable|string|max:200',
+            'tailscale_client_vm_tag'       => 'nullable|string|max:100',
         ]);
 
-        foreach (['tailscale_oauth_client_id', 'tailscale_oauth_client_secret', 'tailscale_tailnet'] as $key) {
-            Setting::set($key, $request->input($key, ''), 'tailscale');
+        foreach (['tailscale_oauth_client_id', 'tailscale_oauth_client_secret', 'tailscale_tailnet', 'tailscale_client_vm_tag'] as $key) {
+            Setting::set($key, $request->input($key) ?? '', 'tailscale');
         }
 
         // Invalider le token OAuth mis en cache
@@ -207,11 +208,15 @@ class SettingsController extends Controller
     {
         try {
             $tailscale = app(TailscaleService::class);
+            $tagged    = $request->boolean('tagged', true);
+            $clientTag = Setting::get('tailscale_client_vm_tag', 'tag:client-vm');
+
             $key = $tailscale->createAuthKey(
                 description:   'abpanel-manual',
                 ephemeral:     (bool) $request->input('ephemeral', true),
                 reusable:      false,
                 expirySeconds: (int)  $request->input('expiry', 3600),
+                tags:          ($tagged && $clientTag) ? [$clientTag] : [],
             );
             return response()->json(['key' => $key]);
         } catch (\Exception $e) {

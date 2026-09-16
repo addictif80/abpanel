@@ -30,6 +30,9 @@
                 <div class="mt-4 mb-5">
                     <span class="text-3xl font-bold text-gray-900">{{ number_format($plan->price, 2) }}€</span>
                     <span class="text-gray-400 text-sm">/{{ $plan->billing_period === 'yearly' ? 'an' : 'mois' }}</span>
+                    @if($plan->hasYearlyOption())
+                    <div class="text-xs text-indigo-600 mt-0.5">ou {{ number_format($plan->yearly_price, 2) }}€/an — au choix à la commande</div>
+                    @endif
                 </div>
 
                 @if($plan->cores || $plan->memory_mb || $plan->disk_gb || $plan->storage_quota_gb)
