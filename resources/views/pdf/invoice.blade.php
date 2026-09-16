@@ -99,6 +99,9 @@ td.bold { font-weight: bold; }
 
 <div class="totals">
     <div class="totals-row"><span>Sous-total HT</span><span>{{ number_format($invoice->subtotal, 2) }} €</span></div>
+    @if($invoice->discount > 0)
+    <div class="totals-row"><span>Remise{{ $invoice->promoCode ? ' (' . $invoice->promoCode->code . ')' : '' }}</span><span>-{{ number_format($invoice->discount, 2) }} €</span></div>
+    @endif
     @if($invoice->tax > 0)
     <div class="totals-row"><span>TVA</span><span>{{ number_format($invoice->tax, 2) }} €</span></div>
     @endif

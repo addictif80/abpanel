@@ -64,6 +64,21 @@
                     @endforeach
                 </tbody>
                 <tfoot>
+                    @if($invoice->discount > 0)
+                    <tr class="border-b border-gray-50">
+                        <td colspan="3" class="py-2 text-right text-gray-500">Sous-total</td>
+                        <td class="py-2 text-right text-gray-600">{{ number_format($invoice->subtotal, 2) }} {{ $invoice->currency }}</td>
+                    </tr>
+                    <tr class="border-b border-gray-50">
+                        <td colspan="3" class="py-2 text-right text-gray-500">
+                            Remise
+                            @if($invoice->promoCode)
+                            <span class="ml-1 font-mono text-xs bg-green-50 text-green-700 px-1.5 py-0.5 rounded">{{ $invoice->promoCode->code }}</span>
+                            @endif
+                        </td>
+                        <td class="py-2 text-right text-green-600">-{{ number_format($invoice->discount, 2) }} {{ $invoice->currency }}</td>
+                    </tr>
+                    @endif
                     <tr>
                         <td colspan="3" class="py-3 text-right font-semibold text-gray-700">Total</td>
                         <td class="py-3 text-right font-bold text-lg text-gray-900">{{ number_format($invoice->total, 2) }} {{ $invoice->currency }}</td>
