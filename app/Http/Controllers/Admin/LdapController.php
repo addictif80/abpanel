@@ -16,7 +16,7 @@ class LdapController extends Controller
         try {
             $users  = app(LdapService::class)->listUsers();
             $groups = app(LdapService::class)->listGroups();
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $error = $e->getMessage();
         }
 

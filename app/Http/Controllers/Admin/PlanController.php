@@ -178,7 +178,7 @@ class PlanController extends Controller
         try {
             $groups = app(LdapService::class)->listGroups();
             return response()->json(['success' => true, 'groups' => $groups]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()]);
         }
     }
