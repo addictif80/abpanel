@@ -11,6 +11,9 @@
 @if(session('success'))
 <div class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">{{ session('success') }}</div>
 @endif
+@if(session('stripe_warning'))
+<div class="mb-4 px-4 py-3 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg text-sm">{{ session('stripe_warning') }}</div>
+@endif
 @if($errors->any())
 <div class="mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
     <ul class="list-disc list-inside space-y-1">@foreach($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul>
@@ -91,10 +94,12 @@
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Stripe Price ID</label>
-            <input type="text" name="stripe_price_id" value="{{ old('stripe_price_id', $plan->stripe_price_id) }}"
-                placeholder="price_xxxxxxxxxxxx"
-                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Stripe</label>
+            @if($plan->stripe_price_id)
+                <p class="text-xs text-green-600">✓ Synchronisé — <span class="font-mono">{{ $plan->stripe_price_id }}</span></p>
+            @else
+                <p class="text-xs text-gray-400">Sera créé automatiquement à l'enregistrement (si une clé secrète Stripe est configurée).</p>
+            @endif
         </div>
     </div>
 

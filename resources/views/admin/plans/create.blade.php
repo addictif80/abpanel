@@ -86,6 +86,7 @@
                 </select>
             </div>
         </div>
+        <p class="text-xs text-gray-400">Le produit et le tarif Stripe correspondants sont créés automatiquement à l'enregistrement (si une clé secrète Stripe est configurée dans les paramètres).</p>
     </div>
 
     {{-- Ressources VM --}}
