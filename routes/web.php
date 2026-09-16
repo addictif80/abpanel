@@ -279,6 +279,13 @@ Route::middleware('installed')->group(function () {
             Route::get('/', [Admin\LdapController::class, 'index'])->name('index');
         });
 
+        // Import existing LDAP accounts (cloud, mail, ...) for billing
+        Route::prefix('ldap/import')->name('ldap.import.')->group(function () {
+            Route::get('/', [Admin\LdapController::class, 'importIndex'])->name('index');
+            Route::get('/{uid}', [Admin\LdapController::class, 'importShow'])->name('show');
+            Route::post('/{uid}', [Admin\LdapController::class, 'importStore'])->name('store');
+        });
+
         // OS Templates
         Route::prefix('os-templates')->name('os-templates.')->group(function () {
             Route::get('/', [Admin\OsTemplateController::class, 'index'])->name('index');
