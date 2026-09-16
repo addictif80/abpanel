@@ -33,6 +33,7 @@
                     class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                     <option value="vm" {{ old('type', 'vm') === 'vm' ? 'selected' : '' }}>VPS / Serveur virtuel</option>
                     <option value="hosting" {{ old('type') === 'hosting' ? 'selected' : '' }}>Hébergement web</option>
+                    <option value="service" {{ old('type') === 'service' ? 'selected' : '' }}>Service (cloud, mail, gestionnaire de mots de passe, ...)</option>
                 </select>
             </div>
         </div>
@@ -152,6 +153,9 @@
 
     {{-- Groupe LDAP --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4" x-data="{ selectedGroup: '{{ old('ldap_group') }}' }">
+        <div x-show="planType === 'service'" x-cloak class="text-xs text-indigo-600 bg-indigo-50 rounded-lg px-3 py-2 -mt-1">
+            Pour un plan "Service", c'est ici que tout se joue : le groupe LDAP détermine à quel service le client accède, et le quota ci-dessous sa capacité de stockage. Aucune VM ni site web ne sera créé pour ce type de plan.
+        </div>
         <div class="flex items-center justify-between">
             <h2 class="font-semibold text-gray-800">Annuaire (LDAP)</h2>
             <button type="button" @click="loadLdapGroups()"

@@ -44,7 +44,14 @@
                         <div class="text-xs text-gray-400">{{ $plan->slug }}</div>
                     </td>
                     <td class="px-5 py-3">
-                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium {{ $plan->type === 'vm' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700' }}">
+                        @php
+                            $typeColors = [
+                                'vm'      => 'bg-purple-100 text-purple-700',
+                                'hosting' => 'bg-blue-100 text-blue-700',
+                                'service' => 'bg-emerald-100 text-emerald-700',
+                            ];
+                        @endphp
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium {{ $typeColors[$plan->type] ?? 'bg-gray-100 text-gray-700' }}">
                             {{ strtoupper($plan->type) }}
                         </span>
                     </td>
