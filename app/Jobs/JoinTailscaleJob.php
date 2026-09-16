@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Models\Setting;
 use App\Models\VirtualMachine;
 use App\Services\ProxmoxService;
 use App\Services\TailscaleService;
@@ -60,7 +61,12 @@ class JoinTailscaleJob implements ShouldQueue
 
         if (!Cache::has($joinCacheKey)) {
             try {
-                $authKey = $tailscale->createAuthKey(description: $vm->name, expirySeconds: 3600);
+                $clientTag = Setting::get('tailscale_client_vm_tag', 'tag:client-vm');
+                $authKey   = $tailscale->createAuthKey(
+                    description:   $vm->name,
+                    expirySeconds: 3600,
+                    tags:          $clientTag ? [$clientTag] : [],
+                );
                 $script  = TailscaleService::cloudInitScript($authKey, $vm->name);
                 $proxmox->execInGuest($vm->proxmox_node, (int) $vm->proxmox_vmid, ['/bin/bash', '-c', $script]);
                 Cache::put($joinCacheKey, true, now()->addHours(2));

@@ -101,12 +101,18 @@ class TailscaleService
      * @param  bool    $ephemeral    Device is removed when it goes offline
      * @param  bool    $reusable     Allow multiple devices to use this key
      * @param  int     $expirySeconds  Max 7776000 (90 days); default 3600 (1 hour)
+     * @param  array<int, string>  $tags  Tailscale tags applied to the resulting device
+     *         (e.g. ["tag:client-vm"]). Required for the tailnet's ACLs to actually isolate
+     *         client devices from each other and from infra — an untagged device falls back
+     *         to the default "any:any" policy on most tailnets. The OAuth client used here
+     *         must itself be allowed to issue keys for that tag (tagOwners in the ACL policy).
      */
     public function createAuthKey(
         string $description = '',
         bool   $ephemeral = true,
         bool   $reusable = false,
-        int    $expirySeconds = 3600
+        int    $expirySeconds = 3600,
+        array  $tags = []
     ): string {
         if (!$this->isConfigured()) {
             throw new \RuntimeException('OAuth client Tailscale non configuré.');
@@ -122,7 +128,7 @@ class TailscaleService
                             'reusable'      => $reusable,
                             'ephemeral'     => $ephemeral,
                             'preauthorized' => true,
-                            'tags'          => [],
+                            'tags'          => $tags,
                         ],
                     ],
                 ],
