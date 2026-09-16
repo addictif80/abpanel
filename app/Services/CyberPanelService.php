@@ -90,14 +90,42 @@ class CyberPanelService
         return $this->request('fetchWebsites', ['page' => $page]);
     }
 
+    /**
+     * fetchWebsites paginates (10 per page by default in CyberPanel), so
+     * fetching just page 1 silently truncates the list — walk pages until
+     * one comes back empty, or repeats the previous page (defends against
+     * an API that ignores an out-of-range page number instead of returning
+     * nothing).
+     */
     public function listAllWebsites(): array
     {
-        $result = $this->request('fetchWebsites', ['page' => 1]);
-        $raw = $result['data'] ?? [];
-        if (is_string($raw)) {
-            $raw = json_decode($raw, true) ?? [];
+        $all             = [];
+        $page            = 1;
+        $previousFirstDomain = null;
+
+        while ($page <= 200) {
+            $result = $this->request('fetchWebsites', ['page' => $page]);
+            $raw = $result['data'] ?? [];
+            if (is_string($raw)) {
+                $raw = json_decode($raw, true) ?? [];
+            }
+            $sites = array_values(array_filter($raw, fn($s) => isset($s['domain'])));
+
+            if (empty($sites)) {
+                break;
+            }
+
+            $firstDomain = $sites[0]['domain'];
+            if ($page > 1 && $firstDomain === $previousFirstDomain) {
+                break;
+            }
+            $previousFirstDomain = $firstDomain;
+
+            $all = array_merge($all, $sites);
+            $page++;
         }
-        return array_values(array_filter($raw, fn($s) => isset($s['domain'])));
+
+        return $all;
     }
 
     public function getWebsiteData(string $domain): array
