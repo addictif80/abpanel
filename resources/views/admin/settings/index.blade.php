@@ -408,7 +408,7 @@
         </div>
 
         {{-- LDAP --}}
-        <div x-show="tab === 'ldap'" x-data="testConnection('ldap')">
+        <div x-show="tab === 'ldap'" x-data="ldapSettings('{{ $settings['ldap_users_dn'] ?? '' }}', '{{ $settings['ldap_groups_dn'] ?? '' }}')">
             <form method="POST" action="{{ route('admin.settings.ldap') }}" class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
                 @csrf
                 <h2 class="font-semibold text-gray-800 mb-4">Configuration LDAP (Synology LDAP Server)</h2>
@@ -438,14 +438,14 @@
                     </div>
                     <div class="sm:col-span-2">
                         <label class="block text-sm font-medium text-gray-700 mb-1">DN des utilisateurs</label>
-                        <input type="text" name="ldap_users_dn" value="{{ $settings['ldap_users_dn'] ?? '' }}"
+                        <input type="text" name="ldap_users_dn" x-model="usersDn"
                             placeholder="cn=users,dc=exemple,dc=com"
                             class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none font-mono">
                         <p class="text-xs text-gray-400 mt-1">Conteneur dans lequel les comptes clients sont créés (visible dans DSM → LDAP Server → Utilisateurs).</p>
                     </div>
                     <div class="sm:col-span-2">
                         <label class="block text-sm font-medium text-gray-700 mb-1">DN des groupes</label>
-                        <input type="text" name="ldap_groups_dn" value="{{ $settings['ldap_groups_dn'] ?? '' }}"
+                        <input type="text" name="ldap_groups_dn" x-model="groupsDn"
                             placeholder="cn=groups,dc=exemple,dc=com"
                             class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none font-mono">
                         <p class="text-xs text-gray-400 mt-1">Conteneur des groupes (posixGroup) — un groupe par abonnement, à créer au préalable dans DSM et à référencer sur chaque plan.</p>
@@ -457,13 +457,46 @@
                         <p class="text-xs text-gray-400 mt-1">Groupe primaire POSIX affecté aux nouveaux comptes (l'appartenance à l'abonnement se fait via le groupe secondaire du plan).</p>
                     </div>
                 </div>
-                <div class="pt-4 border-t border-gray-100 flex items-center gap-3">
+                <div class="pt-4 border-t border-gray-100 flex items-center gap-3 flex-wrap">
                     <button type="submit" class="px-5 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition">Enregistrer</button>
                     <button type="button" @click="test()" :disabled="loading"
                         class="px-5 py-2 bg-gray-100 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-200 transition disabled:opacity-50">
                         <span x-text="loading ? 'Test...' : 'Tester la connexion'"></span>
                     </button>
+                    <button type="button" @click="discover()" :disabled="discovering"
+                        class="px-5 py-2 bg-gray-100 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-200 transition disabled:opacity-50">
+                        <span x-text="discovering ? 'Recherche...' : '🔍 Détecter les DN'"></span>
+                    </button>
                     <span x-show="message" :class="success ? 'text-green-600' : 'text-red-600'" class="text-sm font-medium" x-text="message"></span>
+                </div>
+
+                <div x-show="discoverError" class="text-xs text-red-500" x-text="discoverError"></div>
+
+                <div x-show="containers.length > 0" x-cloak class="border border-gray-100 rounded-lg overflow-hidden">
+                    <div class="px-4 py-2 bg-gray-50 text-xs text-gray-500">DN de base détecté : <span class="font-mono" x-text="baseDn"></span> — cliquez sur "Utiliser" pour remplir le champ correspondant (puis Enregistrer).</div>
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="text-left text-gray-500 text-xs uppercase bg-gray-50">
+                                <th class="px-4 py-2">Conteneur</th>
+                                <th class="px-4 py-2">Comptes posix</th>
+                                <th class="px-4 py-2">Groupes posix</th>
+                                <th class="px-4 py-2"></th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            <template x-for="c in containers" :key="c.dn">
+                                <tr>
+                                    <td class="px-4 py-2 font-mono text-gray-800" x-text="c.dn"></td>
+                                    <td class="px-4 py-2 text-gray-600" x-text="c.users_count"></td>
+                                    <td class="px-4 py-2 text-gray-600" x-text="c.groups_count"></td>
+                                    <td class="px-4 py-2 text-right whitespace-nowrap">
+                                        <button type="button" @click="usersDn = c.dn" class="text-xs text-indigo-600 hover:text-indigo-800 font-medium mr-3">Utiliser comme DN utilisateurs</button>
+                                        <button type="button" @click="groupsDn = c.dn" class="text-xs text-indigo-600 hover:text-indigo-800 font-medium">Utiliser comme DN groupes</button>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
                 </div>
             </form>
         </div>
@@ -707,6 +740,37 @@ tailscale up --authkey=<span x-text="key"></span> --hostname=NOM-VPS --accept-ro
 
 @push('scripts')
 <script>
+function ldapSettings(initialUsersDn, initialGroupsDn) {
+    return {
+        ...testConnection('ldap'),
+        usersDn: initialUsersDn || '',
+        groupsDn: initialGroupsDn || '',
+        discovering: false,
+        discoverError: '',
+        baseDn: '',
+        containers: [],
+        async discover() {
+            this.discovering = true;
+            this.discoverError = '';
+            this.containers = [];
+            try {
+                const res = await fetch('{{ route('admin.settings.ldap.discover') }}');
+                const data = await res.json();
+                if (data.success && data.containers && data.containers.length > 0) {
+                    this.baseDn = data.base_dn;
+                    this.containers = data.containers;
+                } else {
+                    this.discoverError = data.message || 'Aucun conteneur trouvé. Enregistrez d\'abord la connexion ci-dessus.';
+                }
+            } catch (e) {
+                this.discoverError = 'Erreur réseau';
+            } finally {
+                this.discovering = false;
+            }
+        }
+    };
+}
+
 function testConnection(service) {
     return {
         loading: false,
