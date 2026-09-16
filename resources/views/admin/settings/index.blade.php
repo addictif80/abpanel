@@ -507,7 +507,7 @@
             <form method="POST" action="{{ route('admin.settings.synology') }}" class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
                 @csrf
                 <h2 class="font-semibold text-gray-800 mb-4">Configuration Synology (DSM)</h2>
-                <p class="text-xs text-gray-400 -mt-3 mb-2">Utilisé pour appliquer le quota de stockage du dossier partagé "cloud" à chaque client, en fonction du plan souscrit. Distinct du serveur LDAP (identité) ci-dessus.</p>
+                <p class="text-xs text-gray-400 -mt-3 mb-2">Utilisé pour appliquer le quota de stockage personnel de chaque client, en fonction du plan souscrit. Distinct du serveur LDAP (identité) ci-dessus.</p>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div class="sm:col-span-2">
                         <label class="block text-sm font-medium text-gray-700 mb-1">URL DSM (ex: https://100.x.x.x:5001)</label>
@@ -525,11 +525,11 @@
                             class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                     </div>
                     <div class="sm:col-span-2">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Dossier partagé "cloud"</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Dossier partagé "Utilisateur personnel" (Home)</label>
                         <input type="text" name="synology_cloud_shared_folder" value="{{ $settings['synology_cloud_shared_folder'] ?? '' }}"
-                            placeholder="/volume1/cloud"
+                            placeholder="/volume1/homes"
                             class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none font-mono">
-                        <p class="text-xs text-gray-400 mt-1">Chemin du dossier partagé DSM sur lequel appliquer le quota utilisateur (Panneau de configuration → Dossier partagé → Quota utilisateur).</p>
+                        <p class="text-xs text-gray-400 mt-1">Chemin du dossier partagé du service "Utilisateur personnel" de DSM (Panneau de configuration → Utilisateur personnel), sous lequel chaque client a déjà son propre sous-dossier privé. Le quota est appliqué par utilisateur à l'intérieur, pas à un espace commun — personne n'accède à l'espace d'un autre client.</p>
                     </div>
                 </div>
                 <div class="pt-4 border-t border-gray-100 flex items-center gap-3">
