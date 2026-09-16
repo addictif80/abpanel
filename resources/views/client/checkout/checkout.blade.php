@@ -25,6 +25,24 @@
             </div>
             @endif
 
+            @if($plan->hasYearlyOption() && !($limitError ?? null))
+            <div class="mb-5" x-data="{ period: 'monthly' }" x-init="window._onPeriodChange = (p) => period = p">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Facturation</label>
+                <div class="grid grid-cols-2 gap-2">
+                    <button type="button" @click="period = 'monthly'; window.setBillingPeriod('monthly')"
+                        :class="period === 'monthly' ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-600 hover:border-gray-300'"
+                        class="rounded-lg border-2 px-3 py-2 text-sm font-semibold transition">
+                        Mensuel<br><span class="font-normal text-xs">{{ number_format($plan->price, 2) }}€/mois</span>
+                    </button>
+                    <button type="button" @click="period = 'yearly'; window.setBillingPeriod('yearly')"
+                        :class="period === 'yearly' ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-600 hover:border-gray-300'"
+                        class="rounded-lg border-2 px-3 py-2 text-sm font-semibold transition">
+                        Annuel<br><span class="font-normal text-xs">{{ number_format($plan->yearly_price, 2) }}€/an</span>
+                    </button>
+                </div>
+            </div>
+            @endif
+
             @if($plan->type === 'hosting')
             <div class="mb-5">
                 <label class="block text-sm font-medium text-gray-700 mb-1">
@@ -41,7 +59,7 @@
             @endif
 
             @if($stripeKey && !($limitError ?? null))
-            <div class="mb-5" x-data="promoBlock()">
+            <div class="mb-5" x-data="promoBlock()" @billing-period-changed.window="removeCode()">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Code promo</label>
                 <div class="flex gap-2">
                     <input type="text" x-model="code" placeholder="CODE10"
@@ -94,7 +112,7 @@
                 @if($plan->description)
                 <div class="text-sm text-gray-500 mt-0.5">{{ $plan->description }}</div>
                 @endif
-                <div class="text-xs text-gray-400 mt-1">{{ $plan->billing_period === 'yearly' ? 'Facturation annuelle' : 'Facturation mensuelle' }}</div>
+                <div class="text-xs text-gray-400 mt-1" id="recap-period">{{ $plan->billing_period === 'yearly' ? 'Facturation annuelle' : 'Facturation mensuelle' }}</div>
             </div>
 
             @if($plan->cores || $plan->memory_mb || $plan->disk_gb)
@@ -107,7 +125,7 @@
 
             <div class="flex justify-between items-center text-lg font-bold text-gray-900">
                 <span>Total</span>
-                <span>{{ number_format($plan->price, 2) }}€</span>
+                <span id="recap-total">{{ number_format($plan->price, 2) }}€</span>
             </div>
             <div class="text-xs text-gray-400 text-right">TVA non applicable</div>
         </div>
@@ -122,12 +140,15 @@
     const stripe = Stripe('{{ $stripeKey }}');
     const btn    = document.getElementById('pay-btn');
     const errEl  = document.getElementById('payment-error');
-    const PLAN_PRICE = {{ $plan->price }};
+    const PLAN_MONTHLY_PRICE = {{ $plan->price }};
+    const PLAN_YEARLY_PRICE  = {{ $plan->yearly_price ?? 'null' }};
     const PLAN_ID    = {{ $plan->id }};
     const INTENT_URL = '{{ route('client.checkout.intent', $plan) }}';
     const SUCCESS_URL = '{{ route('client.checkout.success') }}';
     const CSRF = '{{ csrf_token() }}';
 
+    let PLAN_PRICE = PLAN_MONTHLY_PRICE;
+    let billingPeriod = 'monthly';
     let currentElements = null;
     let currentPaymentEl = null;
     let appliedPromoCode = null;
@@ -135,6 +156,20 @@
     function fmtPrice(amount) {
         return 'Payer ' + amount.toFixed(2).replace('.', ',') + '€';
     }
+
+    // ── Bascule Mensuel / Annuel (si le plan propose les deux) ────────────
+    window.setBillingPeriod = function (period) {
+        billingPeriod = period;
+        PLAN_PRICE = (period === 'yearly' && PLAN_YEARLY_PRICE !== null) ? PLAN_YEARLY_PRICE : PLAN_MONTHLY_PRICE;
+
+        document.getElementById('recap-total').textContent = PLAN_PRICE.toFixed(2).replace('.', ',') + '€';
+        document.getElementById('recap-period').textContent = period === 'yearly' ? 'Facturation annuelle' : 'Facturation mensuelle';
+        btn.textContent = fmtPrice(PLAN_PRICE);
+
+        // Réinitialise un éventuel code promo appliqué (calculé pour l'ancien
+        // prix) et, pour les VPS/services, recrée l'intent avec le bon montant.
+        window.dispatchEvent(new Event('billing-period-changed'));
+    };
 
     function showError(msg) {
         errEl.textContent = msg;
@@ -153,7 +188,7 @@
         currentElements = null;
 
         try {
-            const body = promoCode ? { promo_code: promoCode } : {};
+            const body = { billing_period: billingPeriod, ...(promoCode ? { promo_code: promoCode } : {}) };
             const res  = await fetch(INTENT_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
@@ -223,7 +258,7 @@
         btn.textContent = 'Initialisation…';
 
         try {
-            const body = { domain };
+            const body = { domain, billing_period: billingPeriod };
             if (appliedPromoCode) body.promo_code = appliedPromoCode;
 
             const res  = await fetch(INTENT_URL, {
@@ -281,7 +316,7 @@
                     const res  = await fetch('{{ route('client.checkout.validate-promo') }}', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
-                        body: JSON.stringify({ code: this.code.toUpperCase(), plan_id: PLAN_ID }),
+                        body: JSON.stringify({ code: this.code.toUpperCase(), plan_id: PLAN_ID, billing_period: billingPeriod }),
                     });
                     const data = await res.json();
                     if (data.valid) {

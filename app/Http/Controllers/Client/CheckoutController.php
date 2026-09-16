@@ -39,9 +39,20 @@ class CheckoutController extends Controller
         if (!$code) return response()->json(['valid' => false, 'error' => 'Code promo invalide.']);
 
         $plan   = Plan::findOrFail($request->plan_id);
-        $result = $code->validate($plan, $plan->price);
+        $period = $this->resolvePeriod($plan, $request);
+        $result = $code->validate($plan, $plan->priceFor($period));
 
         return response()->json($result);
+    }
+
+    /** 'yearly' only if the plan actually offers it and the client asked for it; the plan's own billing_period otherwise. */
+    private function resolvePeriod(Plan $plan, Request $request): string
+    {
+        if ($plan->hasYearlyOption()) {
+            return $request->input('billing_period') === 'yearly' ? 'yearly' : 'monthly';
+        }
+
+        return $plan->billing_period === 'yearly' ? 'yearly' : 'monthly';
     }
 
     public function createIntent(Request $request, Plan $plan)
@@ -61,6 +72,9 @@ class CheckoutController extends Controller
         }
 
         $stripe = new StripeService();
+        $period = $this->resolvePeriod($plan, $request);
+        $price  = $plan->priceFor($period);
+        $periodLabel = $period === 'yearly' ? 'Annuel' : 'Mensuel';
 
         try {
             $customer = $stripe->getOrCreateCustomer(auth()->user());
@@ -70,25 +84,31 @@ class CheckoutController extends Controller
             if ($request->promo_code) {
                 $promoCode = PromoCode::where('code', strtoupper($request->promo_code))->first();
                 if ($promoCode) {
-                    $promoResult = $promoCode->validate($plan, $plan->price);
+                    $promoResult = $promoCode->validate($plan, $price);
                     if ($promoResult['valid']) {
                         $discount = $promoResult['discount'];
                     }
                 }
             }
 
-            $finalAmount = max(50, (int)(($plan->price - $discount) * 100));
+            $finalAmount = max(50, (int)(($price - $discount) * 100));
 
             $intent = $stripe->createPaymentIntent([
                 'amount'   => $finalAmount,
                 'currency' => strtolower(Setting::get('default_currency', 'eur')),
                 'customer' => $customer->id,
                 'metadata' => [
-                    'user_id'    => auth()->id(),
-                    'plan_id'    => $plan->id,
-                    'promo_code' => $promoCode?->code,
+                    'user_id'        => auth()->id(),
+                    'plan_id'        => $plan->id,
+                    'billing_period' => $period,
+                    'promo_code'     => $promoCode?->code,
                 ],
             ]);
+
+            $metadata = ['billing_period' => $period];
+            if ($plan->type === 'hosting') {
+                $metadata['domain'] = strtolower(trim($request->domain));
+            }
 
             $invoice = Invoice::create([
                 'user_id'                  => auth()->id(),
@@ -96,16 +116,16 @@ class CheckoutController extends Controller
                 'number'                   => Invoice::generateNumber(),
                 'status'                   => 'pending',
                 'items'                    => [[
-                    'description' => $plan->name . ' — ' . ($plan->billing_period === 'yearly' ? 'Annuel' : 'Mensuel'),
+                    'description' => $plan->name . ' — ' . $periodLabel,
                     'quantity'    => 1,
-                    'unit_price'  => $plan->price,
-                    'total'       => $plan->price,
+                    'unit_price'  => $price,
+                    'total'       => $price,
                 ]],
-                'subtotal'                 => $plan->price,
+                'subtotal'                 => $price,
                 'tax'                      => 0,
-                'total'                    => $plan->price - $discount,
+                'total'                    => $price - $discount,
                 'currency'                 => 'EUR',
-                'metadata'                 => $plan->type === 'hosting' ? ['domain' => strtolower(trim($request->domain))] : null,
+                'metadata'                 => $metadata,
                 'stripe_payment_intent_id' => $intent->id,
                 'promo_code_id'            => $promoCode?->id,
                 'discount'                 => $discount,

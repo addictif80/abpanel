@@ -8,8 +8,8 @@ use Illuminate\Support\Str;
 class Plan extends Model
 {
     protected $fillable = [
-        'name', 'slug', 'type', 'vm_type', 'description', 'price', 'currency',
-        'billing_period', 'stripe_price_id', 'stripe_product_id', 'features',
+        'name', 'slug', 'type', 'vm_type', 'description', 'price', 'yearly_price', 'currency',
+        'billing_period', 'stripe_price_id', 'stripe_product_id', 'stripe_yearly_price_id', 'features',
         'cores', 'memory_mb', 'disk_gb', 'cyberpanel_package', 'ldap_group', 'storage_quota_gb', 'requires_ldap_group', 'is_active', 'sort_order',
         'limit_per_client', 'limit_per_vm', 'limit_per_hosting',
         'limit_per_domain', 'limit_per_subdomain',
@@ -22,6 +22,7 @@ class Plan extends Model
             'features'         => 'array',
             'is_active'        => 'boolean',
             'price'            => 'decimal:2',
+            'yearly_price'     => 'decimal:2',
             'requires_vm'      => 'boolean',
             'requires_hosting' => 'boolean',
             'plan_allowances'  => 'array',
@@ -45,6 +46,22 @@ class Plan extends Model
     public function formattedPrice(): string
     {
         return number_format($this->price, 2) . '€/' . ($this->billing_period === 'yearly' ? 'an' : 'mois');
+    }
+
+    /** Whether the client can choose between monthly and yearly billing for this plan. */
+    public function hasYearlyOption(): bool
+    {
+        return $this->yearly_price !== null;
+    }
+
+    /** The amount due for the given billing period ('monthly' or 'yearly'). */
+    public function priceFor(string $period): float
+    {
+        if ($period === 'yearly' && $this->yearly_price !== null) {
+            return (float) $this->yearly_price;
+        }
+
+        return (float) $this->price;
     }
 
     /**

@@ -85,9 +85,17 @@
                     <option value="monthly" {{ old('billing_period') !== 'yearly' ? 'selected' : '' }}>Mensuel</option>
                     <option value="yearly" {{ old('billing_period') === 'yearly' ? 'selected' : '' }}>Annuel</option>
                 </select>
+                <p class="text-xs text-gray-400 mt-1">Période facturée si le client n'a pas le choix (voir ci-dessous).</p>
+            </div>
+            <div class="sm:col-span-2">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Prix annuel (€) — optionnel</label>
+                <input type="number" name="yearly_price" value="{{ old('yearly_price') }}" min="0" step="0.01"
+                    placeholder="ex: 99.00"
+                    class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                <p class="text-xs text-gray-400 mt-1">Si renseigné, le client choisit lui-même Mensuel ou Annuel sur la page de commande (le prix ci-dessus devient le tarif mensuel). Laissez vide pour n'offrir que la période choisie ci-dessus.</p>
             </div>
         </div>
-        <p class="text-xs text-gray-400">Le produit et le tarif Stripe correspondants sont créés automatiquement à l'enregistrement (si une clé secrète Stripe est configurée dans les paramètres).</p>
+        <p class="text-xs text-gray-400">Le(s) tarif(s) Stripe correspondants sont créés automatiquement à l'enregistrement (si une clé secrète Stripe est configurée dans les paramètres).</p>
     </div>
 
     {{-- Ressources VM --}}
