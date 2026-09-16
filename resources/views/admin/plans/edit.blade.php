@@ -159,6 +159,18 @@
         </div>
     </div>
 
+    {{-- Groupe LDAP --}}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
+        <h2 class="font-semibold text-gray-800">Annuaire (LDAP)</h2>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Groupe LDAP</label>
+            <input type="text" name="ldap_group" value="{{ old('ldap_group', $plan->ldap_group) }}"
+                placeholder="ex: plan-pro"
+                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none font-mono">
+            <p class="text-xs text-gray-400 mt-1">Si renseigné, le compte client est créé/mis à jour dans ce groupe LDAP (cn) après paiement. Laissez vide pour ne pas provisionner de compte annuaire pour ce plan.</p>
+        </div>
+    </div>
+
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
         <div>
             <h2 class="font-semibold text-gray-800">Limites & conditions d'achat</h2>

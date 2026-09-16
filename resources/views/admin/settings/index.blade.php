@@ -24,6 +24,7 @@
                 ['einvoicing', '🧾', 'Fact. électron.'],
                 ['proxmox',    '🖥️', 'Proxmox'],
                 ['cyberpanel', '🌐', 'CyberPanel'],
+                ['ldap',       '🗂️', 'LDAP'],
                 ['npm',        '🔀', 'Nginx PM'],
                 ['stripe',     '💳', 'Stripe'],
                 ['mail',       '📧', 'Mail / SMTP'],
@@ -393,6 +394,67 @@
                             placeholder="100.x.x.x"
                             class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none font-mono">
                         <p class="text-xs text-gray-400 mt-1">IP Tailscale du serveur CyberPanel, utilisée comme cible des proxy hosts "Hébergement" créés par les clients.</p>
+                    </div>
+                </div>
+                <div class="pt-4 border-t border-gray-100 flex items-center gap-3">
+                    <button type="submit" class="px-5 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition">Enregistrer</button>
+                    <button type="button" @click="test()" :disabled="loading"
+                        class="px-5 py-2 bg-gray-100 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-200 transition disabled:opacity-50">
+                        <span x-text="loading ? 'Test...' : 'Tester la connexion'"></span>
+                    </button>
+                    <span x-show="message" :class="success ? 'text-green-600' : 'text-red-600'" class="text-sm font-medium" x-text="message"></span>
+                </div>
+            </form>
+        </div>
+
+        {{-- LDAP --}}
+        <div x-show="tab === 'ldap'" x-data="testConnection('ldap')">
+            <form method="POST" action="{{ route('admin.settings.ldap') }}" class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
+                @csrf
+                <h2 class="font-semibold text-gray-800 mb-4">Configuration LDAP (Synology LDAP Server)</h2>
+                <p class="text-xs text-gray-400 -mt-3 mb-2">Serveur d'annuaire utilisé pour créer les comptes clients et les rattacher à un groupe selon leur abonnement. Nécessite l'extension PHP <code class="bg-gray-100 px-1 rounded">ldap</code> sur le serveur ABPanel.</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Hôte / IP Tailscale</label>
+                        <input type="text" name="ldap_host" value="{{ $settings['ldap_host'] ?? '' }}"
+                            placeholder="100.x.x.x"
+                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none font-mono">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Port</label>
+                        <input type="number" name="ldap_port" value="{{ $settings['ldap_port'] ?? '389' }}"
+                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">DN de bind (compte admin LDAP)</label>
+                        <input type="text" name="ldap_bind_dn" value="{{ $settings['ldap_bind_dn'] ?? '' }}"
+                            placeholder="uid=admin,cn=users,dc=exemple,dc=com"
+                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none font-mono">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Mot de passe de bind</label>
+                        <input type="password" name="ldap_bind_password" value="{{ $settings['ldap_bind_password'] ?? '' }}"
+                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">DN des utilisateurs</label>
+                        <input type="text" name="ldap_users_dn" value="{{ $settings['ldap_users_dn'] ?? '' }}"
+                            placeholder="cn=users,dc=exemple,dc=com"
+                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none font-mono">
+                        <p class="text-xs text-gray-400 mt-1">Conteneur dans lequel les comptes clients sont créés (visible dans DSM → LDAP Server → Utilisateurs).</p>
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">DN des groupes</label>
+                        <input type="text" name="ldap_groups_dn" value="{{ $settings['ldap_groups_dn'] ?? '' }}"
+                            placeholder="cn=groups,dc=exemple,dc=com"
+                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none font-mono">
+                        <p class="text-xs text-gray-400 mt-1">Conteneur des groupes (posixGroup) — un groupe par abonnement, à créer au préalable dans DSM et à référencer sur chaque plan.</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">GID par défaut</label>
+                        <input type="number" name="ldap_default_gid" value="{{ $settings['ldap_default_gid'] ?? '100' }}"
+                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <p class="text-xs text-gray-400 mt-1">Groupe primaire POSIX affecté aux nouveaux comptes (l'appartenance à l'abonnement se fait via le groupe secondaire du plan).</p>
                     </div>
                 </div>
                 <div class="pt-4 border-t border-gray-100 flex items-center gap-3">
