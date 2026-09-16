@@ -10,16 +10,19 @@ return new class extends Migration
     {
         Schema::table('users', function (Blueprint $table) {
             if (! Schema::hasColumn('users', 'ldap_username')) {
-                $table->string('ldap_username')->nullable()->after('cyberpanel_password');
+                $column = $table->string('ldap_username')->nullable();
+                if (Schema::hasColumn('users', 'cyberpanel_password')) {
+                    $column->after('cyberpanel_password');
+                }
             }
             if (! Schema::hasColumn('users', 'ldap_password')) {
-                $table->text('ldap_password')->nullable()->after('ldap_username');
+                $table->text('ldap_password')->nullable();
             }
             if (! Schema::hasColumn('users', 'ldap_dn')) {
-                $table->string('ldap_dn')->nullable()->after('ldap_password');
+                $table->string('ldap_dn')->nullable();
             }
             if (! Schema::hasColumn('users', 'ldap_group')) {
-                $table->string('ldap_group')->nullable()->after('ldap_dn');
+                $table->string('ldap_group')->nullable();
             }
         });
     }
