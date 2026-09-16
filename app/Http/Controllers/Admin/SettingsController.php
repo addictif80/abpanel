@@ -82,8 +82,8 @@ class SettingsController extends Controller
             'ldap_port'           => 'required|integer',
             'ldap_bind_dn'        => 'required|string',
             'ldap_bind_password'  => 'required|string',
-            'ldap_users_dn'       => 'required|string',
-            'ldap_groups_dn'      => 'required|string',
+            'ldap_users_dn'       => 'nullable|string',
+            'ldap_groups_dn'      => 'nullable|string',
             'ldap_default_gid'    => 'required|integer',
         ]);
 
