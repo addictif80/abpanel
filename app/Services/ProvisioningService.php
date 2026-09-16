@@ -220,12 +220,30 @@ class ProvisioningService
             }
 
             if ($plan->storage_quota_gb) {
-                SyncSynologyQuotaJob::dispatch($user->id, $plan->storage_quota_gb);
+                $totalQuotaGb = $this->totalQuotaForGroup($user, $plan->ldap_group);
+                SyncSynologyQuotaJob::dispatch($user->id, $totalQuotaGb);
             }
         } catch (\Exception $e) {
             Log::error("LDAP provisioning failed for user {$user->id}, plan {$plan->id}: " . $e->getMessage());
             throw $e;
         }
+    }
+
+    /**
+     * Sum of storage_quota_gb across every paid invoice whose plan shares
+     * the given LDAP group — lets a base plan (e.g. "Cloud 50GB") and any
+     * number of stackable add-ons (e.g. "Extension +10GB", bought several
+     * times) combine into a single total pushed to Synology, instead of
+     * the latest purchase overwriting everything before it.
+     */
+    private function totalQuotaForGroup(User $user, string $ldapGroup): int
+    {
+        return (int) Invoice::where('user_id', $user->id)
+            ->where('status', 'paid')
+            ->whereHas('plan', fn($q) => $q->where('ldap_group', $ldapGroup)->whereNotNull('storage_quota_gb'))
+            ->with('plan')
+            ->get()
+            ->sum(fn($invoice) => $invoice->plan->storage_quota_gb);
     }
 
     private function createQemuInstance(string $node, int $vmid, VirtualMachine $vm, Plan $plan, string $storage): void
