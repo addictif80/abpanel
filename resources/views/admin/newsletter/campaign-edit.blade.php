@@ -33,13 +33,6 @@
             <button type="submit" class="px-5 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition">
                 Enregistrer
             </button>
-            <form method="POST" action="{{ route('admin.newsletter.campaigns.destroy', $campaign) }}"
-                onsubmit="return confirm('Supprimer cette campagne ?')" class="inline">
-                @csrf @method('DELETE')
-                <button type="submit" class="px-4 py-2 bg-red-50 text-red-600 text-sm font-semibold rounded-lg hover:bg-red-100 transition">
-                    Supprimer
-                </button>
-            </form>
         </div>
     </form>
 
@@ -52,6 +45,14 @@
         </div>
     </div>
 </div>
+
+<form method="POST" action="{{ route('admin.newsletter.campaigns.destroy', $campaign) }}"
+    onsubmit="return confirm('Supprimer cette campagne ?')" class="mt-3">
+    @csrf @method('DELETE')
+    <button type="submit" class="px-4 py-2 bg-red-50 text-red-600 text-sm font-semibold rounded-lg hover:bg-red-100 transition">
+        Supprimer
+    </button>
+</form>
 
 @push('scripts')
 <script>

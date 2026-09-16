@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Invoice;
+use App\Models\Plan;
+use App\Models\PromoCode;
 use App\Models\Setting;
 use App\Models\User;
 use App\Services\MailService;
@@ -44,13 +46,15 @@ class InvoiceController extends Controller
     public function create()
     {
         $clients = User::where('is_admin', false)->orderBy('last_name')->get();
-        return view('admin.invoices.create', compact('clients'));
+        $plans   = Plan::orderBy('type')->orderBy('name')->get();
+        return view('admin.invoices.create', compact('clients', 'plans'));
     }
 
     public function store(Request $request)
     {
         $request->validate([
             'user_id'            => 'required|exists:users,id',
+            'plan_id'            => 'nullable|exists:plans,id',
             'due_date'           => 'nullable|date',
             'items'              => 'required|array|min:1',
             'items.*.description'=> 'required|string',
@@ -58,6 +62,8 @@ class InvoiceController extends Controller
             'items.*.unit_price' => 'required|numeric|min:0',
             'recurrence_period'  => 'nullable|in:monthly,quarterly,yearly',
             'next_billing_at'    => 'nullable|date',
+            'promo_code'         => 'nullable|string',
+            'paid_at'            => 'nullable|date',
         ]);
 
         $items = collect($request->items)->map(fn($item) => [
@@ -67,27 +73,54 @@ class InvoiceController extends Controller
             'total'       => round((float) $item['quantity'] * (float) $item['unit_price'], 2),
         ])->all();
 
-        $total       = collect($items)->sum('total');
-        $isRecurring = $request->boolean('is_recurring');
+        $subtotal = collect($items)->sum('total');
+        $plan     = $request->plan_id ? Plan::find($request->plan_id) : null;
 
-        Invoice::create([
+        $promoCode = null;
+        $discount  = 0;
+        if ($request->filled('promo_code')) {
+            $promoCode = PromoCode::where('code', strtoupper($request->promo_code))->first();
+            if (!$promoCode) {
+                return back()->withErrors(['promo_code' => 'Code promo invalide.'])->withInput();
+            }
+            $result = $promoCode->validate($plan, $subtotal);
+            if (!$result['valid']) {
+                return back()->withErrors(['promo_code' => $result['error']])->withInput();
+            }
+            $discount = $result['discount'];
+        }
+
+        $total       = max(0, $subtotal - $discount);
+        $isRecurring = $request->boolean('is_recurring');
+        $markPaid    = $request->boolean('mark_paid');
+
+        $invoice = Invoice::create([
             'user_id'           => $request->user_id,
+            'plan_id'           => $plan?->id,
             'number'            => Invoice::generateNumber(),
-            'status'            => 'pending',
+            'status'            => $markPaid ? 'paid' : 'pending',
             'items'             => $items,
-            'subtotal'          => $total,
+            'subtotal'          => $subtotal,
             'total'             => $total,
             'currency'          => 'EUR',
             'due_at'            => $request->due_date ?: null,
+            'paid_at'           => $markPaid ? ($request->paid_at ?: now()) : null,
             'is_recurring'      => $isRecurring,
             'recurrence_period' => $isRecurring ? $request->recurrence_period : null,
             'next_billing_at'   => $isRecurring ? $request->next_billing_at : null,
+            'promo_code_id'     => $promoCode?->id,
+            'discount'          => $discount,
         ]);
 
-        $invoice = Invoice::where('user_id', $request->user_id)->latest()->first();
-        if ($invoice) {
-            try { app(NotificationService::class)->invoiceCreated($invoice); } catch (\Exception) {}
+        if ($promoCode && $markPaid) {
+            $promoCode->incrementUsage();
         }
+
+        try {
+            $markPaid
+                ? app(NotificationService::class)->paymentConfirmed($invoice)
+                : app(NotificationService::class)->invoiceCreated($invoice);
+        } catch (\Exception) {}
 
         return redirect()->route('admin.invoices.index')->with('success', 'Facture créée.');
     }
