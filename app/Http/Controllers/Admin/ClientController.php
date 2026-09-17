@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\NewsletterSubscriber;
 use App\Models\User;
 use App\Services\MailService;
 use App\Services\NginxProxyManagerService;
 use App\Services\ProxmoxService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 class ClientController extends Controller
 {
@@ -115,17 +117,90 @@ class ClientController extends Controller
     public function destroy(User $client)
     {
         // Invoices/credit notes are accounting records that must survive — never
-        // delete a client that has any, even indirectly via cascade. Deactivating
-        // (via "Modifier") is the correct way to retire such a client.
+        // delete a client that has any, even indirectly via cascade. Anonymizing
+        // (below) is the GDPR-compliant way to retire such a client instead.
         if ($client->invoices()->exists() || $client->creditNotes()->exists()) {
-            return back()->with('error', 'Impossible de supprimer ce client : il possède des factures ou avoirs (historique comptable à conserver). Désactivez-le plutôt depuis "Modifier".');
+            return back()->with('error', 'Impossible de supprimer ce client : il possède des factures ou avoirs (historique comptable à conserver). Utilisez "Anonymiser" à la place.');
         }
 
+        if ($error = $this->deprovisionResources($client)) {
+            return back()->with('error', $error);
+        }
+
+        $client->delete();
+
+        return redirect()->route('admin.clients.index')->with('success', 'Client et ses ressources associées (VMs, hébergements, domaines) supprimés.');
+    }
+
+    /**
+     * GDPR-compliant alternative to destroy() for a client with billing
+     * history: deprovisions live resources exactly like destroy(), then
+     * strips all personal data from the User row instead of deleting it, so
+     * invoices/credit notes/quotes/tickets keep a valid (if anonymous)
+     * owner. Past invoices are unaffected — they keep their own frozen
+     * billing_snapshot regardless of what happens to the live profile.
+     */
+    public function anonymize(User $client)
+    {
+        if ($client->is_admin) {
+            return back()->with('error', "Impossible d'anonymiser un compte administrateur.");
+        }
+
+        if ($client->anonymized_at) {
+            return back()->with('error', 'Ce client est déjà anonymisé.');
+        }
+
+        if ($error = $this->deprovisionResources($client)) {
+            return back()->with('error', $error);
+        }
+
+        $placeholder = 'suppr_' . (Str::slug($client->full_name) ?: $client->id) . '_' . $client->id;
+
+        $client->update([
+            'name'                  => $placeholder,
+            'first_name'            => 'Client',
+            'last_name'             => 'supprimé',
+            'email'                 => "{$placeholder}@anonymise.local",
+            'password'              => Hash::make(Str::random(40)),
+            'phone'                 => null,
+            'company'               => null,
+            'address'               => null,
+            'city'                  => null,
+            'zip'                   => null,
+            'siret'                 => null,
+            'vat_number'            => null,
+            'cyberpanel_username'   => null,
+            'cyberpanel_password'   => null,
+            'ldap_username'         => null,
+            'ldap_password'         => null,
+            'ldap_dn'               => null,
+            'ldap_group'            => null,
+            'stripe_customer_id'    => null,
+            'newsletter_subscribed' => false,
+            'is_active'             => false,
+            'anonymized_at'         => now(),
+        ]);
+
+        NewsletterSubscriber::where('user_id', $client->id)->update([
+            'email'          => "{$placeholder}@anonymise.local",
+            'first_name'     => null,
+            'last_name'      => null,
+            'status'         => 'unsubscribed',
+            'unsubscribed_at' => now(),
+        ]);
+
+        return redirect()->route('admin.clients.index')
+            ->with('success', "Client anonymisé (« {$placeholder} »). L'historique de facturation est conservé.");
+    }
+
+    /** @return string|null an error message if deprovisioning failed, null on success */
+    private function deprovisionResources(User $client): ?string
+    {
         foreach ($client->virtualMachines as $vm) {
             try {
                 app(ProxmoxService::class)->deleteInstance($vm->proxmox_node, (int) $vm->proxmox_vmid, $vm->vm_type ?? 'qemu');
             } catch (\Throwable $e) {
-                return back()->with('error', "Échec de la résiliation de la VM « {$vm->name} » sur Proxmox : {$e->getMessage()}. Résiliez-la manuellement (page VM) avant de supprimer ce client.");
+                return "Échec de la résiliation de la VM « {$vm->name} » sur Proxmox : {$e->getMessage()}. Résiliez-la manuellement (page VM) avant de continuer.";
             }
             $vm->delete();
         }
@@ -141,9 +216,7 @@ class ClientController extends Controller
 
         $client->hostingAccounts()->delete();
 
-        $client->delete();
-
-        return redirect()->route('admin.clients.index')->with('success', 'Client et ses ressources associées (VMs, hébergements, domaines) supprimés.');
+        return null;
     }
 
     public function impersonate(User $client)

@@ -18,7 +18,7 @@ class User extends Authenticatable
         'name', 'first_name', 'last_name', 'email', 'password',
         'phone', 'company', 'address', 'city', 'zip', 'country',
         'siret', 'vat_number',
-        'is_admin', 'is_active', 'cyberpanel_username', 'cyberpanel_password',
+        'is_admin', 'is_active', 'anonymized_at', 'cyberpanel_username', 'cyberpanel_password',
         'ldap_username', 'ldap_password', 'ldap_dn', 'ldap_group',
         'stripe_customer_id', 'newsletter_subscribed',
     ];
@@ -29,6 +29,7 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at'  => 'datetime',
+            'anonymized_at'      => 'datetime',
             'password'           => 'hashed',
             'cyberpanel_password' => 'encrypted',
             'ldap_password'      => 'encrypted',

@@ -16,16 +16,57 @@ class Invoice extends Model
         'user_id', 'plan_id', 'quote_id', 'type', 'deposit_invoice_id',
         'number', 'stripe_invoice_id', 'stripe_payment_intent_id',
         'status', 'subtotal', 'tax', 'total', 'currency',
-        'items', 'metadata', 'paid_at', 'due_at',
+        'items', 'metadata', 'billing_snapshot', 'paid_at', 'due_at',
         'is_recurring', 'recurrence_period', 'next_billing_at',
         'promo_code_id', 'discount',
     ];
+
+    protected static function booted(): void
+    {
+        // Freeze the buyer's details as they were at issuance. A legal
+        // invoice must keep them unchanged for its statutory retention
+        // period even if the client's live profile is later anonymized.
+        static::creating(function (self $invoice) {
+            if ($invoice->billing_snapshot || !$invoice->user_id) {
+                return;
+            }
+
+            $user = $invoice->relationLoaded('user') ? $invoice->user : User::find($invoice->user_id);
+            if ($user) {
+                $invoice->billing_snapshot = static::snapshotFor($user);
+            }
+        });
+    }
+
+    public static function snapshotFor(User $user): array
+    {
+        return [
+            'name'       => $user->full_name,
+            'email'      => $user->email,
+            'company'    => $user->company,
+            'address'    => $user->address,
+            'city'       => $user->city,
+            'zip'        => $user->zip,
+            'country'    => $user->country,
+            'siret'      => $user->siret,
+            'vat_number' => $user->vat_number,
+        ];
+    }
+
+    /** Buyer details to display/print for this invoice: the frozen snapshot
+     * when available, falling back to the live user for invoices created
+     * before this column existed. */
+    public function billingInfo(): array
+    {
+        return $this->billing_snapshot ?: static::snapshotFor($this->user ?? new User());
+    }
 
     protected function casts(): array
     {
         return [
             'items'           => 'array',
             'metadata'        => 'array',
+            'billing_snapshot' => 'array',
             'paid_at'         => 'datetime',
             'due_at'          => 'datetime',
             'next_billing_at' => 'date',

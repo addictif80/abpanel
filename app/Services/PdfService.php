@@ -103,19 +103,21 @@ class PdfService
             $builder->setDocumentSellerContact(null, null, $sellerPhone, null, null);
         }
 
-        // Buyer
-        $buyer = $invoice->user;
-        $builder->setDocumentBuyer($buyer->full_name ?? $buyer->name ?? 'Client');
-        if ($buyer->siret) {
-            $builder->setDocumentBuyerLegalOrganisation($buyer->siret, '0009', $buyer->full_name);
+        // Buyer — the frozen billing snapshot, not the live (possibly since
+        // anonymized) user profile: a legal invoice must keep the buyer's
+        // details exactly as they were at issuance.
+        $buyer = $invoice->billingInfo();
+        $builder->setDocumentBuyer($buyer['name'] ?: 'Client');
+        if ($buyer['siret']) {
+            $builder->setDocumentBuyerLegalOrganisation($buyer['siret'], '0009', $buyer['name']);
         }
         $builder->setDocumentBuyerAddress(
-            $buyer->address ?? null,
+            $buyer['address'],
             null,
             null,
-            $buyer->zip ?? null,
-            $buyer->city ?? null,
-            $buyer->country ?? 'FR'
+            $buyer['zip'],
+            $buyer['city'],
+            $buyer['country'] ?? 'FR'
         );
 
         // Delivery

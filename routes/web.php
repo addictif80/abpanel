@@ -177,6 +177,7 @@ Route::middleware('installed')->group(function () {
         Route::post('/clients/{client}/reset-password', [Admin\ClientController::class, 'resetPassword'])->name('clients.reset-password');
         Route::post('/clients/{client}/impersonate', [Admin\ClientController::class, 'impersonate'])->name('clients.impersonate');
         Route::post('/clients/{client}/resend-welcome', [Admin\ClientController::class, 'resendWelcome'])->name('clients.resend-welcome');
+        Route::post('/clients/{client}/anonymize', [Admin\ClientController::class, 'anonymize'])->name('clients.anonymize');
 
         // Products catalog
         Route::resource('products', Admin\ProductController::class)->except(['show']);

@@ -10,6 +10,7 @@
         <p class="text-gray-500 text-sm">{{ $client->email }}</p>
     </div>
     <div class="flex gap-2">
+        @if(!$client->anonymized_at)
         <form method="POST" action="{{ route('admin.clients.impersonate', $client) }}"
               onsubmit="return confirm('Accéder à l\'espace de {{ addslashes($client->full_name) }} ?')">
             @csrf
@@ -29,8 +30,29 @@
            class="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-200 transition">
             Modifier
         </a>
+        <form method="POST" action="{{ route('admin.clients.destroy', $client) }}"
+              onsubmit="return confirm('Supprimer définitivement {{ addslashes($client->full_name) }} et ses ressources ? Refusé si des factures/avoirs existent.')">
+            @csrf @method('DELETE')
+            <button type="submit" class="px-4 py-2 bg-red-50 text-red-600 text-sm font-semibold rounded-lg hover:bg-red-100 transition">
+                Supprimer
+            </button>
+        </form>
+        <form method="POST" action="{{ route('admin.clients.anonymize', $client) }}"
+              onsubmit="return confirm('Anonymiser {{ addslashes($client->full_name) }} ? Ses coordonnées seront effacées, ses ressources actives résiliées, mais son historique de facturation sera conservé (obligation légale). Irréversible.')">
+            @csrf
+            <button type="submit" class="px-4 py-2 bg-red-50 text-red-600 text-sm font-semibold rounded-lg hover:bg-red-100 transition">
+                Anonymiser
+            </button>
+        </form>
+        @endif
     </div>
 </div>
+
+@if($client->anonymized_at)
+<div class="mb-4 px-4 py-3 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg text-sm">
+    Ce client a été anonymisé le {{ $client->anonymized_at->format('d/m/Y à H:i') }}. Son historique de facturation reste consultable, mais ses coordonnées ont été définitivement effacées.
+</div>
+@endif
 
 @if(session('success'))
 <div class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">{{ session('success') }}</div>
