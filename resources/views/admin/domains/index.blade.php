@@ -8,7 +8,15 @@
         <h1 class="text-2xl font-bold text-gray-900">Domaines clients</h1>
         <p class="text-gray-500 text-sm mt-1">{{ $domains->total() }} domaine(s) configuré(s)</p>
     </div>
+    <a href="{{ route('admin.domains.import.index') }}"
+       class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition">
+        📥 Importer un hôte NPM
+    </a>
 </div>
+
+@if(session('success'))
+<div class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">{{ session('success') }}</div>
+@endif
 
 <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
     <table class="w-full text-sm">
