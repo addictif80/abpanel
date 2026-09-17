@@ -80,8 +80,9 @@ class Quote extends Model
     public static function generateNumber(): string
     {
         $year = date('Y');
-        $count = static::whereYear('created_at', $year)->count() + 1;
-        return sprintf('DEV-%s-%04d', $year, $count);
+        $last = static::where('number', 'like', "DEV-{$year}-%")->orderByDesc('id')->value('number');
+        $next = $last ? ((int) substr($last, -4)) + 1 : 1;
+        return sprintf('DEV-%s-%04d', $year, $next);
     }
 
     public function isEditable(): bool

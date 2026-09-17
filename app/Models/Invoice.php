@@ -92,7 +92,8 @@ class Invoice extends Model
     public static function generateNumber(): string
     {
         $year = date('Y');
-        $count = static::whereYear('created_at', $year)->count() + 1;
-        return sprintf('INV-%s-%04d', $year, $count);
+        $last = static::where('number', 'like', "INV-{$year}-%")->orderByDesc('id')->value('number');
+        $next = $last ? ((int) substr($last, -4)) + 1 : 1;
+        return sprintf('INV-%s-%04d', $year, $next);
     }
 }

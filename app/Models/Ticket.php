@@ -42,8 +42,9 @@ class Ticket extends Model
 
     public static function generateNumber(): string
     {
-        $count = static::count() + 1;
-        return sprintf('TKT-%05d', $count);
+        $last = static::orderByDesc('id')->value('number');
+        $next = $last ? ((int) substr($last, -5)) + 1 : 1;
+        return sprintf('TKT-%05d', $next);
     }
 
     public function statusColor(): string

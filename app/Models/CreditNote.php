@@ -32,8 +32,9 @@ class CreditNote extends Model
     public static function generateNumber(): string
     {
         $year = date('Y');
-        $count = static::whereYear('created_at', $year)->count() + 1;
-        return sprintf('AV-%s-%04d', $year, $count);
+        $last = static::where('number', 'like', "AV-{$year}-%")->orderByDesc('id')->value('number');
+        $next = $last ? ((int) substr($last, -4)) + 1 : 1;
+        return sprintf('AV-%s-%04d', $year, $next);
     }
 
     public function statusLabel(): string
