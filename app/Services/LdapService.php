@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use App\Models\Setting;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
@@ -281,11 +283,26 @@ class LdapService
         return in_array($username, $members, true);
     }
 
+    /**
+     * Row-locked to prevent two concurrent provisionings (two invoices paid at
+     * nearly the same time) from reading the same "next" value and handing out
+     * the same Unix uidNumber to two different clients.
+     */
     private function nextUidNumber(): int
     {
-        $next = (int) Setting::get('ldap_next_uid', '10000');
-        Setting::set('ldap_next_uid', (string) ($next + 1), 'ldap');
-        return $next;
+        return DB::transaction(function () {
+            $setting = Setting::where('key', 'ldap_next_uid')->lockForUpdate()->first();
+
+            if (!$setting) {
+                $setting = Setting::create(['key' => 'ldap_next_uid', 'value' => '10000', 'group' => 'ldap']);
+            }
+
+            $next = (int) $setting->value;
+            $setting->update(['value' => (string) ($next + 1)]);
+            Cache::forget('setting_ldap_next_uid');
+
+            return $next;
+        });
     }
 
     private function hashPassword(string $password): string

@@ -14,6 +14,7 @@ use App\Services\NotificationService;
 use App\Services\PdfService;
 use App\Services\QuoteService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class QuoteController extends Controller
 {
@@ -91,39 +92,42 @@ class QuoteController extends Controller
 
         $validityDays = (int) Setting::get('quote_validity_days', 30);
 
-        $quote = Quote::create([
-            'user_id'         => $request->user_id,
-            'number'          => Quote::generateNumber(),
-            'status'          => 'draft',
-            'subject'         => $request->subject,
-            'notes'           => $request->notes,
-            'internal_notes'  => $request->internal_notes,
-            'discount_amount' => $request->discount_amount ?? 0,
-            'discount_type'   => $request->discount_type ?? 'fixed',
-            'deposit_percent' => $request->deposit_percent ?? 0,
-            'currency'        => Setting::get('default_currency', 'EUR'),
-            'expires_at'      => $request->expires_at ?: now()->addDays($validityDays),
-            'subtotal'        => 0,
-            'total'           => 0,
-        ]);
-
-        foreach ($request->items as $i => $itemData) {
-            $item = new QuoteItem([
-                'product_id'      => $itemData['product_id'] ?? null,
-                'description'     => $itemData['description'],
-                'details'         => $itemData['details'] ?? null,
-                'quantity'        => (float) $itemData['quantity'],
-                'unit'            => $itemData['unit'] ?? 'forfait',
-                'unit_price'      => (float) $itemData['unit_price'],
-                'discount_amount' => (float) ($itemData['discount_amount'] ?? 0),
-                'discount_type'   => $itemData['discount_type'] ?? 'fixed',
-                'tax_rate'        => (float) ($itemData['tax_rate'] ?? 0),
-                'sort_order'      => $i,
+        $quote = DB::transaction(function () use ($request, $validityDays) {
+            $quote = Quote::createWithUniqueNumber([
+                'user_id'         => $request->user_id,
+                'status'          => 'draft',
+                'subject'         => $request->subject,
+                'notes'           => $request->notes,
+                'internal_notes'  => $request->internal_notes,
+                'discount_amount' => $request->discount_amount ?? 0,
+                'discount_type'   => $request->discount_type ?? 'fixed',
+                'deposit_percent' => $request->deposit_percent ?? 0,
+                'currency'        => Setting::get('default_currency', 'EUR'),
+                'expires_at'      => $request->expires_at ?: now()->addDays($validityDays),
+                'subtotal'        => 0,
+                'total'           => 0,
             ]);
-            $item->total    = $item->computeTotal();
-            $item->quote_id = $quote->id;
-            $item->save();
-        }
+
+            foreach ($request->items as $i => $itemData) {
+                $item = new QuoteItem([
+                    'product_id'      => $itemData['product_id'] ?? null,
+                    'description'     => $itemData['description'],
+                    'details'         => $itemData['details'] ?? null,
+                    'quantity'        => (float) $itemData['quantity'],
+                    'unit'            => $itemData['unit'] ?? 'forfait',
+                    'unit_price'      => (float) $itemData['unit_price'],
+                    'discount_amount' => (float) ($itemData['discount_amount'] ?? 0),
+                    'discount_type'   => $itemData['discount_type'] ?? 'fixed',
+                    'tax_rate'        => (float) ($itemData['tax_rate'] ?? 0),
+                    'sort_order'      => $i,
+                ]);
+                $item->total    = $item->computeTotal();
+                $item->quote_id = $quote->id;
+                $item->save();
+            }
+
+            return $quote;
+        });
 
         $this->quoteService->recalculate($quote);
         $this->quoteService->log($quote, 'created', 'admin');
@@ -202,35 +206,37 @@ class QuoteController extends Controller
             'items.*.unit_price'  => 'required|numeric|min:0',
         ]);
 
-        $quote->update([
-            'subject'         => $request->subject,
-            'notes'           => $request->notes,
-            'internal_notes'  => $request->internal_notes,
-            'discount_amount' => $request->discount_amount ?? 0,
-            'discount_type'   => $request->discount_type ?? 'fixed',
-            'deposit_percent' => $request->deposit_percent ?? 0,
-            'expires_at'      => $request->expires_at ?: $quote->expires_at,
-        ]);
-
-        $quote->items()->delete();
-
-        foreach ($request->items as $i => $itemData) {
-            $item = new QuoteItem([
-                'product_id'      => $itemData['product_id'] ?? null,
-                'description'     => $itemData['description'],
-                'details'         => $itemData['details'] ?? null,
-                'quantity'        => (float) $itemData['quantity'],
-                'unit'            => $itemData['unit'] ?? 'forfait',
-                'unit_price'      => (float) $itemData['unit_price'],
-                'discount_amount' => (float) ($itemData['discount_amount'] ?? 0),
-                'discount_type'   => $itemData['discount_type'] ?? 'fixed',
-                'tax_rate'        => (float) ($itemData['tax_rate'] ?? 0),
-                'sort_order'      => $i,
+        DB::transaction(function () use ($request, $quote) {
+            $quote->update([
+                'subject'         => $request->subject,
+                'notes'           => $request->notes,
+                'internal_notes'  => $request->internal_notes,
+                'discount_amount' => $request->discount_amount ?? 0,
+                'discount_type'   => $request->discount_type ?? 'fixed',
+                'deposit_percent' => $request->deposit_percent ?? 0,
+                'expires_at'      => $request->expires_at ?: $quote->expires_at,
             ]);
-            $item->total    = $item->computeTotal();
-            $item->quote_id = $quote->id;
-            $item->save();
-        }
+
+            $quote->items()->delete();
+
+            foreach ($request->items as $i => $itemData) {
+                $item = new QuoteItem([
+                    'product_id'      => $itemData['product_id'] ?? null,
+                    'description'     => $itemData['description'],
+                    'details'         => $itemData['details'] ?? null,
+                    'quantity'        => (float) $itemData['quantity'],
+                    'unit'            => $itemData['unit'] ?? 'forfait',
+                    'unit_price'      => (float) $itemData['unit_price'],
+                    'discount_amount' => (float) ($itemData['discount_amount'] ?? 0),
+                    'discount_type'   => $itemData['discount_type'] ?? 'fixed',
+                    'tax_rate'        => (float) ($itemData['tax_rate'] ?? 0),
+                    'sort_order'      => $i,
+                ]);
+                $item->total    = $item->computeTotal();
+                $item->quote_id = $quote->id;
+                $item->save();
+            }
+        });
 
         $this->quoteService->recalculate($quote);
 

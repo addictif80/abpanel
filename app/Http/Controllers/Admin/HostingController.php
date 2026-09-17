@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\BillingImportService;
 use App\Services\CyberPanelService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class HostingController extends Controller
@@ -96,19 +97,8 @@ class HostingController extends Controller
 
         $client   = User::findOrFail($request->user_id);
         $plan     = $request->plan_id ? Plan::findOrFail($request->plan_id) : null;
-        $invoice  = null;
         $cyberpanel = app(CyberPanelService::class);
         $warnings = [];
-
-        if ($plan) {
-            try {
-                $invoice = app(BillingImportService::class)->createPaidInvoice(
-                    $client, $plan, $request->billing_period, $request->promo_code, $request->paid_at
-                );
-            } catch (\RuntimeException $e) {
-                return back()->withErrors(['promo_code' => $e->getMessage()])->withInput();
-            }
-        }
 
         $finalUsername = $request->cyberpanel_username ?? '';
 
@@ -147,17 +137,32 @@ class HostingController extends Controller
             }
         }
 
-        HostingAccount::create([
-            'user_id'             => $client->id,
-            'plan_id'             => $plan?->id,
-            'domain'              => $domain,
-            'cyberpanel_username' => $finalUsername ?: null,
-            'plan'                => $request->plan,
-            'disk_mb'             => $request->disk_mb ?? 0,
-            'is_active'           => true,
-            'monthly_price'       => $plan ? $plan->priceFor($invoice->recurrence_period) : $request->monthly_price,
-            'next_renewal_at'     => $invoice?->next_billing_at ?? $request->next_renewal_at,
-        ]);
+        // Invoice + resource creation must succeed or fail together: if the
+        // HostingAccount row fails to insert, the client must not end up
+        // billed for a hosting account that was never actually registered.
+        try {
+            $invoice = DB::transaction(function () use ($client, $plan, $request, $domain, $finalUsername) {
+                $invoice = $plan ? app(BillingImportService::class)->createPaidInvoice(
+                    $client, $plan, $request->billing_period, $request->promo_code, $request->paid_at
+                ) : null;
+
+                HostingAccount::create([
+                    'user_id'             => $client->id,
+                    'plan_id'             => $plan?->id,
+                    'domain'              => $domain,
+                    'cyberpanel_username' => $finalUsername ?: null,
+                    'plan'                => $request->plan,
+                    'disk_mb'             => $request->disk_mb ?? 0,
+                    'is_active'           => true,
+                    'monthly_price'       => $plan ? $plan->priceFor($invoice->recurrence_period) : $request->monthly_price,
+                    'next_renewal_at'     => $invoice?->next_billing_at ?? $request->next_renewal_at,
+                ]);
+
+                return $invoice;
+            });
+        } catch (\App\Exceptions\InvalidPromoCodeException $e) {
+            return back()->withErrors(['promo_code' => $e->getMessage()])->withInput();
+        }
 
         $msg = "« {$domain} » importé et assigné à {$client->full_name}.";
         if ($invoice) {

@@ -29,6 +29,15 @@ class ProvisioningService
      */
     public function provisionFromInvoice(Invoice $invoice): void
     {
+        // Guard against replaying provisioning for the same invoice (e.g. a
+        // future "retry" action, or any other caller besides the webhook):
+        // provisionVm()/provisionHosting() are not idempotent and would create
+        // a second VM/hosting account instead of resuming a failed one.
+        if ($invoice->metadata['provisioned'] ?? false) {
+            Log::info("ProvisioningService: invoice {$invoice->id} already provisioned, skipping replay.");
+            return;
+        }
+
         $user = $invoice->user;
         $plan = $invoice->plan;
 
@@ -48,6 +57,8 @@ class ProvisioningService
         if ($plan->ldap_group) {
             ProvisionLdapAccountJob::dispatch($user->id, $plan->id);
         }
+
+        $invoice->update(['metadata' => array_merge($invoice->metadata ?? [], ['provisioned' => true])]);
     }
 
     public function provisionHosting(User $user, Plan $plan, ?Invoice $invoice = null): void

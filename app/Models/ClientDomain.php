@@ -56,7 +56,7 @@ class ClientDomain extends Model
     {
         $names = [$this->domain];
         if ($this->www_redirect) {
-            $base = ltrim($this->domain, 'w.');
+            $base = preg_replace('/^www\./i', '', $this->domain);
             $www  = 'www.' . $base;
             if ($www !== $this->domain) $names[] = $www;
         }

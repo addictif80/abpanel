@@ -43,7 +43,7 @@ class Ticket extends Model
     public static function generateNumber(): string
     {
         $last = static::orderByDesc('id')->value('number');
-        $next = $last ? ((int) substr($last, -5)) + 1 : 1;
+        $next = $last ? ((int) substr($last, strrpos($last, '-') + 1)) + 1 : 1;
         return sprintf('TKT-%05d', $next);
     }
 

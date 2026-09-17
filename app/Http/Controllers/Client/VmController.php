@@ -157,6 +157,10 @@ class VmController extends Controller
             'auth_cookie'  => $authCookie,
             'expires'      => time() + 30,
         ]));
+        // Contains a live Proxmox auth cookie — the random 48-char filename
+        // stops remote guessing, but any other local user/process on this host
+        // could otherwise read it during its 30s validity window.
+        @chmod($sessionFile, 0600);
 
         // Start the daemon if it is not already listening on port 6080
         $proxyPort = 6080;

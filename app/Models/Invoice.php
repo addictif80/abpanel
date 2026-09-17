@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasRetryableNumber;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -9,7 +10,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Invoice extends Model
 {
-    use SoftDeletes;
+    use SoftDeletes, HasRetryableNumber;
 
     protected $fillable = [
         'user_id', 'plan_id', 'quote_id', 'type', 'deposit_invoice_id',
@@ -96,7 +97,7 @@ class Invoice extends Model
     {
         $year = date('Y');
         $last = static::withTrashed()->where('number', 'like', "INV-{$year}-%")->orderByDesc('id')->value('number');
-        $next = $last ? ((int) substr($last, -4)) + 1 : 1;
+        $next = $last ? ((int) substr($last, strrpos($last, '-') + 1)) + 1 : 1;
         return sprintf('INV-%s-%04d', $year, $next);
     }
 }

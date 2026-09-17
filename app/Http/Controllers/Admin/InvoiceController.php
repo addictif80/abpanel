@@ -93,10 +93,9 @@ class InvoiceController extends Controller
         $isRecurring = $request->boolean('is_recurring');
         $markPaid    = $request->boolean('mark_paid');
 
-        $invoice = Invoice::create([
+        $invoice = Invoice::createWithUniqueNumber([
             'user_id'           => $request->user_id,
             'plan_id'           => $plan?->id,
-            'number'            => Invoice::generateNumber(),
             'status'            => $markPaid ? 'paid' : 'pending',
             'items'             => $items,
             'subtotal'          => $subtotal,

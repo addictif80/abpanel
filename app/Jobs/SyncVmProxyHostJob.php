@@ -42,7 +42,15 @@ class SyncVmProxyHostJob implements ShouldQueue
         $host = $npm->createProxyHost($vm->subdomain, $forwardHost);
 
         if (isset($host['id'])) {
-            $vm->update(['npm_proxy_id' => $host['id']]);
+            try {
+                $vm->update(['npm_proxy_id' => $host['id']]);
+            } catch (\Throwable $e) {
+                // Compensate: without this, npm_proxy_id stays null and a retry
+                // (tries=3) would call createProxyHost() again, orphaning a
+                // second NPM host for the same subdomain.
+                try { $npm->deleteProxyHost($host['id']); } catch (\Throwable) {}
+                throw $e;
+            }
         }
     }
 

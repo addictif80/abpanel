@@ -99,7 +99,7 @@ Route::middleware('installed')->group(function () {
             Route::get('/plans/{plan}', [Client\CheckoutController::class, 'checkout'])->name('checkout');
             Route::post('/plans/{plan}/intent', [Client\CheckoutController::class, 'createIntent'])->name('intent');
             Route::get('/success', [Client\CheckoutController::class, 'success'])->name('success');
-            Route::post('/validate-promo', [Client\CheckoutController::class, 'validatePromo'])->name('validate-promo');
+            Route::post('/validate-promo', [Client\CheckoutController::class, 'validatePromo'])->middleware('throttle:10,1')->name('validate-promo');
         });
 
         // Billing
@@ -149,7 +149,7 @@ Route::middleware('installed')->group(function () {
     });
 
     // Admin panel
-    Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::middleware(['auth', 'admin', 'active.user'])->prefix('admin')->name('admin.')->group(function () {
         Route::get('/dashboard', [Admin\DashboardController::class, 'index'])->name('dashboard');
 
         // Settings
@@ -340,7 +340,7 @@ Route::middleware('installed')->group(function () {
     });
 
     // Notifications (any authenticated user)
-    Route::middleware('auth')->prefix('notifications')->name('notifications.')->group(function () {
+    Route::middleware(['auth', 'active.user'])->prefix('notifications')->name('notifications.')->group(function () {
         Route::get('/', [NotificationController::class, 'index'])->name('index');
         Route::post('/read-all', [NotificationController::class, 'markAllRead'])->name('read-all');
         Route::get('/{notification}/read', [NotificationController::class, 'markRead'])->name('read');

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Log;
 
 class PromoCode extends Model
 {
@@ -48,8 +49,23 @@ class PromoCode extends Model
         return ['valid' => true, 'discount' => $discount, 'label' => $label];
     }
 
+    /**
+     * Atomic, conditional increment: two near-simultaneous checkouts that both
+     * passed validate() on the last remaining use can no longer both succeed —
+     * the DB-level WHERE re-checks the limit at increment time, so at most
+     * max_uses increments ever land regardless of the race.
+     */
     public function incrementUsage(): void
     {
-        $this->increment('used_count');
+        $query = static::whereKey($this->id);
+        if ($this->max_uses !== null) {
+            $query->whereColumn('used_count', '<', 'max_uses');
+        }
+
+        if (!$query->increment('used_count')) {
+            Log::warning("PromoCode #{$this->id} ({$this->code}) : limite d'utilisation déjà atteinte, incrément ignoré.");
+        }
+
+        $this->refresh();
     }
 }

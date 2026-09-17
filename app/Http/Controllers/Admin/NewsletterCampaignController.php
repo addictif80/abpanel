@@ -62,8 +62,8 @@ class NewsletterCampaignController extends Controller
 
     public function update(Request $request, NewsletterCampaign $campaign)
     {
-        if ($campaign->status === 'sent') {
-            return back()->with('error', 'Impossible de modifier une campagne déjà envoyée.');
+        if (in_array($campaign->status, ['sent', 'sending'], true)) {
+            return back()->with('error', 'Impossible de modifier une campagne déjà envoyée ou en cours d\'envoi.');
         }
 
         $request->validate([
@@ -79,8 +79,8 @@ class NewsletterCampaignController extends Controller
 
     public function destroy(NewsletterCampaign $campaign)
     {
-        if ($campaign->status === 'sent') {
-            return back()->with('error', 'Impossible de supprimer une campagne envoyée.');
+        if (in_array($campaign->status, ['sent', 'sending'], true)) {
+            return back()->with('error', 'Impossible de supprimer une campagne envoyée ou en cours d\'envoi.');
         }
         $campaign->delete();
         return redirect()->route('admin.newsletter.index')->with('success', 'Campagne supprimée.');

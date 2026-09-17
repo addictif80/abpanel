@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasRetryableNumber;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class CreditNote extends Model
 {
+    use HasRetryableNumber;
+
     protected $fillable = [
         'number', 'invoice_id', 'user_id', 'reason', 'amount', 'currency', 'status', 'issued_at',
     ];
@@ -33,7 +36,7 @@ class CreditNote extends Model
     {
         $year = date('Y');
         $last = static::where('number', 'like', "AV-{$year}-%")->orderByDesc('id')->value('number');
-        $next = $last ? ((int) substr($last, -4)) + 1 : 1;
+        $next = $last ? ((int) substr($last, strrpos($last, '-') + 1)) + 1 : 1;
         return sprintf('AV-%s-%04d', $year, $next);
     }
 

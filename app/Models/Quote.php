@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasRetryableNumber;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -10,6 +11,8 @@ use Illuminate\Support\Str;
 
 class Quote extends Model
 {
+    use HasRetryableNumber;
+
     protected $fillable = [
         'number', 'user_id', 'status', 'subject', 'notes', 'internal_notes',
         'client_comment', 'cgv_accepted_at',
@@ -81,7 +84,7 @@ class Quote extends Model
     {
         $year = date('Y');
         $last = static::where('number', 'like', "DEV-{$year}-%")->orderByDesc('id')->value('number');
-        $next = $last ? ((int) substr($last, -4)) + 1 : 1;
+        $next = $last ? ((int) substr($last, strrpos($last, '-') + 1)) + 1 : 1;
         return sprintf('DEV-%s-%04d', $year, $next);
     }
 

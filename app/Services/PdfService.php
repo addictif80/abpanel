@@ -127,13 +127,16 @@ class PdfService
         }
 
         // Tax — EN 16931 requires at least one tax entry
-        $subtotal = (float) ($invoice->subtotal ?? $invoice->total ?? 0);
+        $subtotal  = (float) ($invoice->subtotal ?? $invoice->total ?? 0);
+        $discount  = (float) ($invoice->discount ?? 0);
         $taxAmount = (float) ($invoice->tax ?? 0);
+        // BR-CO-13: taxBasisTotal = lineTotal - allowanceTotal (+ chargeTotal, always 0 here)
+        $taxBasis  = round($subtotal - $discount, 2);
 
         if ($isVatExempt) {
-            $builder->addDocumentTax('S', 'VAT', $subtotal, 0.0, 0.0);
+            $builder->addDocumentTax('S', 'VAT', $taxBasis, 0.0, 0.0);
         } else {
-            $builder->addDocumentTax('S', 'VAT', $subtotal, $taxAmount, $taxRate);
+            $builder->addDocumentTax('S', 'VAT', $taxBasis, $taxAmount, $taxRate);
         }
 
         // Line items
@@ -159,15 +162,18 @@ class PdfService
             $lineNumber++;
         }
 
-        // Monetary summary
+        // Monetary summary — allowanceTotal/taxBasisTotal must reflect any
+        // discount, otherwise lineTotal + tax - allowance != grandTotal
+        // (BR-CO-13) whenever a promo code was applied, and the generated
+        // Factur-X XML fails validation even though the visible PDF is correct.
         $total = (float) ($invoice->total ?? 0);
         $builder->setDocumentSummation(
             $total,
             $total,
             $subtotal,
             0.0,
-            0.0,
-            $subtotal,
+            $discount,
+            $taxBasis,
             $taxAmount
         );
 

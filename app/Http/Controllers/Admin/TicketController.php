@@ -57,7 +57,10 @@ class TicketController extends Controller
 
     public function updateStatus(Request $request, Ticket $ticket)
     {
-        $request->validate(['status' => 'required|in:open,in_progress,resolved,closed']);
+        $request->validate([
+            'status'      => 'required|in:open,in_progress,resolved,closed',
+            'assigned_to' => 'nullable|exists:users,id',
+        ]);
 
         $ticket->update([
             'status'    => $request->status,

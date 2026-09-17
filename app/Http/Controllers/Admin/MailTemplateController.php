@@ -72,12 +72,12 @@ class MailTemplateController extends Controller
     {
         $request->validate(['email' => 'required|email']);
 
-        // Build dummy variables for preview
+        // Build dummy variables for preview (app_name/company_name are injected
+        // automatically by MailService for every send, no need to set them here)
         $vars = [];
         foreach ($template->variables ?? [] as $var) {
             $vars[$var] = "[{$var}]";
         }
-        $vars['app_name'] = Setting::get('company_name', Setting::get('app_name', config('app.name')));
 
         try {
             app(MailService::class)->sendFromTemplate($template->key, $request->email, $vars);

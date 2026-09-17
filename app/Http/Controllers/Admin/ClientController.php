@@ -4,8 +4,9 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use App\Services\CyberPanelService;
 use App\Services\MailService;
+use App\Services\NginxProxyManagerService;
+use App\Services\ProxmoxService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
@@ -113,8 +114,36 @@ class ClientController extends Controller
 
     public function destroy(User $client)
     {
+        // Invoices/credit notes are accounting records that must survive — never
+        // delete a client that has any, even indirectly via cascade. Deactivating
+        // (via "Modifier") is the correct way to retire such a client.
+        if ($client->invoices()->exists() || $client->creditNotes()->exists()) {
+            return back()->with('error', 'Impossible de supprimer ce client : il possède des factures ou avoirs (historique comptable à conserver). Désactivez-le plutôt depuis "Modifier".');
+        }
+
+        foreach ($client->virtualMachines as $vm) {
+            try {
+                app(ProxmoxService::class)->deleteInstance($vm->proxmox_node, (int) $vm->proxmox_vmid, $vm->vm_type ?? 'qemu');
+            } catch (\Throwable $e) {
+                return back()->with('error', "Échec de la résiliation de la VM « {$vm->name} » sur Proxmox : {$e->getMessage()}. Résiliez-la manuellement (page VM) avant de supprimer ce client.");
+            }
+            $vm->delete();
+        }
+
+        foreach ($client->clientDomains as $domain) {
+            if ($domain->npm_proxy_id) {
+                try {
+                    app(NginxProxyManagerService::class)->deleteProxyHost($domain->npm_proxy_id);
+                } catch (\Throwable) {}
+            }
+            $domain->delete();
+        }
+
+        $client->hostingAccounts()->delete();
+
         $client->delete();
-        return redirect()->route('admin.clients.index')->with('success', 'Client supprimé.');
+
+        return redirect()->route('admin.clients.index')->with('success', 'Client et ses ressources associées (VMs, hébergements, domaines) supprimés.');
     }
 
     public function impersonate(User $client)
@@ -147,19 +176,18 @@ class ClientController extends Controller
     {
         $request->validate(['password' => 'required|string|min:8']);
 
-        // Store plain password in request so the Observer can sync to CyberPanel
+        // UserObserver::updated() already syncs the CyberPanel password
+        // automatically whenever `password` changes and cyberpanel_username is
+        // set — calling CyberPanelService here too would just duplicate that
+        // API call and produce a misleading success/error message.
         $client->update(['password' => Hash::make($request->password)]);
 
-        // Manually sync since observer uses request()->input('password')
+        $msg = 'Mot de passe réinitialisé.';
         if ($client->cyberpanel_username) {
-            try {
-                app(CyberPanelService::class)->changeUserPassword($client->cyberpanel_username, $request->password);
-            } catch (\Exception $e) {
-                return back()->with('error', 'Mot de passe mis à jour localement, mais la sync CyberPanel a échoué : ' . $e->getMessage());
-            }
+            $msg .= ' Synchronisation CyberPanel lancée (voir les logs en cas d\'échec).';
         }
 
-        return back()->with('success', 'Mot de passe réinitialisé et synchronisé avec CyberPanel.');
+        return back()->with('success', $msg);
     }
 
     public function resendWelcome(User $client)
