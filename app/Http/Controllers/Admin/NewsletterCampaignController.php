@@ -23,15 +23,35 @@ class NewsletterCampaignController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'list_id'      => 'required|exists:newsletter_lists,id',
-            'name'         => 'required|string|max:100',
-            'subject'      => 'required|string|max:200',
-            'html_content' => 'required|string',
+            'list_id' => 'required|exists:newsletter_lists,id',
+            'name'    => 'required|string|max:100',
+            'subject' => 'required|string|max:200',
+            'message' => 'required|string',
         ]);
 
-        NewsletterCampaign::create($request->only(['list_id', 'name', 'subject', 'html_content']));
+        NewsletterCampaign::create($request->only(['list_id', 'name', 'subject', 'message']) + ['html_content' => '']);
 
         return redirect()->route('admin.newsletter.index')->with('success', 'Campagne créée.');
+    }
+
+    /** Live preview of the branded email, from unsaved form values. */
+    public function preview(Request $request)
+    {
+        $request->validate([
+            'subject' => 'nullable|string|max:200',
+            'message' => 'nullable|string',
+        ]);
+
+        $campaign = new NewsletterCampaign([
+            'subject' => $request->subject ?: '(Sujet)',
+            'message' => $request->message ?: '',
+        ]);
+
+        return response()->json(['html' => $campaign->renderHtml([
+            'first_name'      => 'Jean',
+            'email'           => 'jean@exemple.fr',
+            'unsubscribe_url' => '#',
+        ])]);
     }
 
     public function edit(NewsletterCampaign $campaign)
@@ -47,12 +67,12 @@ class NewsletterCampaignController extends Controller
         }
 
         $request->validate([
-            'name'         => 'required|string|max:100',
-            'subject'      => 'required|string|max:200',
-            'html_content' => 'required|string',
+            'name'    => 'required|string|max:100',
+            'subject' => 'required|string|max:200',
+            'message' => 'required|string',
         ]);
 
-        $campaign->update($request->only(['name', 'subject', 'html_content']));
+        $campaign->update($request->only(['name', 'subject', 'message']));
 
         return back()->with('success', 'Campagne mise à jour.');
     }
