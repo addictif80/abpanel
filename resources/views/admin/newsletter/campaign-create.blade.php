@@ -98,7 +98,7 @@ function campaignForm(initialSubject, initialMessage) {
         init() {
             this.quill = new Quill(this.$refs.editor, {
                 theme: 'snow',
-                placeholder: 'Bonjour {{first_name}},\n\nVotre texte ici...',
+                placeholder: 'Bonjour @{{first_name}},\n\nVotre texte ici...',
                 modules: {
                     toolbar: [
                         ['bold', 'italic', 'underline', 'strike'],
