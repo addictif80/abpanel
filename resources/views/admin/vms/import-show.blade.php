@@ -62,6 +62,8 @@
                 </div>
             </div>
 
+            @include('admin.partials.import-billing-block', ['plans' => $plans])
+
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
                 <h2 class="font-semibold text-gray-800">Ressources <span class="text-xs font-normal text-gray-400">(pré-remplies depuis Proxmox)</span></h2>
 

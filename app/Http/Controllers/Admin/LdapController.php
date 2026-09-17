@@ -3,10 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Invoice;
 use App\Models\Plan;
 use App\Models\Setting;
 use App\Models\User;
+use App\Services\BillingImportService;
 use App\Services\LdapService;
 use App\Services\ProvisioningService;
 use Illuminate\Http\Request;
@@ -90,6 +90,8 @@ class LdapController extends Controller
             'user_id'        => 'required|exists:users,id',
             'plan_id'        => 'required|exists:plans,id',
             'billing_period' => 'nullable|in:monthly,yearly',
+            'promo_code'     => 'nullable|string',
+            'paid_at'        => 'nullable|date',
         ]);
 
         $client = User::findOrFail($request->user_id);
@@ -99,34 +101,17 @@ class LdapController extends Controller
             return back()->withErrors(['user_id' => "Ce client a déjà un compte LDAP différent ({$client->ldap_username}) rattaché."])->withInput();
         }
 
-        $period = $plan->resolvePeriod($request->billing_period);
-        $price  = $plan->priceFor($period);
+        try {
+            $invoice = app(BillingImportService::class)->createPaidInvoice(
+                $client, $plan, $request->billing_period, $request->promo_code, $request->paid_at
+            );
+        } catch (\RuntimeException $e) {
+            return back()->withErrors(['promo_code' => $e->getMessage()])->withInput();
+        }
 
         $client->update([
             'ldap_username' => $uid,
             'ldap_dn'       => 'uid=' . $uid . ',' . Setting::get('ldap_users_dn', ''),
-        ]);
-
-        $invoice = Invoice::create([
-            'user_id'           => $client->id,
-            'plan_id'           => $plan->id,
-            'number'            => Invoice::generateNumber(),
-            'status'            => 'paid',
-            'paid_at'           => now(),
-            'items'             => [[
-                'description' => $plan->name . ' — ' . ($period === 'yearly' ? 'Annuel' : 'Mensuel'),
-                'quantity'    => 1,
-                'unit_price'  => $price,
-                'total'       => $price,
-            ]],
-            'subtotal'          => $price,
-            'tax'               => 0,
-            'total'             => $price,
-            'currency'          => 'EUR',
-            'is_recurring'      => true,
-            'recurrence_period' => $period,
-            'next_billing_at'   => $period === 'yearly' ? now()->addYear() : now()->addMonth(),
-            'metadata'          => ['billing_period' => $period, 'imported' => true],
         ]);
 
         $warning = null;

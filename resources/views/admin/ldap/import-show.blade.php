@@ -27,8 +27,7 @@
 
     {{-- Form --}}
     <div class="lg:col-span-2">
-        <form method="POST" action="{{ route('admin.ldap.import.store', $ldapUser['uid']) }}" class="space-y-5"
-              x-data="{ planId: '{{ old('plan_id') }}', plans: {{ $plans->map(fn($p) => ['id' => $p->id, 'yearly' => $p->yearly_price !== null])->values()->toJson() }} }">
+        <form method="POST" action="{{ route('admin.ldap.import.store', $ldapUser['uid']) }}" class="space-y-5">
             @csrf
 
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
@@ -48,32 +47,12 @@
                     </select>
                     <p class="text-xs text-gray-400 mt-1">Si ce client a déjà un compte LDAP différent rattaché, l'import sera refusé.</p>
                 </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Plan <span class="text-red-500">*</span></label>
-                    <select name="plan_id" x-model="planId" required
-                        class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                        <option value="">— Sélectionner un plan —</option>
-                        @foreach($plans as $plan)
-                        <option value="{{ $plan->id }}" {{ old('plan_id') == $plan->id ? 'selected' : '' }}>
-                            {{ $plan->name }} — {{ $plan->formattedPrice() }} (groupe LDAP : {{ $plan->ldap_group }})
-                        </option>
-                        @endforeach
-                    </select>
-                    <p class="text-xs text-gray-400 mt-1">Détermine le tarif, le groupe LDAP et le quota Synology appliqués.</p>
-                </div>
-
-                <div x-show="plans.some(p => p.id == planId && p.yearly)" x-cloak>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Période de facturation</label>
-                    <select name="billing_period" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                        <option value="monthly" {{ old('billing_period') !== 'yearly' ? 'selected' : '' }}>Mensuel</option>
-                        <option value="yearly" {{ old('billing_period') === 'yearly' ? 'selected' : '' }}>Annuel</option>
-                    </select>
-                </div>
             </div>
 
+            @include('admin.partials.import-billing-block', ['plans' => $plans, 'planRequired' => true])
+
             <div class="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-sm text-blue-800">
-                À l'import : une facture est créée <strong>marquée payée</strong> pour démarrer la facturation récurrente (mensuelle ou annuelle selon le plan), le compte LDAP est rattaché à ce client, et son groupe/quota sont synchronisés — sans recréer ni modifier le compte LDAP existant.
+                À l'import : le groupe LDAP et le quota Synology sont synchronisés selon le plan choisi, sans recréer ni modifier le compte LDAP existant.
             </div>
 
             <div class="flex items-center gap-3">
