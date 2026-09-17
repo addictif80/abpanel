@@ -29,11 +29,11 @@ class NewsletterController extends Controller
 
         foreach ($subscribers as $subscriber) {
             try {
-                $html = $campaign->html_content;
-                $unsubUrl = route('newsletter.unsubscribe', $subscriber->unsubscribe_token);
-                $html = str_replace('{{unsubscribe_url}}', $unsubUrl, $html);
-                $html = str_replace('{{first_name}}', $subscriber->first_name ?? '', $html);
-                $html = str_replace('{{email}}', $subscriber->email, $html);
+                $html = $campaign->renderHtml([
+                    'first_name'      => $subscriber->first_name ?? '',
+                    'email'           => $subscriber->email,
+                    'unsubscribe_url' => route('newsletter.unsubscribe', $subscriber->unsubscribe_token),
+                ]);
 
                 Mail::html($html, fn($m) => $m
                     ->to($subscriber->email)
