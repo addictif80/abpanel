@@ -2,6 +2,11 @@
 @section('title', 'Modifier — ' . $campaign->name)
 @section('sidebar')<x-admin-sidebar />@endsection
 
+@push('styles')
+<link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet">
+<style>.ql-editor { min-height: 260px; font-size: 14px; }</style>
+@endpush
+
 @section('content')
 <div class="mb-6">
     <a href="{{ route('admin.newsletter.index') }}" class="text-sm text-gray-400 hover:text-gray-600">← Newsletter</a>
@@ -31,10 +36,11 @@
                         <code class="bg-gray-100 px-1 rounded">@{{email}}</code>
                     </div>
                 </div>
-                <textarea name="message" x-model="message" rows="14" required
-                    @input="preview()"
-                    class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"></textarea>
-                <p class="text-xs text-gray-400 mt-1">Texte simple — les paragraphes (séparés par une ligne vide) sont automatiquement mis en forme. Le lien de désinscription est ajouté automatiquement.</p>
+                <div class="rounded-lg border border-gray-300 overflow-hidden">
+                    <div x-ref="editor"></div>
+                </div>
+                <textarea name="message" x-model="message" class="hidden"></textarea>
+                <p class="text-xs text-gray-400 mt-1">Pour une image, utilisez le bouton image de la barre d'outils et collez l'URL d'une image déjà hébergée en ligne (plus fiable qu'un fichier importé pour l'affichage dans les emails). Le lien de désinscription est ajouté automatiquement en pied de page.</p>
             </div>
         </div>
         <div class="flex items-center gap-3">
@@ -63,11 +69,13 @@
 </form>
 
 @push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
 <script>
 function campaignForm(initialSubject, initialMessage) {
     return {
         subject: initialSubject,
         message: initialMessage,
+        quill: null,
         debounceTimer: null,
         preview() {
             clearTimeout(this.debounceTimer);
@@ -86,7 +94,28 @@ function campaignForm(initialSubject, initialMessage) {
                 doc.open(); doc.write(data.html || ''); doc.close();
             } catch (e) {}
         },
-        init() { this.renderPreview(); }
+        init() {
+            this.quill = new Quill(this.$refs.editor, {
+                theme: 'snow',
+                modules: {
+                    toolbar: [
+                        ['bold', 'italic', 'underline', 'strike'],
+                        [{ color: [] }, { background: [] }],
+                        [{ list: 'ordered' }, { list: 'bullet' }],
+                        ['link', 'image'],
+                        ['clean'],
+                    ],
+                },
+            });
+            if (this.message) {
+                this.quill.clipboard.dangerouslyPasteHTML(this.message);
+            }
+            this.quill.on('text-change', () => {
+                this.message = this.quill.root.innerHTML;
+                this.preview();
+            });
+            this.renderPreview();
+        }
     };
 }
 </script>

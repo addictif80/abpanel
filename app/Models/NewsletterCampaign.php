@@ -26,11 +26,14 @@ class NewsletterCampaign extends Model
 
     /**
      * Wraps subject + message in the same branded shell used by the
-     * transactional mail templates (MailTemplate) — admins only ever type
-     * plain text here, the design itself lives in one place. Always
-     * includes the unsubscribe link, regardless of whether {{unsubscribe_url}}
-     * is referenced in $vars, so campaigns stay compliant without the
-     * admin having to remember to add it.
+     * transactional mail templates (MailTemplate) — admins compose the
+     * message with the rich text editor, the surrounding design lives in
+     * one place. Always includes the unsubscribe link, regardless of
+     * whether {{unsubscribe_url}} is referenced in $vars, so campaigns stay
+     * compliant without the admin having to remember to add it.
+     *
+     * $this->message is trusted HTML authored by an admin through the rich
+     * text editor (Quill), not user input — inserted as-is, not escaped.
      */
     public function renderHtml(array $vars = []): string
     {
@@ -39,17 +42,17 @@ class NewsletterCampaign extends Model
             'subject'  => $this->subject,
         ];
 
-        $messageHtml = collect(preg_split('/\n{2,}/', trim($this->message ?? '')))
-            ->filter()
-            ->map(fn($paragraph) => '<p style="color:#374151;font-size:15px;line-height:1.6;margin:0 0 16px;">'
-                . nl2br(e(trim($paragraph)))
-                . '</p>')
-            ->implode('');
-
         $template = <<<'HTML'
 <!DOCTYPE html>
 <html lang="fr">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{{subject}}</title></head>
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{{subject}}</title>
+<style>
+.newsletter-content p { margin: 0 0 16px; }
+.newsletter-content a { color: #4f46e5; }
+.newsletter-content img { max-width: 100%; height: auto; }
+</style>
+</head>
 <body style="margin:0;padding:0;background:#f4f6fb;font-family:Arial,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6fb;padding:40px 0;">
   <tr><td align="center">
@@ -59,7 +62,7 @@ class NewsletterCampaign extends Model
       </td></tr>
       <tr><td style="padding:40px;">
         <h2 style="color:#111827;font-size:20px;margin:0 0 20px;">{{subject}}</h2>
-        __MESSAGE_BODY__
+        <div class="newsletter-content" style="color:#374151;font-size:15px;line-height:1.6;">__MESSAGE_BODY__</div>
       </td></tr>
       <tr><td style="background:#f9fafb;padding:20px 40px;border-top:1px solid #e5e7eb;">
         <p style="color:#9ca3af;font-size:12px;margin:0 0 8px;text-align:center;">© {{app_name}} — Tous droits réservés</p>
@@ -72,7 +75,7 @@ class NewsletterCampaign extends Model
 </html>
 HTML;
 
-        $template = str_replace('__MESSAGE_BODY__', $messageHtml, $template);
+        $template = str_replace('__MESSAGE_BODY__', $this->message ?? '', $template);
 
         return preg_replace_callback('/\{\{\s*(\w+)\s*\}\}/', function ($m) use ($vars) {
             return $vars[$m[1]] ?? $m[0];
