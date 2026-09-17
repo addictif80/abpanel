@@ -87,6 +87,8 @@
                 </div>
             </div>
 
+            @include('admin.partials.import-billing-block', ['plans' => $plans])
+
             <div class="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-sm text-blue-800">
                 L'hôte NPM n'est ni recréé ni modifié — seule sa référence (cible, SSL) est enregistrée dans le panel pour l'affichage client et le suivi.
             </div>

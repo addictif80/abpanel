@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\OsTemplate;
+use App\Models\Plan;
 use App\Models\User;
 use App\Models\VirtualMachine;
+use App\Services\BillingImportService;
 use App\Services\NginxProxyManagerService;
 use App\Services\ProxmoxService;
 use Illuminate\Http\Request;
@@ -283,8 +285,9 @@ class VmController extends Controller
         ];
 
         $clients = User::where('is_admin', false)->where('is_active', true)->orderBy('last_name')->get();
+        $plans   = Plan::where('type', 'vm')->orderBy('name')->get();
 
-        return view('admin.vms.import-show', compact('vmInfo', 'clients'));
+        return view('admin.vms.import-show', compact('vmInfo', 'clients', 'plans'));
     }
 
     public function importStore(Request $request, string $node, int $vmid)
@@ -305,7 +308,25 @@ class VmController extends Controller
             'tailscale_ip'  => 'nullable|ip',
             'status'        => 'required|in:running,stopped,hibernated',
             'next_renewal_at' => 'nullable|date',
+            'plan_id'        => 'nullable|exists:plans,id',
+            'billing_period' => 'nullable|in:monthly,yearly',
+            'promo_code'     => 'nullable|string',
+            'paid_at'        => 'nullable|date',
         ]);
+
+        $client   = User::findOrFail($request->user_id);
+        $plan     = $request->plan_id ? Plan::findOrFail($request->plan_id) : null;
+        $invoice  = null;
+
+        if ($plan) {
+            try {
+                $invoice = app(BillingImportService::class)->createPaidInvoice(
+                    $client, $plan, $request->billing_period, $request->promo_code, $request->paid_at
+                );
+            } catch (\RuntimeException $e) {
+                return back()->withErrors(['promo_code' => $e->getMessage()])->withInput();
+            }
+        }
 
         $baseDomain = \App\Models\Setting::get('vms_base_domain');
         $subdomain  = $baseDomain ? "vm{$vmid}.{$baseDomain}" : null;
@@ -317,7 +338,8 @@ class VmController extends Controller
         }
 
         $vm = VirtualMachine::create([
-            'user_id'       => $request->user_id,
+            'user_id'       => $client->id,
+            'plan_id'       => $plan?->id,
             'name'          => $request->name,
             'proxmox_vmid'  => $vmid,
             'proxmox_node'  => $node,
@@ -329,11 +351,15 @@ class VmController extends Controller
             'disk_gb'       => $request->disk_gb,
             'tailscale_ip'  => $request->tailscale_ip,
             'subdomain'     => $subdomain,
-            'monthly_price' => $request->monthly_price,
-            'next_renewal_at' => $request->next_renewal_at,
+            'monthly_price' => $plan ? $plan->priceFor($invoice->recurrence_period) : $request->monthly_price,
+            'next_renewal_at' => $invoice?->next_billing_at ?? $request->next_renewal_at,
         ]);
 
-        return redirect()->route('admin.vms.edit', $vm)
-            ->with('success', "« {$vm->name} » (VMID {$vmid}) importé(e) et assigné(e) à {$vm->user->full_name}.");
+        $msg = "« {$vm->name} » (VMID {$vmid}) importé(e) et assigné(e) à {$client->full_name}.";
+        if ($invoice) {
+            $msg .= " Facture {$invoice->number} créée et facturation récurrente activée.";
+        }
+
+        return redirect()->route('admin.vms.edit', $vm)->with('success', $msg);
     }
 }

@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\HostingAccount;
+use App\Models\Plan;
 use App\Models\User;
+use App\Services\BillingImportService;
 use App\Services\CyberPanelService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -63,8 +65,9 @@ class HostingController extends Controller
         }
 
         $clients = User::where('is_admin', false)->where('is_active', true)->orderBy('last_name')->get();
+        $plans   = Plan::where('type', 'hosting')->orderBy('name')->get();
 
-        return view('admin.hosting.import-show', compact('siteInfo', 'clients'));
+        return view('admin.hosting.import-show', compact('siteInfo', 'clients', 'plans'));
     }
 
     public function importStore(Request $request, string $domain)
@@ -85,11 +88,27 @@ class HostingController extends Controller
             'new_cyberpanel_username'=> 'nullable|string|max:100|alpha_num',
             'new_cyberpanel_password'=> 'nullable|string|min:8',
             'transfer_ownership'   => 'nullable|boolean',
+            'plan_id'              => 'nullable|exists:plans,id',
+            'billing_period'       => 'nullable|in:monthly,yearly',
+            'promo_code'           => 'nullable|string',
+            'paid_at'              => 'nullable|date',
         ]);
 
         $client   = User::findOrFail($request->user_id);
+        $plan     = $request->plan_id ? Plan::findOrFail($request->plan_id) : null;
+        $invoice  = null;
         $cyberpanel = app(CyberPanelService::class);
         $warnings = [];
+
+        if ($plan) {
+            try {
+                $invoice = app(BillingImportService::class)->createPaidInvoice(
+                    $client, $plan, $request->billing_period, $request->promo_code, $request->paid_at
+                );
+            } catch (\RuntimeException $e) {
+                return back()->withErrors(['promo_code' => $e->getMessage()])->withInput();
+            }
+        }
 
         $finalUsername = $request->cyberpanel_username ?? '';
 
@@ -130,16 +149,20 @@ class HostingController extends Controller
 
         HostingAccount::create([
             'user_id'             => $client->id,
+            'plan_id'             => $plan?->id,
             'domain'              => $domain,
             'cyberpanel_username' => $finalUsername ?: null,
             'plan'                => $request->plan,
             'disk_mb'             => $request->disk_mb ?? 0,
             'is_active'           => true,
-            'monthly_price'       => $request->monthly_price,
-            'next_renewal_at'     => $request->next_renewal_at,
+            'monthly_price'       => $plan ? $plan->priceFor($invoice->recurrence_period) : $request->monthly_price,
+            'next_renewal_at'     => $invoice?->next_billing_at ?? $request->next_renewal_at,
         ]);
 
         $msg = "« {$domain} » importé et assigné à {$client->full_name}.";
+        if ($invoice) {
+            $msg .= " Facture {$invoice->number} créée et facturation récurrente activée.";
+        }
         if ($warnings) {
             return redirect()->route('admin.hosting.index')
                 ->with('success', $msg)

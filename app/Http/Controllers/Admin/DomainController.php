@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\ClientDomain;
 use App\Models\HostingAccount;
+use App\Models\Plan;
 use App\Models\User;
 use App\Models\VirtualMachine;
+use App\Services\BillingImportService;
 use App\Services\NginxProxyManagerService;
 use Illuminate\Http\Request;
 
@@ -74,8 +76,9 @@ class DomainController extends Controller
         }
 
         $clients = User::where('is_admin', false)->where('is_active', true)->orderBy('last_name')->get();
+        $plans   = Plan::where('type', 'service')->orderBy('name')->get();
 
-        return view('admin.domains.import-show', compact('host', 'clients'));
+        return view('admin.domains.import-show', compact('host', 'clients', 'plans'));
     }
 
     public function importStore(Request $request, int $hostId)
@@ -91,7 +94,25 @@ class DomainController extends Controller
             'type'                => 'required|in:vps,hosting',
             'virtual_machine_id'  => 'nullable|exists:virtual_machines,id',
             'hosting_account_id'  => 'nullable|exists:hosting_accounts,id',
+            'plan_id'             => 'nullable|exists:plans,id',
+            'billing_period'      => 'nullable|in:monthly,yearly',
+            'promo_code'          => 'nullable|string',
+            'paid_at'             => 'nullable|date',
         ]);
+
+        $client  = User::findOrFail($request->user_id);
+        $plan    = $request->plan_id ? Plan::findOrFail($request->plan_id) : null;
+        $invoice = null;
+
+        if ($plan) {
+            try {
+                $invoice = app(BillingImportService::class)->createPaidInvoice(
+                    $client, $plan, $request->billing_period, $request->promo_code, $request->paid_at
+                );
+            } catch (\RuntimeException $e) {
+                return back()->withErrors(['promo_code' => $e->getMessage()])->withInput();
+            }
+        }
 
         try {
             $host = app(NginxProxyManagerService::class)->getProxyHost($hostId);
@@ -108,7 +129,7 @@ class DomainController extends Controller
         }
 
         ClientDomain::create([
-            'user_id'             => $request->user_id,
+            'user_id'             => $client->id,
             'virtual_machine_id'  => $request->type === 'vps' ? $request->virtual_machine_id : null,
             'hosting_account_id'  => $request->type === 'hosting' ? $request->hosting_account_id : null,
             'domain'              => $request->domain,
@@ -125,8 +146,12 @@ class DomainController extends Controller
             'dns_checked_at'      => now(),
         ]);
 
-        return redirect()->route('admin.domains.index')
-            ->with('success', "« {$request->domain} » importé et assigné.");
+        $msg = "« {$request->domain} » importé et assigné.";
+        if ($invoice) {
+            $msg .= " Facture {$invoice->number} créée et facturation récurrente activée.";
+        }
+
+        return redirect()->route('admin.domains.index')->with('success', $msg);
     }
 
     /** AJAX: VMs/hosting accounts owned by a client, for the import form's dependent select. */
