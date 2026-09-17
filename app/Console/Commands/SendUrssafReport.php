@@ -43,9 +43,18 @@ class SendUrssafReport extends Command
             return self::FAILURE;
         }
 
-        $month = $this->option('month')
+        $month    = $this->option('month')
             ? Carbon::createFromFormat('Y-m', $this->option('month'))->startOfMonth()
             : now()->subMonthNoOverflow()->startOfMonth();
+        $monthKey = $month->format('Y-m');
+
+        // Guard against sending the same monthly report twice (manual re-run the
+        // same day as the scheduled one, or the command invoked twice by an
+        // external cron) — nothing else here prevents a duplicate send.
+        if (!$force && Setting::get('urssaf_report_last_sent') === $monthKey) {
+            $this->info("Le rapport pour {$monthKey} a déjà été envoyé (utilisez --force pour le renvoyer).");
+            return self::SUCCESS;
+        }
 
         $report = $this->reports->generateForMonth($month);
 
@@ -72,6 +81,8 @@ class SendUrssafReport extends Command
                 'mime' => 'application/pdf',
             ],
         ]);
+
+        Setting::set('urssaf_report_last_sent', $monthKey, 'quotes');
 
         return self::SUCCESS;
     }

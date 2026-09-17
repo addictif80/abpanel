@@ -61,8 +61,7 @@ class CreditNoteController extends Controller
 
         $invoice = Invoice::findOrFail($request->invoice_id);
 
-        CreditNote::create([
-            'number'     => CreditNote::generateNumber(),
+        CreditNote::createWithUniqueNumber([
             'invoice_id' => $invoice->id,
             'user_id'    => $invoice->user_id,
             'amount'     => $request->amount,

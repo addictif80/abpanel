@@ -143,15 +143,19 @@
             </dl>
         </div>
 
+        @php($billing = $invoice->billingInfo())
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <h2 class="font-semibold text-gray-800 mb-3">Client</h2>
-            @if($invoice->user)
+            <h2 class="font-semibold text-gray-800 mb-3">Facturé à (au moment de l'émission)</h2>
             <div class="text-sm space-y-1">
-                <p class="font-medium text-gray-800">{{ $invoice->user->full_name }}</p>
-                <p class="text-gray-500">{{ $invoice->user->email }}</p>
-                @if($invoice->user->company)<p class="text-gray-500">{{ $invoice->user->company }}</p>@endif
+                <p class="font-medium text-gray-800">{{ $billing['name'] }}</p>
+                <p class="text-gray-500">{{ $billing['email'] }}</p>
+                @if($billing['company'])<p class="text-gray-500">{{ $billing['company'] }}</p>@endif
             </div>
-            <a href="{{ route('admin.clients.show', $invoice->user) }}" class="mt-3 text-xs text-indigo-600 hover:underline block">Voir le client →</a>
+            @if($invoice->user)
+            @if($invoice->user->anonymized_at)
+            <p class="mt-2 text-xs text-amber-600">Ce client a été anonymisé le {{ $invoice->user->anonymized_at->format('d/m/Y') }} — la facture conserve ses coordonnées d'origine ci-dessus.</p>
+            @endif
+            <a href="{{ route('admin.clients.show', $invoice->user) }}" class="mt-3 text-xs text-indigo-600 hover:underline block">Voir la fiche client →</a>
             @else
             <p class="text-sm text-gray-400">Client supprimé</p>
             @endif

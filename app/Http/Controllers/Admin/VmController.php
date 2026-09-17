@@ -11,6 +11,7 @@ use App\Services\BillingImportService;
 use App\Services\NginxProxyManagerService;
 use App\Services\ProxmoxService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class VmController extends Controller
 {
@@ -184,6 +185,7 @@ class VmController extends Controller
             'tailscale_ip'     => 'nullable|string',
             'custom_domain'    => 'nullable|string',
             'next_renewal_at'  => 'nullable|date',
+            'status'           => 'nullable|in:running,stopped,hibernated',
         ]);
 
         $vm->update($request->only(['name', 'monthly_price', 'tailscale_ip', 'custom_domain', 'status', 'next_renewal_at']));
@@ -316,17 +318,6 @@ class VmController extends Controller
 
         $client   = User::findOrFail($request->user_id);
         $plan     = $request->plan_id ? Plan::findOrFail($request->plan_id) : null;
-        $invoice  = null;
-
-        if ($plan) {
-            try {
-                $invoice = app(BillingImportService::class)->createPaidInvoice(
-                    $client, $plan, $request->billing_period, $request->promo_code, $request->paid_at
-                );
-            } catch (\RuntimeException $e) {
-                return back()->withErrors(['promo_code' => $e->getMessage()])->withInput();
-            }
-        }
 
         $baseDomain = \App\Models\Setting::get('vms_base_domain');
         $subdomain  = $baseDomain ? "vm{$vmid}.{$baseDomain}" : null;
@@ -337,23 +328,38 @@ class VmController extends Controller
             } catch (\Exception) {}
         }
 
-        $vm = VirtualMachine::create([
-            'user_id'       => $client->id,
-            'plan_id'       => $plan?->id,
-            'name'          => $request->name,
-            'proxmox_vmid'  => $vmid,
-            'proxmox_node'  => $node,
-            'vm_type'       => $request->vm_type,
-            'status'        => $request->status,
-            'cores'         => $request->cores,
-            'memory_mb'     => $request->memory_mb,
-            'swap_mb'       => $request->vm_type === 'lxc' ? $request->swap_mb : null,
-            'disk_gb'       => $request->disk_gb,
-            'tailscale_ip'  => $request->tailscale_ip,
-            'subdomain'     => $subdomain,
-            'monthly_price' => $plan ? $plan->priceFor($invoice->recurrence_period) : $request->monthly_price,
-            'next_renewal_at' => $invoice?->next_billing_at ?? $request->next_renewal_at,
-        ]);
+        // Invoice + resource creation must succeed or fail together: if the VM
+        // row fails to insert, the client must not end up billed for a VM that
+        // was never actually registered.
+        try {
+            [$vm, $invoice] = DB::transaction(function () use ($client, $plan, $request, $vmid, $node, $subdomain) {
+                $invoice = $plan ? app(BillingImportService::class)->createPaidInvoice(
+                    $client, $plan, $request->billing_period, $request->promo_code, $request->paid_at
+                ) : null;
+
+                $vm = VirtualMachine::create([
+                    'user_id'       => $client->id,
+                    'plan_id'       => $plan?->id,
+                    'name'          => $request->name,
+                    'proxmox_vmid'  => $vmid,
+                    'proxmox_node'  => $node,
+                    'vm_type'       => $request->vm_type,
+                    'status'        => $request->status,
+                    'cores'         => $request->cores,
+                    'memory_mb'     => $request->memory_mb,
+                    'swap_mb'       => $request->vm_type === 'lxc' ? $request->swap_mb : null,
+                    'disk_gb'       => $request->disk_gb,
+                    'tailscale_ip'  => $request->tailscale_ip,
+                    'subdomain'     => $subdomain,
+                    'monthly_price' => $plan ? $plan->priceFor($invoice->recurrence_period) : $request->monthly_price,
+                    'next_renewal_at' => $invoice?->next_billing_at ?? $request->next_renewal_at,
+                ]);
+
+                return [$vm, $invoice];
+            });
+        } catch (\App\Exceptions\InvalidPromoCodeException $e) {
+            return back()->withErrors(['promo_code' => $e->getMessage()])->withInput();
+        }
 
         $msg = "« {$vm->name} » (VMID {$vmid}) importé(e) et assigné(e) à {$client->full_name}.";
         if ($invoice) {

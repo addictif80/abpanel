@@ -45,21 +45,31 @@ class ProvisionHostingProxyJob implements ShouldQueue
 
         $proxyHost = $npm->createProxyHostPlain([$this->domain], $targetIp, 80, 'http');
 
-        ClientDomain::create([
-            'user_id'            => $this->userId,
-            'hosting_account_id' => HostingAccount::where('user_id', $this->userId)
-                ->where('domain', $this->domain)
-                ->value('id'),
-            'domain'             => $this->domain,
-            'type'               => 'hosting',
-            'target_ip'          => $targetIp,
-            'target_port'        => 80,
-            'forward_scheme'     => 'http',
-            'www_redirect'       => false,
-            'npm_proxy_id'       => $proxyHost['id'] ?? null,
-            'dns_ok'             => false,
-            'dns_checked_at'     => now(),
-        ]);
+        try {
+            ClientDomain::create([
+                'user_id'            => $this->userId,
+                'hosting_account_id' => HostingAccount::where('user_id', $this->userId)
+                    ->where('domain', $this->domain)
+                    ->value('id'),
+                'domain'             => $this->domain,
+                'type'               => 'hosting',
+                'target_ip'          => $targetIp,
+                'target_port'        => 80,
+                'forward_scheme'     => 'http',
+                'www_redirect'       => false,
+                'npm_proxy_id'       => $proxyHost['id'] ?? null,
+                'dns_ok'             => false,
+                'dns_checked_at'     => now(),
+            ]);
+        } catch (\Throwable $e) {
+            // Compensate: without this, a retry (tries=3) would find no
+            // ClientDomain row yet and call createProxyHostPlain() again,
+            // orphaning a second NPM host for the same domain.
+            if (isset($proxyHost['id'])) {
+                try { $npm->deleteProxyHost($proxyHost['id']); } catch (\Throwable) {}
+            }
+            throw $e;
+        }
     }
 
     public function failed(\Throwable $e): void

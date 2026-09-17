@@ -34,6 +34,10 @@ class NewsletterListController extends Controller
 
     public function destroy(NewsletterList $list)
     {
+        if ($list->campaigns()->exists()) {
+            return back()->with('error', 'Impossible de supprimer cette liste : des campagnes y font référence.');
+        }
+
         $list->delete();
         return back()->with('success', 'Liste supprimée.');
     }

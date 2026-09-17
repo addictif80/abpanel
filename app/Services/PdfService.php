@@ -103,19 +103,21 @@ class PdfService
             $builder->setDocumentSellerContact(null, null, $sellerPhone, null, null);
         }
 
-        // Buyer
-        $buyer = $invoice->user;
-        $builder->setDocumentBuyer($buyer->full_name ?? $buyer->name ?? 'Client');
-        if ($buyer->siret) {
-            $builder->setDocumentBuyerLegalOrganisation($buyer->siret, '0009', $buyer->full_name);
+        // Buyer — the frozen billing snapshot, not the live (possibly since
+        // anonymized) user profile: a legal invoice must keep the buyer's
+        // details exactly as they were at issuance.
+        $buyer = $invoice->billingInfo();
+        $builder->setDocumentBuyer($buyer['name'] ?: 'Client');
+        if ($buyer['siret']) {
+            $builder->setDocumentBuyerLegalOrganisation($buyer['siret'], '0009', $buyer['name']);
         }
         $builder->setDocumentBuyerAddress(
-            $buyer->address ?? null,
+            $buyer['address'],
             null,
             null,
-            $buyer->zip ?? null,
-            $buyer->city ?? null,
-            $buyer->country ?? 'FR'
+            $buyer['zip'],
+            $buyer['city'],
+            $buyer['country'] ?? 'FR'
         );
 
         // Delivery
@@ -127,13 +129,16 @@ class PdfService
         }
 
         // Tax — EN 16931 requires at least one tax entry
-        $subtotal = (float) ($invoice->subtotal ?? $invoice->total ?? 0);
+        $subtotal  = (float) ($invoice->subtotal ?? $invoice->total ?? 0);
+        $discount  = (float) ($invoice->discount ?? 0);
         $taxAmount = (float) ($invoice->tax ?? 0);
+        // BR-CO-13: taxBasisTotal = lineTotal - allowanceTotal (+ chargeTotal, always 0 here)
+        $taxBasis  = round($subtotal - $discount, 2);
 
         if ($isVatExempt) {
-            $builder->addDocumentTax('S', 'VAT', $subtotal, 0.0, 0.0);
+            $builder->addDocumentTax('S', 'VAT', $taxBasis, 0.0, 0.0);
         } else {
-            $builder->addDocumentTax('S', 'VAT', $subtotal, $taxAmount, $taxRate);
+            $builder->addDocumentTax('S', 'VAT', $taxBasis, $taxAmount, $taxRate);
         }
 
         // Line items
@@ -159,15 +164,18 @@ class PdfService
             $lineNumber++;
         }
 
-        // Monetary summary
+        // Monetary summary — allowanceTotal/taxBasisTotal must reflect any
+        // discount, otherwise lineTotal + tax - allowance != grandTotal
+        // (BR-CO-13) whenever a promo code was applied, and the generated
+        // Factur-X XML fails validation even though the visible PDF is correct.
         $total = (float) ($invoice->total ?? 0);
         $builder->setDocumentSummation(
             $total,
             $total,
             $subtotal,
             0.0,
-            0.0,
-            $subtotal,
+            $discount,
+            $taxBasis,
             $taxAmount
         );
 

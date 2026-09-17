@@ -19,8 +19,12 @@ class NewsletterController extends Controller
 
     public function send(NewsletterCampaign $campaign)
     {
-        if ($campaign->status === 'sent') {
-            return back()->with('error', 'Cette campagne a déjà été envoyée.');
+        if (in_array($campaign->status, ['sent', 'sending'], true)) {
+            return back()->with('error', 'Cette campagne a déjà été envoyée ou est en cours d\'envoi.');
+        }
+
+        if (!$campaign->list) {
+            return back()->with('error', 'La liste de diffusion de cette campagne a été supprimée.');
         }
 
         $campaign->update(['status' => 'sending']);

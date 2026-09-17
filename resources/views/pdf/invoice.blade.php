@@ -67,15 +67,16 @@ td.bold { font-weight: bold; }
     </div>
 </div>
 
+@php($billing = $invoice->billingInfo())
 <div class="client-block">
     <div class="label">Facturé à</div>
-    <div class="client-name">{{ $invoice->user->full_name }}</div>
+    <div class="client-name">{{ $billing['name'] }}</div>
     <div class="client-detail">
-        {{ $invoice->user->email }}
-        @if($invoice->user->company)<br>{{ $invoice->user->company }}@endif
-        @if($invoice->user->address)<br>{{ $invoice->user->address }}@endif
-        @if($invoice->user->zip || $invoice->user->city)<br>{{ $invoice->user->zip }} {{ $invoice->user->city }}@endif
-        @if($invoice->user->siret)<br>SIRET : {{ $invoice->user->siret }}@endif
+        {{ $billing['email'] }}
+        @if($billing['company'])<br>{{ $billing['company'] }}@endif
+        @if($billing['address'])<br>{{ $billing['address'] }}@endif
+        @if($billing['zip'] || $billing['city'])<br>{{ $billing['zip'] }} {{ $billing['city'] }}@endif
+        @if($billing['siret'])<br>SIRET : {{ $billing['siret'] }}@endif
     </div>
 </div>
 

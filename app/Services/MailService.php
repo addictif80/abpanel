@@ -25,6 +25,26 @@ class MailService
         $subject = $template->renderSubject($variables);
         $html = $template->render($variables);
 
+        // Guardrail: a template placeholder with no matching key in $variables is
+        // left as literal {{...}} by MailTemplate::render() — this is exactly the
+        // bug where the client received "Bonjour {{first_name}}" instead of their
+        // name. Fail loudly (logged as 'failed') instead of silently mailing it out.
+        if (preg_match_all('/\{\{\s*(\w+)\s*\}\}/', $subject . ' ' . $html, $matches)) {
+            $missing = implode(', ', array_unique($matches[1]));
+            $error   = "Variable(s) manquante(s) pour le template '{$templateKey}' : {$missing}";
+
+            MailLog::create([
+                'template_key' => $templateKey,
+                'to'           => $to,
+                'subject'      => $subject,
+                'html_content' => $html,
+                'status'       => 'failed',
+                'error'        => $error,
+            ]);
+
+            throw new \RuntimeException($error);
+        }
+
         try {
             Mail::html($html, function ($message) use ($to, $subject, $attachments) {
                 $message->to($to)

@@ -99,7 +99,7 @@ Route::middleware('installed')->group(function () {
             Route::get('/plans/{plan}', [Client\CheckoutController::class, 'checkout'])->name('checkout');
             Route::post('/plans/{plan}/intent', [Client\CheckoutController::class, 'createIntent'])->name('intent');
             Route::get('/success', [Client\CheckoutController::class, 'success'])->name('success');
-            Route::post('/validate-promo', [Client\CheckoutController::class, 'validatePromo'])->name('validate-promo');
+            Route::post('/validate-promo', [Client\CheckoutController::class, 'validatePromo'])->middleware('throttle:10,1')->name('validate-promo');
         });
 
         // Billing
@@ -146,10 +146,11 @@ Route::middleware('installed')->group(function () {
         Route::get('/profile', [Client\ProfileController::class, 'index'])->name('profile');
         Route::put('/profile', [Client\ProfileController::class, 'update'])->name('profile.update');
         Route::put('/profile/password', [Client\ProfileController::class, 'updatePassword'])->name('profile.password');
+        Route::get('/profile/export', [Client\ProfileController::class, 'exportData'])->name('profile.export');
     });
 
     // Admin panel
-    Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::middleware(['auth', 'admin', 'active.user'])->prefix('admin')->name('admin.')->group(function () {
         Route::get('/dashboard', [Admin\DashboardController::class, 'index'])->name('dashboard');
 
         // Settings
@@ -177,6 +178,8 @@ Route::middleware('installed')->group(function () {
         Route::post('/clients/{client}/reset-password', [Admin\ClientController::class, 'resetPassword'])->name('clients.reset-password');
         Route::post('/clients/{client}/impersonate', [Admin\ClientController::class, 'impersonate'])->name('clients.impersonate');
         Route::post('/clients/{client}/resend-welcome', [Admin\ClientController::class, 'resendWelcome'])->name('clients.resend-welcome');
+        Route::post('/clients/{client}/anonymize', [Admin\ClientController::class, 'anonymize'])->name('clients.anonymize');
+        Route::get('/clients/{client}/export-data', [Admin\ClientController::class, 'exportData'])->name('clients.export-data');
 
         // Products catalog
         Route::resource('products', Admin\ProductController::class)->except(['show']);
@@ -340,7 +343,7 @@ Route::middleware('installed')->group(function () {
     });
 
     // Notifications (any authenticated user)
-    Route::middleware('auth')->prefix('notifications')->name('notifications.')->group(function () {
+    Route::middleware(['auth', 'active.user'])->prefix('notifications')->name('notifications.')->group(function () {
         Route::get('/', [NotificationController::class, 'index'])->name('index');
         Route::post('/read-all', [NotificationController::class, 'markAllRead'])->name('read-all');
         Route::get('/{notification}/read', [NotificationController::class, 'markRead'])->name('read');

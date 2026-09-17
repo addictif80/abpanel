@@ -9,6 +9,7 @@ use App\Services\MailService;
 use App\Services\PdfService;
 use App\Services\StripeService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class BillingController extends Controller
 {
@@ -107,7 +108,8 @@ class BillingController extends Controller
 
             return response()->json(['client_secret' => $intent->client_secret]);
         } catch (\Throwable $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
+            Log::error("Stripe createPayIntent failed for invoice {$invoice->id}: " . $e->getMessage());
+            return response()->json(['error' => "Impossible d'initier le paiement pour le moment. Veuillez réessayer ou nous contacter."], 500);
         }
     }
 
@@ -122,15 +124,21 @@ class BillingController extends Controller
                 ->with('success', 'Facture déjà réglée.');
         }
 
-        // Verify payment intent status with Stripe
+        // Verify payment intent status with Stripe. Only ever trust the intent ID
+        // this invoice itself created (createPayIntent) — never a client-supplied
+        // one, which would let a client mark ANY of their invoices paid using a
+        // real but unrelated (and possibly much smaller) successful payment.
         try {
             $stripe = app(StripeService::class);
-            $intentId = $invoice->stripe_payment_intent_id ?? $request->input('payment_intent');
+            $intentId = $invoice->stripe_payment_intent_id;
 
             if ($intentId) {
                 $intent = $stripe->retrievePaymentIntent($intentId);
 
-                if ($intent->status === 'succeeded') {
+                $capturedCents = (int) ($intent->amount_received ?? $intent->amount ?? 0);
+                $expectedCents = (int) round(((float) $invoice->total) * 100);
+
+                if ($intent->status === 'succeeded' && $capturedCents === $expectedCents) {
                     $invoice->update(['status' => 'paid', 'paid_at' => now()]);
 
                     try {

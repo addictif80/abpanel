@@ -53,12 +53,13 @@
         </div>
     </div>
 
+    @php($billing = $invoice->billingInfo())
     <div class="mb-6">
         <div class="text-xs font-semibold text-gray-400 uppercase mb-1">Facturé à</div>
-        <div class="text-gray-800 font-medium">{{ $invoice->user->full_name }}</div>
-        <div class="text-gray-500 text-sm">{{ $invoice->user->email }}</div>
-        @if($invoice->user->company)
-        <div class="text-gray-500 text-sm">{{ $invoice->user->company }}</div>
+        <div class="text-gray-800 font-medium">{{ $billing['name'] }}</div>
+        <div class="text-gray-500 text-sm">{{ $billing['email'] }}</div>
+        @if($billing['company'])
+        <div class="text-gray-500 text-sm">{{ $billing['company'] }}</div>
         @endif
     </div>
 

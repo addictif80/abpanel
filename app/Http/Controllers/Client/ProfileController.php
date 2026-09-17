@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Client;
 
 use App\Http\Controllers\Controller;
 use App\Services\CyberPanelService;
+use App\Services\DataExportService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
@@ -77,5 +78,14 @@ class ProfileController extends Controller
         }
 
         return back()->with('success', 'Mot de passe mis à jour avec succès.')->with('tab', 'password');
+    }
+
+    public function exportData(DataExportService $export)
+    {
+        $data = $export->export(auth()->user());
+
+        return response()->json($data, 200, [
+            'Content-Disposition' => 'attachment; filename="mes-donnees-' . now()->format('Y-m-d') . '.json"',
+        ], JSON_PRETTY_PRINT);
     }
 }

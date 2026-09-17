@@ -2,12 +2,12 @@
 
 namespace App\Services;
 
+use App\Exceptions\InvalidPromoCodeException;
 use App\Models\Invoice;
 use App\Models\Plan;
 use App\Models\PromoCode;
 use App\Models\User;
 use Carbon\Carbon;
-use RuntimeException;
 
 /**
  * Shared "start billing retroactively" logic used by every import screen
@@ -20,7 +20,7 @@ use RuntimeException;
 class BillingImportService
 {
     /**
-     * @throws RuntimeException if the promo code is invalid for this plan/amount
+     * @throws InvalidPromoCodeException if the promo code is invalid for this plan/amount
      */
     public function createPaidInvoice(
         User $client,
@@ -39,11 +39,11 @@ class BillingImportService
         if ($promoCode) {
             $promo = PromoCode::where('code', strtoupper($promoCode))->first();
             if (!$promo) {
-                throw new RuntimeException('Code promo invalide.');
+                throw new InvalidPromoCodeException('Code promo invalide.');
             }
             $result = $promo->validate($plan, $price);
             if (!$result['valid']) {
-                throw new RuntimeException($result['error']);
+                throw new InvalidPromoCodeException($result['error']);
             }
             $discount = $result['discount'];
         }

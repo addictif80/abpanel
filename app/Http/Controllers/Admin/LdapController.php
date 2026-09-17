@@ -10,6 +10,7 @@ use App\Services\BillingImportService;
 use App\Services\LdapService;
 use App\Services\ProvisioningService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class LdapController extends Controller
 {
@@ -102,17 +103,21 @@ class LdapController extends Controller
         }
 
         try {
-            $invoice = app(BillingImportService::class)->createPaidInvoice(
-                $client, $plan, $request->billing_period, $request->promo_code, $request->paid_at
-            );
-        } catch (\RuntimeException $e) {
+            $invoice = DB::transaction(function () use ($client, $plan, $request, $uid) {
+                $invoice = app(BillingImportService::class)->createPaidInvoice(
+                    $client, $plan, $request->billing_period, $request->promo_code, $request->paid_at
+                );
+
+                $client->update([
+                    'ldap_username' => $uid,
+                    'ldap_dn'       => 'uid=' . $uid . ',' . Setting::get('ldap_users_dn', ''),
+                ]);
+
+                return $invoice;
+            });
+        } catch (\App\Exceptions\InvalidPromoCodeException $e) {
             return back()->withErrors(['promo_code' => $e->getMessage()])->withInput();
         }
-
-        $client->update([
-            'ldap_username' => $uid,
-            'ldap_dn'       => 'uid=' . $uid . ',' . Setting::get('ldap_users_dn', ''),
-        ]);
 
         $warning = null;
         try {

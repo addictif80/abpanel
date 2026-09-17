@@ -11,6 +11,7 @@ use App\Models\VirtualMachine;
 use App\Services\BillingImportService;
 use App\Services\NginxProxyManagerService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class DomainController extends Controller
 {
@@ -102,17 +103,6 @@ class DomainController extends Controller
 
         $client  = User::findOrFail($request->user_id);
         $plan    = $request->plan_id ? Plan::findOrFail($request->plan_id) : null;
-        $invoice = null;
-
-        if ($plan) {
-            try {
-                $invoice = app(BillingImportService::class)->createPaidInvoice(
-                    $client, $plan, $request->billing_period, $request->promo_code, $request->paid_at
-                );
-            } catch (\RuntimeException $e) {
-                return back()->withErrors(['promo_code' => $e->getMessage()])->withInput();
-            }
-        }
 
         try {
             $host = app(NginxProxyManagerService::class)->getProxyHost($hostId);
@@ -128,23 +118,38 @@ class DomainController extends Controller
             } catch (\Throwable) {}
         }
 
-        ClientDomain::create([
-            'user_id'             => $client->id,
-            'virtual_machine_id'  => $request->type === 'vps' ? $request->virtual_machine_id : null,
-            'hosting_account_id'  => $request->type === 'hosting' ? $request->hosting_account_id : null,
-            'domain'              => $request->domain,
-            'type'                => $request->type,
-            'target_ip'           => $host['forward_host'] ?? '',
-            'target_port'         => $host['forward_port'] ?? 80,
-            'forward_scheme'      => $host['forward_scheme'] ?? 'http',
-            'www_redirect'        => count($host['domain_names'] ?? []) > 1,
-            'ssl_enabled'         => (bool) $sslCertId,
-            'npm_proxy_id'        => $hostId,
-            'ssl_certificate_id'  => $sslCertId ?: null,
-            'ssl_expires_at'      => $sslExpiresAt,
-            'dns_ok'              => true,
-            'dns_checked_at'      => now(),
-        ]);
+        // Invoice + resource creation must succeed or fail together: if the
+        // ClientDomain row fails to insert, the client must not end up billed
+        // for a domain that was never actually registered.
+        try {
+            $invoice = DB::transaction(function () use ($client, $plan, $request, $hostId, $host, $sslCertId, $sslExpiresAt) {
+                $invoice = $plan ? app(BillingImportService::class)->createPaidInvoice(
+                    $client, $plan, $request->billing_period, $request->promo_code, $request->paid_at
+                ) : null;
+
+                ClientDomain::create([
+                    'user_id'             => $client->id,
+                    'virtual_machine_id'  => $request->type === 'vps' ? $request->virtual_machine_id : null,
+                    'hosting_account_id'  => $request->type === 'hosting' ? $request->hosting_account_id : null,
+                    'domain'              => $request->domain,
+                    'type'                => $request->type,
+                    'target_ip'           => $host['forward_host'] ?? '',
+                    'target_port'         => $host['forward_port'] ?? 80,
+                    'forward_scheme'      => $host['forward_scheme'] ?? 'http',
+                    'www_redirect'        => count($host['domain_names'] ?? []) > 1,
+                    'ssl_enabled'         => (bool) $sslCertId,
+                    'npm_proxy_id'        => $hostId,
+                    'ssl_certificate_id'  => $sslCertId ?: null,
+                    'ssl_expires_at'      => $sslExpiresAt,
+                    'dns_ok'              => true,
+                    'dns_checked_at'      => now(),
+                ]);
+
+                return $invoice;
+            });
+        } catch (\App\Exceptions\InvalidPromoCodeException $e) {
+            return back()->withErrors(['promo_code' => $e->getMessage()])->withInput();
+        }
 
         $msg = "« {$request->domain} » importé et assigné.";
         if ($invoice) {

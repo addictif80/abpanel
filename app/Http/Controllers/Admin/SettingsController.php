@@ -164,9 +164,10 @@ class SettingsController extends Controller
             'mail_encryption'   => 'nullable|in:tls,ssl,',
             'mail_from_address' => 'required|email',
             'mail_from_name'    => 'required|string',
+            'mail_logs_retention_months' => 'required|integer|min:1|max:120',
         ]);
 
-        $fields = ['mail_host', 'mail_port', 'mail_username', 'mail_password', 'mail_encryption', 'mail_from_address', 'mail_from_name'];
+        $fields = ['mail_host', 'mail_port', 'mail_username', 'mail_password', 'mail_encryption', 'mail_from_address', 'mail_from_name', 'mail_logs_retention_months'];
         foreach ($fields as $key) {
             Setting::set($key, $request->input($key), 'mail');
         }
