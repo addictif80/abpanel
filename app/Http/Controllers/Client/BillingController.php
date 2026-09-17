@@ -135,11 +135,11 @@ class BillingController extends Controller
 
                     try {
                         app(MailService::class)->sendFromTemplate('invoice_paid', $invoice->user->email, [
-                            'client_name'    => $invoice->user->full_name,
+                            'first_name'     => $invoice->user->first_name,
                             'invoice_number' => $invoice->number,
-                            'invoice_total'  => number_format($invoice->total, 2) . ' ' . ($invoice->currency ?? 'EUR'),
-                            'paid_at'        => now()->format('d/m/Y'),
-                            'company_name'   => Setting::get('company_name') ?: Setting::get('app_name', config('app.name')),
+                            'amount'         => number_format($invoice->total, 2) . ' ' . ($invoice->currency ?? 'EUR'),
+                            'date'           => now()->format('d/m/Y'),
+                            'invoice_url'    => route('client.billing.invoice', $invoice),
                         ]);
                     } catch (\Throwable) {}
 
