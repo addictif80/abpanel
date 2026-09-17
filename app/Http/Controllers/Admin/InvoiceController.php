@@ -122,6 +122,19 @@ class InvoiceController extends Controller
                 : app(NotificationService::class)->invoiceCreated($invoice);
         } catch (\Exception) {}
 
+        if ($markPaid) {
+            try {
+                $invoice->load('user');
+                app(MailService::class)->sendFromTemplate('invoice_paid', $invoice->user->email, [
+                    'client_name'    => $invoice->user->full_name,
+                    'invoice_number' => $invoice->number,
+                    'invoice_total'  => number_format($invoice->total, 2) . ' ' . ($invoice->currency ?? 'EUR'),
+                    'paid_at'        => $invoice->paid_at?->format('d/m/Y') ?? now()->format('d/m/Y'),
+                    'company_name'   => Setting::get('company_name') ?: Setting::get('app_name', config('app.name')),
+                ]);
+            } catch (\Throwable) {}
+        }
+
         return redirect()->route('admin.invoices.index')->with('success', 'Facture créée.');
     }
 
