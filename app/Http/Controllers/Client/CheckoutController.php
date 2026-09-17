@@ -81,7 +81,7 @@ class CheckoutController extends Controller
                 }
             }
 
-            $finalAmount = max(50, (int)(($price - $discount) * 100));
+            $finalAmount = max(50, (int) round(($price - $discount) * 100));
 
             $intent = $stripe->createPaymentIntent([
                 'amount'   => $finalAmount,
@@ -113,7 +113,7 @@ class CheckoutController extends Controller
                 ]],
                 'subtotal'                 => $price,
                 'tax'                      => 0,
-                'total'                    => $price - $discount,
+                'total'                    => round($price - $discount, 2),
                 'currency'                 => 'EUR',
                 'metadata'                 => $metadata,
                 'stripe_payment_intent_id' => $intent->id,

@@ -11,6 +11,7 @@ use App\Models\VirtualMachine;
 use App\Services\MailService;
 use App\Services\NotificationService;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 
 class SendReminders extends Command
 {
@@ -134,28 +135,45 @@ class SendReminders extends Command
             $this->line("Facture récurrente {$source->number} → nouvelle facture pour {$source->user->email}");
 
             if (! $dry) {
-                $next = $this->nextBillingDate($source->next_billing_at, $source->recurrence_period);
+                // Lock the source row and re-check it's still due: guards against
+                // two overlapping runs of this command (manual + scheduled, or a
+                // stuck previous run) both generating an invoice for the same period.
+                $newInvoice = DB::transaction(function () use ($source, $paymentDays) {
+                    $locked = Invoice::whereKey($source->id)->lockForUpdate()->first();
 
-                $newInvoice = Invoice::create([
-                    'user_id'            => $source->user_id,
-                    'plan_id'            => $source->plan_id,
-                    'type'               => 'subscription',
-                    'number'             => Invoice::generateNumber(),
-                    'status'             => 'pending',
-                    'items'              => $source->items,
-                    'subtotal'           => $source->subtotal,
-                    'tax'                => $source->tax,
-                    'total'              => $source->total,
-                    'currency'           => $source->currency,
-                    'due_at'             => now()->addDays($paymentDays),
-                    'is_recurring'       => true,
-                    'recurrence_period'  => $source->recurrence_period,
-                    'next_billing_at'    => $next,
-                    'metadata'           => array_merge($source->metadata ?? [], ['generated_from' => $source->number]),
-                ]);
+                    if (!$locked || !$locked->next_billing_at || $locked->next_billing_at->gt(now())) {
+                        return null;
+                    }
 
-                // Update parent's next billing date
-                $source->update(['next_billing_at' => $next]);
+                    $next = $this->nextBillingDate($locked->next_billing_at, $locked->recurrence_period);
+
+                    $created = Invoice::create([
+                        'user_id'            => $locked->user_id,
+                        'plan_id'            => $locked->plan_id,
+                        'type'               => 'subscription',
+                        'number'             => Invoice::generateNumber(),
+                        'status'             => 'pending',
+                        'items'              => $locked->items,
+                        'subtotal'           => $locked->subtotal,
+                        'tax'                => $locked->tax,
+                        'total'              => $locked->total,
+                        'currency'           => $locked->currency,
+                        'due_at'             => now()->addDays($paymentDays),
+                        'is_recurring'       => true,
+                        'recurrence_period'  => $locked->recurrence_period,
+                        'next_billing_at'    => $next,
+                        'metadata'           => array_merge($locked->metadata ?? [], ['generated_from' => $locked->number]),
+                    ]);
+
+                    // Update parent's next billing date
+                    $locked->update(['next_billing_at' => $next]);
+
+                    return $created;
+                });
+
+                if (!$newInvoice) {
+                    continue; // already processed by a concurrent/overlapping run
+                }
 
                 try {
                     $this->mail->sendFromTemplate('invoice_recurring', $source->user->email, [

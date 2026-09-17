@@ -9,7 +9,7 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 // Run reminder checks every day at 8h
-Schedule::command('reminders:send')->dailyAt('08:00');
+Schedule::command('reminders:send')->dailyAt('08:00')->withoutOverlapping();
 
 // Safety net: catches any VM whose Tailscale IP wasn't picked up by
 // JoinTailscaleJob (e.g. LXC containers, or a QEMU VM whose join failed).

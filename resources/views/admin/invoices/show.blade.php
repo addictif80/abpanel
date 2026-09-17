@@ -40,6 +40,23 @@
 <div class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">{{ session('success') }}</div>
 @endif
 
+@if(!empty($invoice->metadata['provisioning_failed'] ?? false))
+<div class="mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+    <strong>Paiement encaissé mais provisioning échoué.</strong>
+    Le client a payé mais la ressource n'a pas pu être créée automatiquement : {{ $invoice->metadata['provisioning_error'] ?? 'erreur inconnue' }}.
+    Vérifiez et provisionnez manuellement si nécessaire.
+</div>
+@endif
+
+@if(!empty($invoice->metadata['amount_mismatch'] ?? null))
+<div class="mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+    <strong>Anomalie de paiement.</strong>
+    Le montant capturé par Stripe ({{ number_format(($invoice->metadata['amount_mismatch']['captured'] ?? 0) / 100, 2) }} €)
+    ne correspond pas au montant attendu ({{ number_format(($invoice->metadata['amount_mismatch']['expected'] ?? 0) / 100, 2) }} €).
+    La facture n'a PAS été marquée payée automatiquement — vérifiez sur le dashboard Stripe avant toute action.
+</div>
+@endif
+
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
     <div class="lg:col-span-2 space-y-5">
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">

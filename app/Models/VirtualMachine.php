@@ -4,9 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class VirtualMachine extends Model
 {
+    use SoftDeletes;
+
     protected $fillable = [
         'user_id', 'plan_id', 'name', 'proxmox_vmid', 'proxmox_node', 'vm_type',
         'status', 'root_password', 'provisioning_status', 'provisioning_error',
