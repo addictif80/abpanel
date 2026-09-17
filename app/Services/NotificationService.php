@@ -92,6 +92,19 @@ class NotificationService
         }
     }
 
+    public function provisioningFailed(Invoice $invoice, string $reason): void
+    {
+        foreach (User::where('is_admin', true)->get() as $admin) {
+            $this->notify(
+                $admin,
+                'provisioning_failed',
+                "Facture {$invoice->number} payée mais provisioning échoué",
+                "Client : {$invoice->user->full_name} — {$reason}",
+                route('admin.invoices.show', $invoice)
+            );
+        }
+    }
+
     public function invoiceOverdue(Invoice $invoice): void
     {
         $this->notify(

@@ -49,11 +49,19 @@ class OsTemplateController extends Controller
             'name'             => 'required|string|max:100',
             'description'      => 'nullable|string',
             'template_type'    => 'required|in:iso,ct',
-            'url'              => 'required|url',
+            'url'              => ['required', 'url', 'starts_with:http://,https://'],
             'filename'         => ['required', 'string', 'max:150', 'regex:' . $filenameRegex],
             'proxmox_node'     => 'required|string',
             'proxmox_storage'  => 'required|string',
         ]);
+
+        $host = parse_url($request->url, PHP_URL_HOST);
+        if ($host && (filter_var($host, FILTER_VALIDATE_IP)
+            ? !filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)
+            : in_array(strtolower($host), ['localhost'], true))
+        ) {
+            return back()->withErrors(['url' => "L'URL ne peut pas pointer vers une adresse locale ou privée."])->withInput();
+        }
 
         $template = OsTemplate::create([
             'name'            => $request->name,

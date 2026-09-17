@@ -32,10 +32,10 @@ Route::middleware('not.installed')->prefix('install')->name('install.')->group(f
 Route::middleware('installed')->group(function () {
     // Auth
     Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login')->middleware('guest');
-    Route::post('/login', [LoginController::class, 'login'])->middleware('guest');
+    Route::post('/login', [LoginController::class, 'login'])->middleware(['guest', 'throttle:5,1']);
     Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
     Route::get('/register', [RegisterController::class, 'showRegisterForm'])->name('register')->middleware('guest');
-    Route::post('/register', [RegisterController::class, 'register'])->middleware('guest');
+    Route::post('/register', [RegisterController::class, 'register'])->middleware(['guest', 'throttle:5,1']);
 
     // Password reset
     Route::middleware('guest')->group(function () {
@@ -73,14 +73,14 @@ Route::middleware('installed')->group(function () {
             Route::get('/{vm}/reinstall', [Client\VmController::class, 'reinstall'])->name('reinstall');
             Route::post('/{vm}/reinstall', [Client\VmController::class, 'doReinstall'])->name('doReinstall');
             Route::get('/{vm}/cancel', [Client\VmController::class, 'cancelRequest'])->name('cancel');
-            Route::post('/{vm}/cancel', [Client\VmController::class, 'cancelConfirm'])->name('cancelConfirm');
+            Route::post('/{vm}/cancel', [Client\VmController::class, 'cancelConfirm'])->middleware('throttle:5,1')->name('cancelConfirm');
         });
 
         // Hosting
         Route::prefix('hosting')->name('hosting.')->group(function () {
             Route::get('/', [Client\HostingController::class, 'index'])->name('index');
             Route::get('/{hosting}/cancel', [Client\HostingController::class, 'cancelRequest'])->name('cancel');
-            Route::post('/{hosting}/cancel', [Client\HostingController::class, 'cancelConfirm'])->name('cancelConfirm');
+            Route::post('/{hosting}/cancel', [Client\HostingController::class, 'cancelConfirm'])->middleware('throttle:5,1')->name('cancelConfirm');
         });
 
         // Domains

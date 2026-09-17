@@ -5,9 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Invoice extends Model
 {
+    use SoftDeletes;
+
     protected $fillable = [
         'user_id', 'plan_id', 'quote_id', 'type', 'deposit_invoice_id',
         'number', 'stripe_invoice_id', 'stripe_payment_intent_id',
@@ -92,7 +95,7 @@ class Invoice extends Model
     public static function generateNumber(): string
     {
         $year = date('Y');
-        $last = static::where('number', 'like', "INV-{$year}-%")->orderByDesc('id')->value('number');
+        $last = static::withTrashed()->where('number', 'like', "INV-{$year}-%")->orderByDesc('id')->value('number');
         $next = $last ? ((int) substr($last, -4)) + 1 : 1;
         return sprintf('INV-%s-%04d', $year, $next);
     }
