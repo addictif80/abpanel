@@ -259,6 +259,12 @@ Route::middleware('installed')->group(function () {
         Route::prefix('domains')->name('domains.')->group(function () {
             Route::get('/', [Admin\DomainController::class, 'index'])->name('index');
             Route::delete('/{domain}', [Admin\DomainController::class, 'destroy'])->name('destroy');
+            Route::prefix('import')->name('import.')->group(function () {
+                Route::get('/', [Admin\DomainController::class, 'importIndex'])->name('index');
+                Route::get('/client-resources/{user}', [Admin\DomainController::class, 'clientResources'])->name('client-resources');
+                Route::get('/{hostId}', [Admin\DomainController::class, 'importShow'])->name('show');
+                Route::post('/{hostId}', [Admin\DomainController::class, 'importStore'])->name('store');
+            });
         });
 
         // Promo codes
