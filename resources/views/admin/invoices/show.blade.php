@@ -26,6 +26,14 @@
             </button>
         </form>
         @endif
+        @if($invoice->status === 'paid')
+        <form method="POST" action="{{ route('admin.invoices.resend-mail', $invoice) }}">
+            @csrf
+            <button type="submit" class="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-200 transition">
+                Renvoyer le mail de confirmation
+            </button>
+        </form>
+        @endif
         <form method="POST" action="{{ route('admin.invoices.destroy', $invoice) }}"
               onsubmit="return confirm('Supprimer cette facture ?')">
             @csrf @method('DELETE')

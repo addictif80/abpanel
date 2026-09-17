@@ -18,12 +18,26 @@
                 Voir l'espace client
             </button>
         </form>
+        <form method="POST" action="{{ route('admin.clients.resend-welcome', $client) }}">
+            @csrf
+            <button type="submit"
+                class="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-200 transition">
+                Renvoyer le mail de bienvenue
+            </button>
+        </form>
         <a href="{{ route('admin.clients.edit', $client) }}"
            class="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-200 transition">
             Modifier
         </a>
     </div>
 </div>
+
+@if(session('success'))
+<div class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">{{ session('success') }}</div>
+@endif
+@if(session('error'))
+<div class="mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{{ session('error') }}</div>
+@endif
 
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 

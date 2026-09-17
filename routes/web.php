@@ -176,6 +176,7 @@ Route::middleware('installed')->group(function () {
         Route::resource('clients', Admin\ClientController::class);
         Route::post('/clients/{client}/reset-password', [Admin\ClientController::class, 'resetPassword'])->name('clients.reset-password');
         Route::post('/clients/{client}/impersonate', [Admin\ClientController::class, 'impersonate'])->name('clients.impersonate');
+        Route::post('/clients/{client}/resend-welcome', [Admin\ClientController::class, 'resendWelcome'])->name('clients.resend-welcome');
 
         // Products catalog
         Route::resource('products', Admin\ProductController::class)->except(['show']);
@@ -306,6 +307,7 @@ Route::middleware('installed')->group(function () {
         // Invoices
         Route::resource('invoices', Admin\InvoiceController::class)->only(['index', 'show', 'create', 'store', 'destroy']);
         Route::post('/invoices/{invoice}/mark-paid', [Admin\InvoiceController::class, 'markPaid'])->name('invoices.mark-paid');
+        Route::post('/invoices/{invoice}/resend-mail', [Admin\InvoiceController::class, 'resendMail'])->name('invoices.resend-mail');
         Route::get('/invoices/{invoice}/download', [Admin\InvoiceController::class, 'download'])->name('invoices.download');
         Route::get('/invoices/{invoice}/facturx.xml', [Admin\InvoiceController::class, 'downloadXml'])->name('invoices.facturx');
 
