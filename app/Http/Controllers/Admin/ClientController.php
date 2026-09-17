@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\NewsletterSubscriber;
 use App\Models\User;
+use App\Services\DataExportService;
 use App\Services\MailService;
 use App\Services\NginxProxyManagerService;
 use App\Services\ProxmoxService;
@@ -277,5 +278,15 @@ class ClientController extends Controller
         }
 
         return back()->with('success', 'Mail de bienvenue renvoyé à ' . $client->email . '.');
+    }
+
+    /** Fulfills a client's GDPR access/portability request (Art. 15 & 20) on their behalf. */
+    public function exportData(User $client, DataExportService $export)
+    {
+        $data = $export->export($client);
+
+        return response()->json($data, 200, [
+            'Content-Disposition' => 'attachment; filename="donnees-' . $client->id . '-' . now()->format('Y-m-d') . '.json"',
+        ], JSON_PRETTY_PRINT);
     }
 }

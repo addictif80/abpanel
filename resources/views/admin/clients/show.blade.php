@@ -26,6 +26,10 @@
                 Renvoyer le mail de bienvenue
             </button>
         </form>
+        <a href="{{ route('admin.clients.export-data', $client) }}"
+           class="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-200 transition">
+            Exporter ses données
+        </a>
         <a href="{{ route('admin.clients.edit', $client) }}"
            class="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-200 transition">
             Modifier

@@ -146,6 +146,7 @@ Route::middleware('installed')->group(function () {
         Route::get('/profile', [Client\ProfileController::class, 'index'])->name('profile');
         Route::put('/profile', [Client\ProfileController::class, 'update'])->name('profile.update');
         Route::put('/profile/password', [Client\ProfileController::class, 'updatePassword'])->name('profile.password');
+        Route::get('/profile/export', [Client\ProfileController::class, 'exportData'])->name('profile.export');
     });
 
     // Admin panel
@@ -178,6 +179,7 @@ Route::middleware('installed')->group(function () {
         Route::post('/clients/{client}/impersonate', [Admin\ClientController::class, 'impersonate'])->name('clients.impersonate');
         Route::post('/clients/{client}/resend-welcome', [Admin\ClientController::class, 'resendWelcome'])->name('clients.resend-welcome');
         Route::post('/clients/{client}/anonymize', [Admin\ClientController::class, 'anonymize'])->name('clients.anonymize');
+        Route::get('/clients/{client}/export-data', [Admin\ClientController::class, 'exportData'])->name('clients.export-data');
 
         // Products catalog
         Route::resource('products', Admin\ProductController::class)->except(['show']);
