@@ -159,6 +159,28 @@ class InvoiceController extends Controller
         return back()->with('success', 'Facture marquée comme payée. Confirmation envoyée au client.');
     }
 
+    public function resendMail(Invoice $invoice)
+    {
+        if ($invoice->status !== 'paid') {
+            return back()->with('error', "Le mail de confirmation de paiement n'est envoyable que pour une facture payée.");
+        }
+
+        try {
+            $invoice->load('user');
+            app(MailService::class)->sendFromTemplate('invoice_paid', $invoice->user->email, [
+                'client_name'    => $invoice->user->full_name,
+                'invoice_number' => $invoice->number,
+                'invoice_total'  => number_format($invoice->total, 2) . ' ' . ($invoice->currency ?? 'EUR'),
+                'paid_at'        => $invoice->paid_at?->format('d/m/Y') ?? now()->format('d/m/Y'),
+                'company_name'   => Setting::get('company_name') ?: Setting::get('app_name', config('app.name')),
+            ]);
+        } catch (\Throwable $e) {
+            return back()->with('error', "Échec de l'envoi : " . $e->getMessage());
+        }
+
+        return back()->with('success', 'Mail de confirmation renvoyé à ' . $invoice->user->email . '.');
+    }
+
     public function download(Invoice $invoice)
     {
         $pdf = app(PdfService::class)->generateInvoicePdf($invoice);

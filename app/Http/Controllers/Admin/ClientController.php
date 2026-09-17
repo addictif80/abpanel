@@ -161,4 +161,20 @@ class ClientController extends Controller
 
         return back()->with('success', 'Mot de passe réinitialisé et synchronisé avec CyberPanel.');
     }
+
+    public function resendWelcome(User $client)
+    {
+        try {
+            app(MailService::class)->sendFromTemplate('welcome', $client->email, [
+                'first_name' => $client->first_name,
+                'last_name'  => $client->last_name,
+                'email'      => $client->email,
+                'login_url'  => route('login'),
+            ]);
+        } catch (\Exception $e) {
+            return back()->with('error', "Échec de l'envoi : " . $e->getMessage());
+        }
+
+        return back()->with('success', 'Mail de bienvenue renvoyé à ' . $client->email . '.');
+    }
 }
