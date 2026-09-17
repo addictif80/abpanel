@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Invoice;
 use App\Models\Plan;
 use App\Models\PromoCode;
-use App\Models\Setting;
 use App\Models\User;
 use App\Services\MailService;
 use App\Services\NotificationService;
@@ -124,14 +123,7 @@ class InvoiceController extends Controller
 
         if ($markPaid) {
             try {
-                $invoice->load('user');
-                app(MailService::class)->sendFromTemplate('invoice_paid', $invoice->user->email, [
-                    'client_name'    => $invoice->user->full_name,
-                    'invoice_number' => $invoice->number,
-                    'invoice_total'  => number_format($invoice->total, 2) . ' ' . ($invoice->currency ?? 'EUR'),
-                    'paid_at'        => $invoice->paid_at?->format('d/m/Y') ?? now()->format('d/m/Y'),
-                    'company_name'   => Setting::get('company_name') ?: Setting::get('app_name', config('app.name')),
-                ]);
+                $this->sendInvoicePaidMail($invoice);
             } catch (\Throwable) {}
         }
 
@@ -144,14 +136,7 @@ class InvoiceController extends Controller
         try { app(NotificationService::class)->paymentConfirmed($invoice); } catch (\Exception) {}
 
         try {
-            $invoice->load('user');
-            app(MailService::class)->sendFromTemplate('invoice_paid', $invoice->user->email, [
-                'client_name'    => $invoice->user->full_name,
-                'invoice_number' => $invoice->number,
-                'invoice_total'  => number_format($invoice->total, 2) . ' ' . ($invoice->currency ?? 'EUR'),
-                'paid_at'        => now()->format('d/m/Y'),
-                'company_name'   => Setting::get('company_name') ?: Setting::get('app_name', config('app.name')),
-            ]);
+            $this->sendInvoicePaidMail($invoice);
         } catch (\Throwable) {
             // Don't block the action if mail fails
         }
@@ -166,19 +151,26 @@ class InvoiceController extends Controller
         }
 
         try {
-            $invoice->load('user');
-            app(MailService::class)->sendFromTemplate('invoice_paid', $invoice->user->email, [
-                'client_name'    => $invoice->user->full_name,
-                'invoice_number' => $invoice->number,
-                'invoice_total'  => number_format($invoice->total, 2) . ' ' . ($invoice->currency ?? 'EUR'),
-                'paid_at'        => $invoice->paid_at?->format('d/m/Y') ?? now()->format('d/m/Y'),
-                'company_name'   => Setting::get('company_name') ?: Setting::get('app_name', config('app.name')),
-            ]);
+            $this->sendInvoicePaidMail($invoice);
         } catch (\Throwable $e) {
             return back()->with('error', "Échec de l'envoi : " . $e->getMessage());
         }
 
         return back()->with('success', 'Mail de confirmation renvoyé à ' . $invoice->user->email . '.');
+    }
+
+    /** @throws \Throwable */
+    private function sendInvoicePaidMail(Invoice $invoice): void
+    {
+        $invoice->load('user');
+
+        app(MailService::class)->sendFromTemplate('invoice_paid', $invoice->user->email, [
+            'first_name'     => $invoice->user->first_name,
+            'invoice_number' => $invoice->number,
+            'amount'         => number_format($invoice->total, 2) . ' ' . ($invoice->currency ?? 'EUR'),
+            'date'           => $invoice->paid_at?->format('d/m/Y') ?? now()->format('d/m/Y'),
+            'invoice_url'    => route('client.billing.invoice', $invoice),
+        ]);
     }
 
     public function download(Invoice $invoice)
