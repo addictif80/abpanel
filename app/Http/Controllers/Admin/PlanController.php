@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\InfraServer;
 use App\Models\Plan;
 use App\Models\Setting;
 use App\Services\CyberPanelService;
@@ -20,8 +21,11 @@ class PlanController extends Controller
 
     public function create()
     {
-        $allPlans = Plan::orderBy('type')->orderBy('name')->get();
-        return view('admin.plans.create', compact('allPlans'));
+        $allPlans      = Plan::orderBy('type')->orderBy('name')->get();
+        $proxmoxServers    = InfraServer::ofType('proxmox')->orderByDesc('is_default')->orderBy('label')->get();
+        $cyberpanelServers = InfraServer::ofType('cyberpanel')->orderByDesc('is_default')->orderBy('label')->get();
+        $synologyServers   = InfraServer::ofType('synology')->orderByDesc('is_default')->orderBy('label')->get();
+        return view('admin.plans.create', compact('allPlans', 'proxmoxServers', 'cyberpanelServers', 'synologyServers'));
     }
 
     public function store(Request $request)
@@ -47,6 +51,9 @@ class PlanController extends Controller
             'limit_per_hosting'   => 'nullable|integer|min:1',
             'limit_per_domain'    => 'nullable|integer|min:1',
             'limit_per_subdomain' => 'nullable|integer|min:1',
+            'proxmox_server_id'    => 'nullable|exists:infra_servers,id',
+            'cyberpanel_server_id' => 'nullable|exists:infra_servers,id',
+            'synology_server_id'   => 'nullable|exists:infra_servers,id',
         ]);
 
         $features         = array_filter(array_map('trim', explode("\n", $request->features ?? '')));
@@ -77,6 +84,9 @@ class PlanController extends Controller
             'requires_vm'         => $request->boolean('requires_vm'),
             'requires_hosting'    => $request->boolean('requires_hosting'),
             'plan_allowances'     => $planAllowances ?: null,
+            'proxmox_server_id'    => $request->type === 'vm' ? $request->proxmox_server_id ?: null : null,
+            'cyberpanel_server_id' => $request->type === 'hosting' ? $request->cyberpanel_server_id ?: null : null,
+            'synology_server_id'   => $request->synology_server_id ?: null,
         ]);
 
         $redirect = redirect()->route('admin.plans.index')->with('success', 'Plan créé.');
@@ -90,8 +100,11 @@ class PlanController extends Controller
 
     public function edit(Plan $plan)
     {
-        $allPlans = Plan::orderBy('type')->orderBy('name')->get();
-        return view('admin.plans.edit', compact('plan', 'allPlans'));
+        $allPlans          = Plan::orderBy('type')->orderBy('name')->get();
+        $proxmoxServers    = InfraServer::ofType('proxmox')->orderByDesc('is_default')->orderBy('label')->get();
+        $cyberpanelServers = InfraServer::ofType('cyberpanel')->orderByDesc('is_default')->orderBy('label')->get();
+        $synologyServers   = InfraServer::ofType('synology')->orderByDesc('is_default')->orderBy('label')->get();
+        return view('admin.plans.edit', compact('plan', 'allPlans', 'proxmoxServers', 'cyberpanelServers', 'synologyServers'));
     }
 
     public function update(Request $request, Plan $plan)
@@ -118,6 +131,9 @@ class PlanController extends Controller
             'limit_per_hosting'   => 'nullable|integer|min:1',
             'limit_per_domain'    => 'nullable|integer|min:1',
             'limit_per_subdomain' => 'nullable|integer|min:1',
+            'proxmox_server_id'    => 'nullable|exists:infra_servers,id',
+            'cyberpanel_server_id' => 'nullable|exists:infra_servers,id',
+            'synology_server_id'   => 'nullable|exists:infra_servers,id',
         ]);
 
         $features       = array_filter(array_map('trim', explode("\n", $request->features ?? '')));
@@ -149,6 +165,9 @@ class PlanController extends Controller
             'requires_vm'         => $request->boolean('requires_vm'),
             'requires_hosting'    => $request->boolean('requires_hosting'),
             'plan_allowances'     => $planAllowances ?: null,
+            'proxmox_server_id'    => $request->type === 'vm' ? $request->proxmox_server_id ?: null : null,
+            'cyberpanel_server_id' => $request->type === 'hosting' ? $request->cyberpanel_server_id ?: null : null,
+            'synology_server_id'   => $request->synology_server_id ?: null,
         ]);
 
         $redirect = back()->with('success', 'Plan mis à jour.');
@@ -177,10 +196,13 @@ class PlanController extends Controller
         return redirect()->route('admin.plans.index')->with('success', 'Plan supprimé.');
     }
 
-    public function cyberpanelPackages()
+    public function cyberpanelPackages(Request $request)
     {
         try {
-            $packages = app(CyberPanelService::class)->listPackages();
+            $server = $request->filled('server_id')
+                ? InfraServer::ofType('cyberpanel')->findOrFail($request->server_id)
+                : null;
+            $packages = (new CyberPanelService($server))->listPackages();
             return response()->json(['success' => true, 'packages' => $packages]);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()]);

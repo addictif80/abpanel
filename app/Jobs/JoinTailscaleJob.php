@@ -4,7 +4,6 @@ namespace App\Jobs;
 
 use App\Models\Setting;
 use App\Models\VirtualMachine;
-use App\Services\ProxmoxService;
 use App\Services\TailscaleService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -39,13 +38,15 @@ class JoinTailscaleJob implements ShouldQueue
         public int $attempt = 0,
     ) {}
 
-    public function handle(ProxmoxService $proxmox, TailscaleService $tailscale): void
+    public function handle(TailscaleService $tailscale): void
     {
         $vm = VirtualMachine::find($this->vmId);
 
         if (!$vm || $vm->tailscale_ip || $vm->vm_type === 'lxc' || $vm->status !== 'running') {
             return;
         }
+
+        $proxmox = $vm->proxmoxService();
 
         if (!$tailscale->isConfigured()) {
             Log::warning("JoinTailscaleJob: Tailscale OAuth non configuré, abandon pour VM {$vm->id}");

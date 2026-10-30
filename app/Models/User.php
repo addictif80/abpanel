@@ -3,8 +3,10 @@
 namespace App\Models;
 
 use App\Observers\UserObserver;
+use App\Services\CyberPanelService;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -18,7 +20,7 @@ class User extends Authenticatable
         'name', 'first_name', 'last_name', 'email', 'password',
         'phone', 'company', 'address', 'city', 'zip', 'country',
         'siret', 'vat_number',
-        'is_admin', 'is_active', 'anonymized_at', 'cyberpanel_username', 'cyberpanel_password',
+        'is_admin', 'is_active', 'anonymized_at', 'cyberpanel_server_id', 'cyberpanel_username', 'cyberpanel_password',
         'ldap_username', 'ldap_password', 'ldap_dn', 'ldap_group',
         'stripe_customer_id', 'newsletter_subscribed',
     ];
@@ -87,6 +89,16 @@ class User extends Authenticatable
     public function clientDomains(): HasMany
     {
         return $this->hasMany(ClientDomain::class);
+    }
+
+    public function cyberpanelServer(): BelongsTo
+    {
+        return $this->belongsTo(InfraServer::class, 'cyberpanel_server_id');
+    }
+
+    public function cyberpanelService(): CyberPanelService
+    {
+        return new CyberPanelService($this->cyberpanelServer);
     }
 
     public function isPro(): bool

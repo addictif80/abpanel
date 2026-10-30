@@ -22,10 +22,7 @@
                 ['company',    '🏢', 'Société'],
                 ['quotes',     '📋', 'Devis & Fact.'],
                 ['einvoicing', '🧾', 'Fact. électron.'],
-                ['proxmox',    '🖥️', 'Proxmox'],
-                ['cyberpanel', '🌐', 'CyberPanel'],
                 ['ldap',       '🗂️', 'LDAP'],
-                ['synology',   '☁️', 'Synology'],
                 ['npm',        '🔀', 'Nginx PM'],
                 ['stripe',     '💳', 'Stripe'],
                 ['mail',       '📧', 'Mail / SMTP'],
@@ -37,6 +34,10 @@
                 <span>{{ $icon }}</span> {{ $label }}
             </button>
             @endforeach
+            <a href="{{ route('admin.infra-servers.index') }}"
+                class="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left text-gray-600 hover:bg-gray-50 transition border-t border-gray-100 mt-1 pt-3">
+                <span>🖥️</span> Serveurs (Proxmox, CyberPanel, Synology)
+            </a>
         </nav>
     </div>
 
@@ -318,96 +319,6 @@
             </form>
         </div>
 
-        {{-- Proxmox --}}
-        <div x-show="tab === 'proxmox'" x-data="testConnection('proxmox')">
-            <form method="POST" action="{{ route('admin.settings.proxmox') }}" class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
-                @csrf
-                <h2 class="font-semibold text-gray-800 mb-4">Configuration Proxmox</h2>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div class="sm:col-span-2">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">URL Proxmox (ex: https://192.168.1.10:8006)</label>
-                        <input type="url" name="proxmox_host" value="{{ $settings['proxmox_host'] ?? '' }}"
-                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Utilisateur</label>
-                        <input type="text" name="proxmox_user" value="{{ $settings['proxmox_user'] ?? 'root' }}"
-                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Mot de passe</label>
-                        <input type="password" name="proxmox_password" value="{{ $settings['proxmox_password'] ?? '' }}"
-                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Realm</label>
-                        <input type="text" name="proxmox_realm" value="{{ $settings['proxmox_realm'] ?? 'pam' }}"
-                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Nœud par défaut</label>
-                        <input type="text" name="proxmox_node" value="{{ $settings['proxmox_node'] ?? 'pve' }}"
-                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Stockage par défaut</label>
-                        <input type="text" name="proxmox_default_storage" value="{{ $settings['proxmox_default_storage'] ?? 'local-lvm' }}"
-                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                            placeholder="local-lvm">
-                        <p class="mt-1 text-xs text-gray-400">Stockage utilisé lors du provisionnement automatique (ex: local-lvm, ceph-vm…)</p>
-                    </div>
-                </div>
-                <div class="pt-4 border-t border-gray-100 flex items-center gap-3">
-                    <button type="submit" class="px-5 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition">Enregistrer</button>
-                    <button type="button" @click="test()" :disabled="loading"
-                        class="px-5 py-2 bg-gray-100 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-200 transition disabled:opacity-50">
-                        <span x-text="loading ? 'Test...' : 'Tester la connexion'"></span>
-                    </button>
-                    <span x-show="message" :class="success ? 'text-green-600' : 'text-red-600'" class="text-sm font-medium" x-text="message"></span>
-                </div>
-            </form>
-        </div>
-
-        {{-- CyberPanel --}}
-        <div x-show="tab === 'cyberpanel'" x-data="testConnection('cyberpanel')">
-            <form method="POST" action="{{ route('admin.settings.cyberpanel') }}" class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
-                @csrf
-                <h2 class="font-semibold text-gray-800 mb-4">Configuration CyberPanel</h2>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div class="sm:col-span-2">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">URL CyberPanel (ex: https://192.168.1.20:8090)</label>
-                        <input type="url" name="cyberpanel_host" value="{{ $settings['cyberpanel_host'] ?? '' }}"
-                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Utilisateur admin</label>
-                        <input type="text" name="cyberpanel_user" value="{{ $settings['cyberpanel_user'] ?? 'admin' }}"
-                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Mot de passe</label>
-                        <input type="password" name="cyberpanel_password" value="{{ $settings['cyberpanel_password'] ?? '' }}"
-                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">IP Tailscale CyberPanel</label>
-                        <input type="text" name="cyberpanel_tailscale_ip" value="{{ $settings['cyberpanel_tailscale_ip'] ?? '' }}"
-                            placeholder="100.x.x.x"
-                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none font-mono">
-                        <p class="text-xs text-gray-400 mt-1">IP Tailscale du serveur CyberPanel, utilisée comme cible des proxy hosts "Hébergement" créés par les clients.</p>
-                    </div>
-                </div>
-                <div class="pt-4 border-t border-gray-100 flex items-center gap-3">
-                    <button type="submit" class="px-5 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition">Enregistrer</button>
-                    <button type="button" @click="test()" :disabled="loading"
-                        class="px-5 py-2 bg-gray-100 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-200 transition disabled:opacity-50">
-                        <span x-text="loading ? 'Test...' : 'Tester la connexion'"></span>
-                    </button>
-                    <span x-show="message" :class="success ? 'text-green-600' : 'text-red-600'" class="text-sm font-medium" x-text="message"></span>
-                </div>
-            </form>
-        </div>
-
         {{-- LDAP --}}
         <div x-show="tab === 'ldap'" x-data="ldapSettings('{{ $settings['ldap_users_dn'] ?? '' }}', '{{ $settings['ldap_groups_dn'] ?? '' }}')">
             <form method="POST" action="{{ route('admin.settings.ldap') }}" class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
@@ -502,46 +413,6 @@
             </form>
         </div>
 
-        {{-- Synology --}}
-        <div x-show="tab === 'synology'" x-data="testConnection('synology')">
-            <form method="POST" action="{{ route('admin.settings.synology') }}" class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
-                @csrf
-                <h2 class="font-semibold text-gray-800 mb-4">Configuration Synology (DSM)</h2>
-                <p class="text-xs text-gray-400 -mt-3 mb-2">Utilisé pour appliquer le quota de stockage personnel de chaque client, en fonction du plan souscrit. Distinct du serveur LDAP (identité) ci-dessus.</p>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div class="sm:col-span-2">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">URL DSM (ex: https://100.x.x.x:5001)</label>
-                        <input type="url" name="synology_host" value="{{ $settings['synology_host'] ?? '' }}"
-                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Compte admin DSM</label>
-                        <input type="text" name="synology_user" value="{{ $settings['synology_user'] ?? '' }}"
-                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Mot de passe</label>
-                        <input type="password" name="synology_password" value="{{ $settings['synology_password'] ?? '' }}"
-                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                    </div>
-                    <div class="sm:col-span-2">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Dossier partagé "Utilisateur personnel" (Home)</label>
-                        <input type="text" name="synology_cloud_shared_folder" value="{{ $settings['synology_cloud_shared_folder'] ?? '' }}"
-                            placeholder="/volume1/homes"
-                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none font-mono">
-                        <p class="text-xs text-gray-400 mt-1">Chemin du dossier partagé du service "Utilisateur personnel" de DSM (Panneau de configuration → Utilisateur personnel), sous lequel chaque client a déjà son propre sous-dossier privé. Le quota est appliqué par utilisateur à l'intérieur, pas à un espace commun — personne n'accède à l'espace d'un autre client.</p>
-                    </div>
-                </div>
-                <div class="pt-4 border-t border-gray-100 flex items-center gap-3">
-                    <button type="submit" class="px-5 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition">Enregistrer</button>
-                    <button type="button" @click="test()" :disabled="loading"
-                        class="px-5 py-2 bg-gray-100 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-200 transition disabled:opacity-50">
-                        <span x-text="loading ? 'Test...' : 'Tester la connexion'"></span>
-                    </button>
-                    <span x-show="message" :class="success ? 'text-green-600' : 'text-red-600'" class="text-sm font-medium" x-text="message"></span>
-                </div>
-            </form>
-        </div>
 
         {{-- NPM --}}
         <div x-show="tab === 'npm'" x-data="testConnection('npm')">

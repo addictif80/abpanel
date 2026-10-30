@@ -28,9 +28,10 @@
             vpsIps: {{ Js::from($vps->mapWithKeys(fn($v) => [$v->id => $v->tailscale_ip ?: ''])) }},
             port: '{{ old('target_port', 80) }}',
             scheme: '{{ old('forward_scheme', 'http') }}',
-            cyberpanelIp: '{{ $cyberpanelIp }}',
+            hostingId: '{{ old('hosting_id') }}',
+            hostingIps: {{ Js::from($hosting->mapWithKeys(fn($h) => [$h->id => $h->cyberpanelServer?->get('tailscale_ip') ?: ''])) }},
             get targetPlaceholder() {
-                return this.type === 'hosting' ? this.cyberpanelIp || '—' : '';
+                return this.type === 'hosting' ? (this.hostingIps[this.hostingId] || '—') : '';
             }
           }">
         @csrf
@@ -119,7 +120,7 @@
                 @else
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Hébergement</label>
-                    <select name="hosting_id"
+                    <select name="hosting_id" x-model="hostingId"
                         class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                         @foreach($hosting as $h)
                         <option value="{{ $h->id }}" {{ old('hosting_id') == $h->id ? 'selected' : '' }}>{{ $h->domain }}</option>
@@ -129,9 +130,9 @@
                 @endif
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">IP cible</label>
-                    <input type="text" :value="cyberpanelIp || 'Non configurée'" disabled
+                    <input type="text" :value="targetPlaceholder || 'Non configurée'" disabled
                         class="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500 font-mono">
-                    <p class="text-xs text-gray-400 mt-1">IP Tailscale de CyberPanel (configurée par l'administrateur). Port : 80.</p>
+                    <p class="text-xs text-gray-400 mt-1">IP Tailscale du serveur CyberPanel de cet hébergement. Port : 80.</p>
                 </div>
                 <input type="hidden" name="target_port" value="80">
             </div>

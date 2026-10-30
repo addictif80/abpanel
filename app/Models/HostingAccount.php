@@ -5,13 +5,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Services\CyberPanelService;
 
 class HostingAccount extends Model
 {
     use SoftDeletes;
 
     protected $fillable = [
-        'user_id', 'plan_id', 'cyberpanel_username', 'domain',
+        'user_id', 'plan_id', 'cyberpanel_server_id', 'cyberpanel_username', 'domain',
         'plan', 'disk_mb', 'is_active',
         'monthly_price', 'next_renewal_at',
         'cancellation_code', 'cancellation_code_expires_at',
@@ -35,5 +36,15 @@ class HostingAccount extends Model
     public function planCatalog(): BelongsTo
     {
         return $this->belongsTo(Plan::class, 'plan_id');
+    }
+
+    public function cyberpanelServer(): BelongsTo
+    {
+        return $this->belongsTo(InfraServer::class, 'cyberpanel_server_id');
+    }
+
+    public function cyberpanelService(): CyberPanelService
+    {
+        return new CyberPanelService($this->cyberpanelServer);
     }
 }

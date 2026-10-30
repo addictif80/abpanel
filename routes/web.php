@@ -160,10 +160,7 @@ Route::middleware('installed')->group(function () {
             Route::post('/company', [Admin\SettingsController::class, 'saveCompany'])->name('company');
             Route::post('/quotes', [Admin\SettingsController::class, 'saveQuotes'])->name('quotes');
             Route::post('/einvoicing', [Admin\SettingsController::class, 'saveEinvoicing'])->name('einvoicing');
-            Route::post('/proxmox', [Admin\SettingsController::class, 'saveProxmox'])->name('proxmox');
-            Route::post('/cyberpanel', [Admin\SettingsController::class, 'saveCyberpanel'])->name('cyberpanel');
             Route::post('/ldap', [Admin\SettingsController::class, 'saveLdap'])->name('ldap');
-            Route::post('/synology', [Admin\SettingsController::class, 'saveSynology'])->name('synology');
             Route::get('/ldap/discover', [Admin\SettingsController::class, 'discoverLdap'])->name('ldap.discover');
             Route::post('/npm', [Admin\SettingsController::class, 'saveNpm'])->name('npm');
             Route::post('/stripe', [Admin\SettingsController::class, 'saveStripe'])->name('stripe');
@@ -171,6 +168,17 @@ Route::middleware('installed')->group(function () {
             Route::post('/tailscale', [Admin\SettingsController::class, 'saveTailscale'])->name('tailscale');
             Route::post('/tailscale/generate-key', [Admin\SettingsController::class, 'generateTailscaleKey'])->name('tailscale.generate-key');
             Route::post('/test/{service}', [Admin\SettingsController::class, 'testConnection'])->name('test');
+        });
+
+        // Proxmox / CyberPanel / Synology servers (multi-server support)
+        Route::prefix('infra-servers')->name('infra-servers.')->group(function () {
+            Route::get('/', [Admin\InfraServerController::class, 'index'])->name('index');
+            Route::get('/create', [Admin\InfraServerController::class, 'create'])->name('create');
+            Route::post('/', [Admin\InfraServerController::class, 'store'])->name('store');
+            Route::get('/{infraServer}/edit', [Admin\InfraServerController::class, 'edit'])->name('edit');
+            Route::put('/{infraServer}', [Admin\InfraServerController::class, 'update'])->name('update');
+            Route::delete('/{infraServer}', [Admin\InfraServerController::class, 'destroy'])->name('destroy');
+            Route::post('/{infraServer}/test', [Admin\InfraServerController::class, 'test'])->name('test');
         });
 
         // Clients
@@ -215,11 +223,12 @@ Route::middleware('installed')->group(function () {
         });
 
         // VMs — specific routes must come before the resource to avoid {vm} catching them
+        Route::get('/vms/nodes', [Admin\VmController::class, 'nodes'])->name('vms.nodes');
         Route::get('/vms/disk-storages', [Admin\VmController::class, 'diskStorages'])->name('vms.disk-storages');
         Route::prefix('vms/import')->name('vms.import.')->group(function () {
             Route::get('/', [Admin\VmController::class, 'importIndex'])->name('index');
-            Route::get('/{node}/{vmid}', [Admin\VmController::class, 'importShow'])->name('show');
-            Route::post('/{node}/{vmid}', [Admin\VmController::class, 'importStore'])->name('store');
+            Route::get('/{server}/{node}/{vmid}', [Admin\VmController::class, 'importShow'])->name('show');
+            Route::post('/{server}/{node}/{vmid}', [Admin\VmController::class, 'importStore'])->name('store');
         });
         Route::resource('vms', Admin\VmController::class);
 
@@ -254,8 +263,8 @@ Route::middleware('installed')->group(function () {
             Route::get('/', [Admin\HostingController::class, 'index'])->name('index');
             Route::prefix('import')->name('import.')->group(function () {
                 Route::get('/', [Admin\HostingController::class, 'importIndex'])->name('index');
-                Route::get('/{domain}', [Admin\HostingController::class, 'importShow'])->name('show');
-                Route::post('/{domain}', [Admin\HostingController::class, 'importStore'])->name('store');
+                Route::get('/{server}/{domain}', [Admin\HostingController::class, 'importShow'])->name('show');
+                Route::post('/{server}/{domain}', [Admin\HostingController::class, 'importStore'])->name('store');
             });
         });
 
@@ -301,6 +310,7 @@ Route::middleware('installed')->group(function () {
         Route::prefix('os-templates')->name('os-templates.')->group(function () {
             Route::get('/', [Admin\OsTemplateController::class, 'index'])->name('index');
             Route::post('/', [Admin\OsTemplateController::class, 'store'])->name('store');
+            Route::get('/nodes', [Admin\OsTemplateController::class, 'nodes'])->name('nodes');
             Route::get('/storages', [Admin\OsTemplateController::class, 'storages'])->name('storages');
             Route::get('/{osTemplate}/status', [Admin\OsTemplateController::class, 'taskStatus'])->name('status');
             Route::post('/{osTemplate}/toggle', [Admin\OsTemplateController::class, 'toggle'])->name('toggle');

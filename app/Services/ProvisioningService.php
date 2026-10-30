@@ -17,9 +17,7 @@ use Illuminate\Support\Str;
 class ProvisioningService
 {
     public function __construct(
-        private ProxmoxService $proxmox,
         private MailService $mail,
-        private CyberPanelService $cyberPanel,
         private LdapService $ldap,
     ) {}
 
@@ -63,8 +61,9 @@ class ProvisioningService
 
     public function provisionHosting(User $user, Plan $plan, ?Invoice $invoice = null): void
     {
-        $domain  = $invoice?->metadata['domain'] ?? null;
-        $package = $plan->cyberpanel_package ?? 'Default';
+        $domain     = $invoice?->metadata['domain'] ?? null;
+        $package    = $plan->cyberpanel_package ?? 'Default';
+        $cyberPanel = new CyberPanelService($plan->cyberpanelServer);
 
         if (!$domain) {
             Log::warning("ProvisioningService: no domain for hosting invoice {$invoice?->id}");
@@ -81,7 +80,7 @@ class ProvisioningService
                 $password = $this->generatePassword();
             }
 
-            $this->cyberPanel->createWebsite(
+            $cyberPanel->createWebsite(
                 domain:   $domain,
                 username: $username,
                 password: $password,
@@ -93,14 +92,15 @@ class ProvisioningService
             // Save credentials on first provisioning
             if (!$user->cyberpanel_username) {
                 $user->update([
-                    'cyberpanel_username' => $username,
-                    'cyberpanel_password' => $password,
+                    'cyberpanel_username'  => $username,
+                    'cyberpanel_password'  => $password,
+                    'cyberpanel_server_id' => $plan->cyberpanel_server_id,
                 ]);
             }
 
             ProvisionHostingProxyJob::dispatch($user->id, $domain);
 
-            $panelUrl = Setting::get('cyberpanel_host', '');
+            $panelUrl = $plan->cyberpanelServer?->get('host', '') ?? '';
 
             $this->mail->sendFromTemplate('hosting_provisioned', $user->email, [
                 'first_name' => $user->first_name ?: $user->name,
@@ -117,14 +117,17 @@ class ProvisioningService
 
     public function provisionVm(User $user, Plan $plan, ?Invoice $invoice = null): VirtualMachine
     {
-        $node    = Setting::get('proxmox_node', 'pve');
-        $storage = Setting::get('proxmox_default_storage', 'local-lvm');
+        $server  = $plan->proxmoxServer;
+        $proxmox = new ProxmoxService($server);
+        $node    = $server?->get('default_node', 'pve') ?? 'pve';
+        $storage = $server?->get('default_storage', 'local-lvm') ?? 'local-lvm';
         $isLxc   = ($plan->vm_type ?? 'qemu') === 'lxc';
 
         // Create a placeholder VM record immediately so the client can see it
         $vm = VirtualMachine::create([
             'user_id'              => $user->id,
             'plan_id'              => $plan->id,
+            'proxmox_server_id'    => $plan->proxmox_server_id,
             'name'                 => $this->generateVmName($plan, $user),
             'proxmox_vmid'         => 0,
             'proxmox_node'         => $node,
@@ -140,17 +143,17 @@ class ProvisioningService
 
         try {
             $password = $this->generatePassword();
-            $vmid     = $this->proxmox->getNextVMID();
+            $vmid     = $proxmox->getNextVMID();
 
             if ($isLxc) {
-                $this->createLxcInstance($node, $vmid, $vm, $plan, $storage, $password);
+                $this->createLxcInstance($proxmox, $node, $vmid, $vm, $plan, $storage, $password);
             } else {
-                $this->createQemuInstance($node, $vmid, $vm, $plan, $storage);
+                $this->createQemuInstance($proxmox, $node, $vmid, $vm, $plan, $storage);
             }
 
             // Set root password
             try {
-                $this->proxmox->setRootPassword($node, $vmid, $password, $plan->vm_type ?? 'qemu');
+                $proxmox->setRootPassword($node, $vmid, $password, $plan->vm_type ?? 'qemu');
             } catch (\Exception $e) {
                 // For QEMU: guest agent may not be running yet — password was set at cloud-init or LXC config
                 Log::warning("Could not set root password via API for VMID {$vmid}: " . $e->getMessage());
@@ -232,7 +235,7 @@ class ProvisioningService
 
             if ($plan->storage_quota_gb) {
                 $totalQuotaGb = $this->totalQuotaForGroup($user, $plan->ldap_group);
-                SyncSynologyQuotaJob::dispatch($user->id, $totalQuotaGb);
+                SyncSynologyQuotaJob::dispatch($user->id, $totalQuotaGb, $plan->synology_server_id);
             }
         } catch (\Exception $e) {
             Log::error("LDAP provisioning failed for user {$user->id}, plan {$plan->id}: " . $e->getMessage());
@@ -257,9 +260,9 @@ class ProvisioningService
             ->sum(fn($invoice) => $invoice->plan->storage_quota_gb);
     }
 
-    private function createQemuInstance(string $node, int $vmid, VirtualMachine $vm, Plan $plan, string $storage): void
+    private function createQemuInstance(ProxmoxService $proxmox, string $node, int $vmid, VirtualMachine $vm, Plan $plan, string $storage): void
     {
-        $this->proxmox->createVM($node, [
+        $proxmox->createVM($node, [
             'vmid'    => $vmid,
             'name'    => $vm->name,
             'cores'   => $plan->cores ?? 1,
@@ -272,19 +275,20 @@ class ProvisioningService
         ]);
     }
 
-    private function createLxcInstance(string $node, int $vmid, VirtualMachine $vm, Plan $plan, string $storage, string $password): void
+    private function createLxcInstance(ProxmoxService $proxmox, string $node, int $vmid, VirtualMachine $vm, Plan $plan, string $storage, string $password): void
     {
-        // Find first available active LXC template
+        // Find first available active LXC template on this plan's Proxmox server
         $template = \App\Models\OsTemplate::where('template_type', 'ct')
             ->where('status', 'ready')
             ->where('is_active', true)
+            ->where('proxmox_server_id', $plan->proxmox_server_id)
             ->first();
 
         if (!$template?->proxmox_volume) {
-            throw new \RuntimeException('Aucun template LXC disponible. Configurez un template CT dans « Templates OS ».');
+            throw new \RuntimeException('Aucun template LXC disponible sur ce serveur Proxmox. Configurez un template CT dans « Templates OS ».');
         }
 
-        $this->proxmox->createCT($node, [
+        $proxmox->createCT($node, [
             'vmid'         => $vmid,
             'hostname'     => $vm->name,
             'ostemplate'   => $template->proxmox_volume,

@@ -15,7 +15,7 @@
 @endif
 
 <form method="POST" action="{{ route('admin.vms.store') }}" class="max-w-2xl space-y-5"
-      x-data="vmCreateForm({{ json_encode($nodes) }}, {{ json_encode($osTemplates) }})"
+      x-data="vmCreateForm({{ json_encode($osTemplates) }})"
       x-init="init()">
     @csrf
 
@@ -81,15 +81,34 @@
                     class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Nœud Proxmox <span class="text-red-500">*</span></label>
-                <select name="proxmox_node" required x-model="selectedNode" @change="loadDiskStorages()"
+                <label class="block text-sm font-medium text-gray-700 mb-1">Serveur Proxmox <span class="text-red-500">*</span></label>
+                @if($servers->isEmpty())
+                <p class="text-xs text-amber-600">Aucun serveur Proxmox configuré. <a href="{{ route('admin.infra-servers.create', ['type' => 'proxmox']) }}" class="underline">Ajoutez-en un</a>.</p>
+                @else
+                <select name="proxmox_server_id" required x-model="selectedServer" @change="onServerChange()"
                     class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                    <option value="">— Choisir un nœud —</option>
-                    @foreach($nodes as $node)
-                    <option value="{{ $node }}" {{ old('proxmox_node') === $node ? 'selected' : '' }}>{{ $node }}</option>
+                    <option value="">— Choisir un serveur —</option>
+                    @foreach($servers as $server)
+                    <option value="{{ $server->id }}" {{ (string) old('proxmox_server_id') === (string) $server->id ? 'selected' : '' }}>{{ $server->label }}</option>
                     @endforeach
                 </select>
+                @endif
             </div>
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Nœud Proxmox <span class="text-red-500">*</span></label>
+            <div x-show="loadingNodes" class="text-xs text-gray-400 py-2.5">Chargement…</div>
+            <select x-show="!loadingNodes" name="proxmox_node" required x-model="selectedNode" @change="loadDiskStorages()"
+                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                <option value="">— Choisir un nœud —</option>
+                <template x-for="n in nodes" :key="n">
+                    <option :value="n" x-text="n" :selected="n === '{{ old('proxmox_node', '') }}'"></option>
+                </template>
+            </select>
+            <p x-show="!loadingNodes && selectedServer && nodes.length === 0" class="text-xs text-amber-600 mt-1">
+                Aucun nœud trouvé sur ce serveur.
+            </p>
         </div>
     </div>
 
@@ -210,31 +229,59 @@
 
 @push('scripts')
 <script>
-function vmCreateForm(nodes, osTemplates) {
+function vmCreateForm(osTemplates) {
     return {
-        nodes,
+        nodes: [],
         osTemplates, // { iso: [...], ct: [...] }
         vmType: '{{ old('vm_type', 'qemu') }}',
+        selectedServer: '{{ old('proxmox_server_id', '') }}',
         selectedNode: '{{ old('proxmox_node', '') }}',
         diskStorages: [],
         loadingDisks: false,
+        loadingNodes: false,
 
         get availableTemplates() {
             const key = this.vmType === 'lxc' ? 'ct' : 'iso';
-            return this.osTemplates[key] ?? [];
+            const list = this.osTemplates[key] ?? [];
+            if (!this.selectedServer) return [];
+            return list.filter(tpl => String(tpl.proxmox_server_id) === String(this.selectedServer));
         },
 
         init() {
             this.$watch('vmType', () => this.loadDiskStorages());
-            if (this.selectedNode) this.loadDiskStorages();
+            if (this.selectedServer) this.loadNodes();
+        },
+
+        async onServerChange() {
+            this.selectedNode = '';
+            this.diskStorages = [];
+            await this.loadNodes();
+        },
+
+        async loadNodes() {
+            if (!this.selectedServer) { this.nodes = []; return; }
+            this.loadingNodes = true;
+            this.nodes = [];
+            try {
+                const url = '{{ route('admin.vms.nodes') }}?server_id=' + encodeURIComponent(this.selectedServer);
+                const res = await fetch(url, {
+                    headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
+                });
+                const data = await res.json();
+                if (!data.error) {
+                    this.nodes = data;
+                    if (this.selectedNode) this.loadDiskStorages();
+                }
+            } catch {}
+            finally { this.loadingNodes = false; }
         },
 
         async loadDiskStorages() {
-            if (!this.selectedNode) return;
+            if (!this.selectedNode || !this.selectedServer) return;
             this.loadingDisks = true;
             this.diskStorages = [];
             try {
-                const url = '{{ route('admin.vms.disk-storages') }}?node=' + encodeURIComponent(this.selectedNode) + '&vm_type=' + this.vmType;
+                const url = '{{ route('admin.vms.disk-storages') }}?node=' + encodeURIComponent(this.selectedNode) + '&vm_type=' + this.vmType + '&server_id=' + encodeURIComponent(this.selectedServer);
                 const res = await fetch(url, {
                     headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
                 });

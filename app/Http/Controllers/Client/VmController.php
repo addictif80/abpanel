@@ -24,7 +24,7 @@ class VmController extends Controller
 
         $status = null;
         try {
-            $proxmox = app(ProxmoxService::class);
+            $proxmox = $vm->proxmoxService();
             $status  = $proxmox->getStatus($vm->proxmox_node, (int) $vm->proxmox_vmid, $vm->vm_type ?? 'qemu');
             $proxmoxStatus = $status['status'] ?? $vm->status;
             if ($proxmoxStatus === 'stopped' && str_contains(strtolower($status['lock'] ?? ''), 'suspend')) {
@@ -45,7 +45,7 @@ class VmController extends Controller
     {
         $this->authorizeVm($vm);
         try {
-            app(ProxmoxService::class)->action($vm->proxmox_node, (int) $vm->proxmox_vmid, 'start', $vm->vm_type ?? 'qemu');
+            $vm->proxmoxService()->action($vm->proxmox_node, (int) $vm->proxmox_vmid, 'start', $vm->vm_type ?? 'qemu');
             $vm->update(['status' => 'running']);
 
             if (($vm->vm_type ?? 'qemu') !== 'lxc' && !$vm->tailscale_ip) {
@@ -62,7 +62,7 @@ class VmController extends Controller
     {
         $this->authorizeVm($vm);
         try {
-            app(ProxmoxService::class)->action($vm->proxmox_node, (int) $vm->proxmox_vmid, 'shutdown', $vm->vm_type ?? 'qemu');
+            $vm->proxmoxService()->action($vm->proxmox_node, (int) $vm->proxmox_vmid, 'shutdown', $vm->vm_type ?? 'qemu');
             $vm->update(['status' => 'stopped']);
             return back()->with('success', 'Arrêté(e) proprement.');
         } catch (\Throwable $e) {
@@ -74,7 +74,7 @@ class VmController extends Controller
     {
         $this->authorizeVm($vm);
         try {
-            app(ProxmoxService::class)->action($vm->proxmox_node, (int) $vm->proxmox_vmid, 'suspend', $vm->vm_type ?? 'qemu');
+            $vm->proxmoxService()->action($vm->proxmox_node, (int) $vm->proxmox_vmid, 'suspend', $vm->vm_type ?? 'qemu');
             $vm->update(['status' => 'hibernated']);
             return back()->with('success', 'Mis(e) en hibernation.');
         } catch (\Throwable $e) {
@@ -86,7 +86,7 @@ class VmController extends Controller
     {
         $this->authorizeVm($vm);
         try {
-            app(ProxmoxService::class)->action($vm->proxmox_node, (int) $vm->proxmox_vmid, 'resume', $vm->vm_type ?? 'qemu');
+            $vm->proxmoxService()->action($vm->proxmox_node, (int) $vm->proxmox_vmid, 'resume', $vm->vm_type ?? 'qemu');
             $vm->update(['status' => 'running']);
             return back()->with('success', 'Repris(e).');
         } catch (\Throwable $e) {
@@ -98,7 +98,7 @@ class VmController extends Controller
     {
         $this->authorizeVm($vm);
         try {
-            app(ProxmoxService::class)->action($vm->proxmox_node, (int) $vm->proxmox_vmid, 'stop', $vm->vm_type ?? 'qemu');
+            $vm->proxmoxService()->action($vm->proxmox_node, (int) $vm->proxmox_vmid, 'stop', $vm->vm_type ?? 'qemu');
             $vm->update(['status' => 'stopped']);
             return back()->with('success', 'VM arrêtée de force.');
         } catch (\Throwable $e) {
@@ -110,7 +110,7 @@ class VmController extends Controller
     {
         $this->authorizeVm($vm);
         try {
-            app(ProxmoxService::class)->action($vm->proxmox_node, (int) $vm->proxmox_vmid, 'reboot', $vm->vm_type ?? 'qemu');
+            $vm->proxmoxService()->action($vm->proxmox_node, (int) $vm->proxmox_vmid, 'reboot', $vm->vm_type ?? 'qemu');
             return back()->with('success', 'Redémarré(e).');
         } catch (\Throwable $e) {
             return back()->with('error', 'Erreur : ' . $e->getMessage());
@@ -126,14 +126,14 @@ class VmController extends Controller
         }
 
         try {
-            $proxmox   = app(ProxmoxService::class);
+            $proxmox   = $vm->proxmoxService();
             $vncData   = $proxmox->getVNCProxy($vm->proxmox_node, (int) $vm->proxmox_vmid);
             $authCookie = $proxmox->getAuthTicket();
         } catch (\Throwable $e) {
             return back()->with('error', 'Impossible d\'ouvrir le terminal : ' . $e->getMessage());
         }
 
-        $proxmoxUrl  = \App\Models\Setting::get('proxmox_host');
+        $proxmoxUrl  = $vm->proxmoxServer?->get('host');
         $vncHost     = parse_url($proxmoxUrl, PHP_URL_HOST);
         $proxmoxPort = (int) (parse_url($proxmoxUrl, PHP_URL_PORT) ?: 8006);
         $vncPort     = (int) ($vncData['port'] ?? 0);
@@ -216,7 +216,7 @@ class VmController extends Controller
         ]);
 
         try {
-            app(ProxmoxService::class)->setRootPassword(
+            $vm->proxmoxService()->setRootPassword(
                 $vm->proxmox_node,
                 (int) $vm->proxmox_vmid,
                 $request->password,
@@ -239,6 +239,7 @@ class VmController extends Controller
         $templates = \App\Models\OsTemplate::where('status', 'ready')
             ->where('is_active', true)
             ->where('template_type', $templateType)
+            ->where('proxmox_server_id', $vm->proxmox_server_id)
             ->get();
 
         return view('client.vms.reinstall', compact('vm', 'templates'));
@@ -253,7 +254,7 @@ class VmController extends Controller
         ]);
 
         $template = \App\Models\OsTemplate::findOrFail($request->os_template_id);
-        $proxmox  = app(ProxmoxService::class);
+        $proxmox  = $vm->proxmoxService();
         $vmType   = $vm->vm_type ?? 'qemu';
 
         try {
@@ -369,7 +370,7 @@ class VmController extends Controller
         }
 
         try {
-            $proxmox = app(ProxmoxService::class);
+            $proxmox = $vm->proxmoxService();
             $vmType  = $vm->vm_type ?? 'qemu';
 
             if ($vm->status !== 'stopped') {
@@ -407,8 +408,8 @@ class VmController extends Controller
             }
         } catch (\Throwable) {}
 
-        // Fall back to the panel default storage setting
-        $default = \App\Models\Setting::get('proxmox_default_storage', 'local-lvm');
+        // Fall back to the VM's own server's default storage setting
+        $default = $vm->proxmoxServer?->get('default_storage', 'local-lvm');
         return $default ?: 'local-lvm';
     }
 

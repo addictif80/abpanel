@@ -56,6 +56,22 @@
                     </div>
                 </label>
             </div>
+
+            <div class="mt-3">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Serveur Proxmox <span class="text-red-500">*</span></label>
+                @if($proxmoxServers->isEmpty())
+                <p class="text-xs text-amber-600">Aucun serveur Proxmox configuré. <a href="{{ route('admin.infra-servers.create', ['type' => 'proxmox']) }}" class="underline" target="_blank">Ajoutez-en un</a>.</p>
+                @else
+                <select name="proxmox_server_id"
+                    class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    <option value="">— Choisir un serveur —</option>
+                    @foreach($proxmoxServers as $server)
+                    <option value="{{ $server->id }}" {{ (string) old('proxmox_server_id') === (string) $server->id ? 'selected' : '' }}>{{ $server->label }}</option>
+                    @endforeach
+                </select>
+                @endif
+                <p class="text-xs text-gray-400 mt-1">Serveur sur lequel les VPS souscrivant ce plan sont provisionnés automatiquement.</p>
+            </div>
         </div>
 
         <div>
@@ -157,6 +173,21 @@
             </template>
             <p class="text-xs text-gray-400 mt-1">Nom exact du package dans CyberPanel. Cliquez sur "Charger les packages" pour obtenir la liste.</p>
         </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Serveur CyberPanel <span class="text-red-500">*</span></label>
+            @if($cyberpanelServers->isEmpty())
+            <p class="text-xs text-amber-600">Aucun serveur CyberPanel configuré. <a href="{{ route('admin.infra-servers.create', ['type' => 'cyberpanel']) }}" class="underline" target="_blank">Ajoutez-en un</a>.</p>
+            @else
+            <select name="cyberpanel_server_id" x-model="selectedCyberpanelServer"
+                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                <option value="">— Choisir un serveur —</option>
+                @foreach($cyberpanelServers as $server)
+                <option value="{{ $server->id }}" {{ (string) old('cyberpanel_server_id') === (string) $server->id ? 'selected' : '' }}>{{ $server->label }}</option>
+                @endforeach
+            </select>
+            @endif
+            <p class="text-xs text-gray-400 mt-1">Serveur sur lequel les hébergements souscrivant ce plan sont provisionnés automatiquement.</p>
+        </div>
     </div>
 
     {{-- Groupe LDAP --}}
@@ -196,6 +227,21 @@
                 placeholder="ex: 100"
                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
             <p class="text-xs text-gray-400 mt-1">Si renseigné, ce quota est appliqué sur l'espace personnel Synology du client (dossier privé sous "Utilisateur personnel") après provisioning. Cumulatif : le total poussé sur DSM est la somme de ce champ sur toutes les factures payées du client partageant le même groupe LDAP (plan de base + options). Laissez vide pour les plans sans quota (mail, gestionnaire de mots de passe, etc.).</p>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Serveur Synology</label>
+            @if($synologyServers->isEmpty())
+            <p class="text-xs text-amber-600">Aucun serveur Synology configuré. <a href="{{ route('admin.infra-servers.create', ['type' => 'synology']) }}" class="underline" target="_blank">Ajoutez-en un</a>.</p>
+            @else
+            <select name="synology_server_id"
+                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                <option value="">— Choisir un serveur —</option>
+                @foreach($synologyServers as $server)
+                <option value="{{ $server->id }}" {{ (string) old('synology_server_id') === (string) $server->id ? 'selected' : '' }}>{{ $server->label }}</option>
+                @endforeach
+            </select>
+            @endif
+            <p class="text-xs text-gray-400 mt-1">Serveur sur lequel le quota ci-dessus est appliqué. Requis si un quota est renseigné.</p>
         </div>
         <div x-data="{ requiredGroup: '{{ old('requires_ldap_group') }}' }">
             <label class="block text-sm font-medium text-gray-700 mb-1">Groupe LDAP requis (prérequis)</label>
@@ -339,6 +385,7 @@ function planForm(initialType, initialPackage) {
         planType: initialType,
         packages: [],
         selectedPackage: initialPackage || '',
+        selectedCyberpanelServer: '{{ old('cyberpanel_server_id', '') }}',
         loadingPackages: false,
         packageError: '',
         ldapGroups: [],
@@ -350,7 +397,8 @@ function planForm(initialType, initialPackage) {
         loadPackages() {
             this.loadingPackages = true;
             this.packageError = '';
-            fetch('{{ route('admin.plans.cyberpanel-packages') }}')
+            const url = '{{ route('admin.plans.cyberpanel-packages') }}' + (this.selectedCyberpanelServer ? '?server_id=' + encodeURIComponent(this.selectedCyberpanelServer) : '');
+            fetch(url)
                 .then(r => r.json())
                 .then(d => {
                     if (d.success && d.packages && d.packages.length > 0) {

@@ -91,8 +91,8 @@
                     <div class="font-medium text-sm text-gray-800">{{ $hosting->domain }}</div>
                     <div class="text-xs text-gray-400">{{ $hosting->plan }} · {{ $hosting->disk_mb }}MB</div>
                 </div>
-                @if(auth()->user()->cyberpanel_username)
-                <a href="{{ \App\Models\Setting::get('cyberpanel_host') }}" target="_blank"
+                @if(auth()->user()->cyberpanel_username && $hosting->cyberpanelServer?->get('host'))
+                <a href="{{ $hosting->cyberpanelServer->get('host') }}" target="_blank"
                    class="text-xs text-indigo-600 hover:underline">CyberPanel →</a>
                 @endif
             </div>

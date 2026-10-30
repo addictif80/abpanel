@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\InfraServer;
 use App\Models\OsTemplate;
 use App\Services\ProxmoxService;
 use Illuminate\Http\Request;
@@ -11,26 +12,36 @@ class OsTemplateController extends Controller
 {
     public function index()
     {
-        $templates = OsTemplate::latest()->get();
+        $templates = OsTemplate::with('proxmoxServer')->latest()->get();
+        $servers   = InfraServer::ofType('proxmox')->orderByDesc('is_default')->orderBy('label')->get();
 
-        $nodes = [];
+        return view('admin.os-templates.index', compact('templates', 'servers'));
+    }
+
+    // AJAX: Proxmox nodes for a given server
+    public function nodes(Request $request)
+    {
+        $request->validate(['server_id' => 'required|exists:infra_servers,id']);
         try {
-            $nodes = collect(app(ProxmoxService::class)->getNodes())
-                ->pluck('node')
-                ->sort()
-                ->values()
-                ->all();
-        } catch (\Exception) {}
-
-        return view('admin.os-templates.index', compact('templates', 'nodes'));
+            $server = InfraServer::ofType('proxmox')->findOrFail($request->server_id);
+            $nodes  = collect((new ProxmoxService($server))->getNodes())->pluck('node')->sort()->values();
+            return response()->json($nodes);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
     }
 
     public function storages(Request $request)
     {
-        $request->validate(['node' => 'required|string', 'template_type' => 'nullable|in:iso,ct']);
+        $request->validate([
+            'server_id'     => 'required|exists:infra_servers,id',
+            'node'          => 'required|string',
+            'template_type' => 'nullable|in:iso,ct',
+        ]);
         $contentFilter = $request->input('template_type') === 'ct' ? 'vztmpl' : 'iso';
         try {
-            $storages = app(ProxmoxService::class)->getStorages($request->node, $contentFilter);
+            $server   = InfraServer::ofType('proxmox')->findOrFail($request->server_id);
+            $storages = (new ProxmoxService($server))->getStorages($request->node, $contentFilter);
             return response()->json(collect($storages)->map(fn($s) => [
                 'id'   => $s['storage'],
                 'name' => $s['storage'] . ' (' . ($s['type'] ?? '?') . ')',
@@ -46,14 +57,17 @@ class OsTemplateController extends Controller
         $filenameRegex = $isCt ? '/^[\w\-\.]+\.(tar\.gz|tar\.xz|tar\.zst)$/i' : '/^[\w\-\.]+\.iso$/i';
 
         $request->validate([
-            'name'             => 'required|string|max:100',
-            'description'      => 'nullable|string',
-            'template_type'    => 'required|in:iso,ct',
-            'url'              => ['required', 'url', 'starts_with:http://,https://'],
-            'filename'         => ['required', 'string', 'max:150', 'regex:' . $filenameRegex],
-            'proxmox_node'     => 'required|string',
-            'proxmox_storage'  => 'required|string',
+            'name'              => 'required|string|max:100',
+            'description'       => 'nullable|string',
+            'template_type'     => 'required|in:iso,ct',
+            'url'               => ['required', 'url', 'starts_with:http://,https://'],
+            'filename'          => ['required', 'string', 'max:150', 'regex:' . $filenameRegex],
+            'proxmox_server_id' => 'required|exists:infra_servers,id',
+            'proxmox_node'      => 'required|string',
+            'proxmox_storage'   => 'required|string',
         ]);
+
+        $server = InfraServer::ofType('proxmox')->findOrFail($request->proxmox_server_id);
 
         $host = parse_url($request->url, PHP_URL_HOST);
         if ($host && (filter_var($host, FILTER_VALIDATE_IP)
@@ -64,19 +78,20 @@ class OsTemplateController extends Controller
         }
 
         $template = OsTemplate::create([
-            'name'            => $request->name,
-            'description'     => $request->description,
-            'template_type'   => $request->template_type,
-            'url'             => $request->url,
-            'filename'        => $request->filename,
-            'proxmox_node'    => $request->proxmox_node,
-            'proxmox_storage' => $request->proxmox_storage,
-            'status'          => 'pending',
+            'name'              => $request->name,
+            'description'       => $request->description,
+            'template_type'     => $request->template_type,
+            'url'               => $request->url,
+            'filename'          => $request->filename,
+            'proxmox_server_id' => $server->id,
+            'proxmox_node'      => $request->proxmox_node,
+            'proxmox_storage'   => $request->proxmox_storage,
+            'status'            => 'pending',
         ]);
 
         try {
             $content = $template->template_type === 'ct' ? 'vztmpl' : 'iso';
-            $upid = app(ProxmoxService::class)->downloadTemplate(
+            $upid = $template->proxmoxService()->downloadTemplate(
                 $request->proxmox_node,
                 $request->proxmox_storage,
                 $request->url,
@@ -115,7 +130,7 @@ class OsTemplateController extends Controller
         }
 
         try {
-            $task = app(ProxmoxService::class)->getTaskStatus(
+            $task = $osTemplate->proxmoxService()->getTaskStatus(
                 $osTemplate->proxmox_node,
                 $osTemplate->proxmox_task_id,
             );
@@ -161,7 +176,7 @@ class OsTemplateController extends Controller
     {
         if ($osTemplate->proxmox_volume) {
             try {
-                app(ProxmoxService::class)->deleteStorageContent(
+                $osTemplate->proxmoxService()->deleteStorageContent(
                     $osTemplate->proxmox_node,
                     $osTemplate->proxmox_storage,
                     $osTemplate->proxmox_volume,
@@ -181,7 +196,7 @@ class OsTemplateController extends Controller
     {
         $content = $template->template_type === 'ct' ? 'vztmpl' : 'iso';
         try {
-            $items = app(ProxmoxService::class)->listStorageContent(
+            $items = $template->proxmoxService()->listStorageContent(
                 $template->proxmox_node,
                 $template->proxmox_storage,
                 $content,
