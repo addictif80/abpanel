@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Models\Setting;
+use App\Models\InfraServer;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -12,11 +12,12 @@ class CyberPanelService
     private string $adminUser;
     private string $adminPassword;
 
-    public function __construct()
+    public function __construct(?InfraServer $server = null)
     {
-        $this->host = rtrim(Setting::get('cyberpanel_host', ''), '/');
-        $this->adminUser = Setting::get('cyberpanel_user', 'admin');
-        $this->adminPassword = Setting::get('cyberpanel_password', '');
+        $server ??= InfraServer::ofType('cyberpanel')->default()->first();
+        $this->host = rtrim($server?->get('host', '') ?? '', '/');
+        $this->adminUser = $server?->get('user', 'admin') ?? 'admin';
+        $this->adminPassword = $server?->get('password', '') ?? '';
     }
 
     private function token(): string

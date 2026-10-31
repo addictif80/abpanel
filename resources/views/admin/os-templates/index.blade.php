@@ -21,7 +21,7 @@
 
     {{-- Add form --}}
     <div class="xl:col-span-2"
-         x-data="osForm({{ json_encode($nodes) }}, '{{ old('template_type', 'iso') }}')"
+         x-data="osForm('{{ old('template_type', 'iso') }}')"
          x-init="init()">
 
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4 sticky top-6">
@@ -87,13 +87,29 @@
                 </div>
 
                 <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Serveur Proxmox <span class="text-red-500">*</span></label>
+                    @if($servers->isEmpty())
+                    <p class="text-xs text-amber-600">Aucun serveur Proxmox configuré. <a href="{{ route('admin.infra-servers.create', ['type' => 'proxmox']) }}" class="underline">Ajoutez-en un</a>.</p>
+                    @else
+                    <select name="proxmox_server_id" required x-model="selectedServer" @change="onServerChange()"
+                        class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <option value="">— Choisir un serveur —</option>
+                        @foreach($servers as $server)
+                        <option value="{{ $server->id }}" {{ (string) old('proxmox_server_id') === (string) $server->id ? 'selected' : '' }}>{{ $server->label }}</option>
+                        @endforeach
+                    </select>
+                    @endif
+                </div>
+
+                <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Nœud Proxmox <span class="text-red-500">*</span></label>
-                    <select name="proxmox_node" required x-model="selectedNode" @change="loadStorages()"
+                    <div x-show="loadingNodes" class="text-xs text-gray-400 py-2">Chargement…</div>
+                    <select x-show="!loadingNodes" name="proxmox_node" required x-model="selectedNode" @change="loadStorages()"
                         class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                         <option value="">— Choisir un nœud —</option>
-                        @foreach($nodes as $node)
-                        <option value="{{ $node }}" {{ old('proxmox_node') === $node ? 'selected' : '' }}>{{ $node }}</option>
-                        @endforeach
+                        <template x-for="n in nodes" :key="n">
+                            <option :value="n" x-text="n" :selected="n === '{{ old('proxmox_node', '') }}'"></option>
+                        </template>
                     </select>
                 </div>
 
@@ -172,7 +188,7 @@
                         @endif
 
                         <div class="flex flex-wrap gap-x-4 gap-y-0.5 mt-2 text-xs text-gray-400">
-                            <span class="font-mono">{{ $tpl->proxmox_node }} / {{ $tpl->proxmox_storage }}</span>
+                            <span class="font-mono">{{ $tpl->proxmoxServer?->label ?? '—' }} / {{ $tpl->proxmox_node }} / {{ $tpl->proxmox_storage }}</span>
                             <span class="font-mono">{{ $tpl->filename }}</span>
                             @if($tpl->size_bytes)<span>{{ $tpl->formattedSize() }}</span>@endif
                         </div>
@@ -237,18 +253,20 @@
 
 @push('scripts')
 <script>
-function osForm(nodes, initialType) {
+function osForm(initialType) {
     return {
-        nodes,
+        nodes: [],
         templateType: initialType || 'iso',
+        selectedServer: '{{ old('proxmox_server_id', '') }}',
         selectedNode: '{{ old('proxmox_node', '') }}',
+        loadingNodes: false,
         storages: [],
         loadingStorages: false,
         storageError: '',
         filename: '{{ old('filename', '') }}',
 
         init() {
-            if (this.selectedNode) this.loadStorages();
+            if (this.selectedServer) this.loadNodes();
         },
 
         guessFilename(url) {
@@ -262,13 +280,37 @@ function osForm(nodes, initialType) {
             } catch {}
         },
 
+        async onServerChange() {
+            this.selectedNode = '';
+            this.storages = [];
+            await this.loadNodes();
+        },
+
+        async loadNodes() {
+            if (!this.selectedServer) { this.nodes = []; return; }
+            this.loadingNodes = true;
+            this.nodes = [];
+            try {
+                const url = '{{ route('admin.os-templates.nodes') }}?server_id=' + encodeURIComponent(this.selectedServer);
+                const res = await fetch(url, {
+                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' }
+                });
+                const data = await res.json();
+                if (!data.error) {
+                    this.nodes = data;
+                    if (this.selectedNode) this.loadStorages();
+                }
+            } catch {}
+            finally { this.loadingNodes = false; }
+        },
+
         async loadStorages() {
-            if (!this.selectedNode) return;
+            if (!this.selectedNode || !this.selectedServer) return;
             this.loadingStorages = true;
             this.storages = [];
             this.storageError = '';
             try {
-                const url = '{{ route('admin.os-templates.storages') }}?node=' + encodeURIComponent(this.selectedNode) + '&template_type=' + this.templateType;
+                const url = '{{ route('admin.os-templates.storages') }}?node=' + encodeURIComponent(this.selectedNode) + '&template_type=' + this.templateType + '&server_id=' + encodeURIComponent(this.selectedServer);
                 const res = await fetch(url, {
                     headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' }
                 });

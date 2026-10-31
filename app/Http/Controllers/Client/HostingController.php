@@ -4,8 +4,6 @@ namespace App\Http\Controllers\Client;
 
 use App\Http\Controllers\Controller;
 use App\Models\HostingAccount;
-use App\Models\Setting;
-use App\Services\CyberPanelService;
 use App\Services\MailService;
 use Illuminate\Http\Request;
 
@@ -14,7 +12,7 @@ class HostingController extends Controller
     public function index()
     {
         $hostingAccounts = auth()->user()->hostingAccounts()->where('is_active', true)->get();
-        $cyberpanelHost  = Setting::get('cyberpanel_host', '');
+        $cyberpanelHost  = auth()->user()->cyberpanelServer?->get('host', '') ?? '';
 
         return view('client.hosting.index', compact('hostingAccounts', 'cyberpanelHost'));
     }
@@ -57,7 +55,7 @@ class HostingController extends Controller
         }
 
         try {
-            app(CyberPanelService::class)->deleteWebsite($hosting->domain);
+            $hosting->cyberpanelService()->deleteWebsite($hosting->domain);
         } catch (\Throwable) {}
 
         $domain = $hosting->domain;

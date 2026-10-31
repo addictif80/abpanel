@@ -5,13 +5,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Services\ProxmoxService;
 
 class VirtualMachine extends Model
 {
     use SoftDeletes;
 
     protected $fillable = [
-        'user_id', 'plan_id', 'name', 'proxmox_vmid', 'proxmox_node', 'vm_type',
+        'user_id', 'plan_id', 'proxmox_server_id', 'name', 'proxmox_vmid', 'proxmox_node', 'vm_type',
         'status', 'root_password', 'provisioning_status', 'provisioning_error',
         'cores', 'memory_mb', 'swap_mb', 'disk_gb', 'disk_storage',
         'os_template', 'ip_address', 'tailscale_ip',
@@ -34,6 +35,16 @@ class VirtualMachine extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function proxmoxServer(): BelongsTo
+    {
+        return $this->belongsTo(InfraServer::class, 'proxmox_server_id');
+    }
+
+    public function proxmoxService(): ProxmoxService
+    {
+        return new ProxmoxService($this->proxmoxServer);
     }
 
     public function isRunning(): bool

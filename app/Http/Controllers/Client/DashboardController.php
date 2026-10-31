@@ -13,7 +13,7 @@ class DashboardController extends Controller
         $user = auth()->user();
 
         $vms = $user->virtualMachines()->latest()->get();
-        $hostingAccounts = $user->hostingAccounts()->where('is_active', true)->get();
+        $hostingAccounts = $user->hostingAccounts()->where('is_active', true)->with('cyberpanelServer')->get();
 
         $openTickets    = $user->tickets()->whereIn('status', ['open', 'in_progress'])->count();
         $unpaidInvoices = $user->invoices()->where('status', 'pending')->count();

@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Models\InfraServer;
 use App\Models\User;
 use App\Services\SynologyService;
 use Illuminate\Bus\Queueable;
@@ -21,14 +22,18 @@ class SyncSynologyQuotaJob implements ShouldQueue
     public function __construct(
         public int $userId,
         public int $quotaGb,
+        public ?int $synologyServerId = null,
     ) {}
 
-    public function handle(SynologyService $synology): void
+    public function handle(): void
     {
         $user = User::find($this->userId);
         if (!$user || !$user->ldap_username) {
             return;
         }
+
+        $server = $this->synologyServerId ? InfraServer::find($this->synologyServerId) : null;
+        $synology = new SynologyService($server);
 
         $synology->setUserQuota($user->ldap_username, $this->quotaGb);
     }

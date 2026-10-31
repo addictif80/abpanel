@@ -20,7 +20,7 @@
 
     {{-- Form --}}
     <div class="lg:col-span-2">
-        <form method="POST" action="{{ route('admin.hosting.import.store', urlencode($siteInfo['domain'])) }}" class="space-y-5">
+        <form method="POST" action="{{ route('admin.hosting.import.store', [$server->id, urlencode($siteInfo['domain'])]) }}" class="space-y-5">
             @csrf
 
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">

@@ -27,11 +27,10 @@ class DomainController extends Controller
     public function create()
     {
         $vps      = auth()->user()->virtualMachines()->where('status', 'running')->get();
-        $hosting  = auth()->user()->hostingAccounts()->where('is_active', true)->get();
+        $hosting  = auth()->user()->hostingAccounts()->where('is_active', true)->with('cyberpanelServer')->get();
         $npmPublicIp = $this->npmPublicIp();
-        $cyberpanelIp = Setting::get('cyberpanel_tailscale_ip', '');
 
-        return view('client.domains.create', compact('vps', 'hosting', 'npmPublicIp', 'cyberpanelIp'));
+        return view('client.domains.create', compact('vps', 'hosting', 'npmPublicIp'));
     }
 
     public function store(Request $request)
@@ -84,10 +83,11 @@ class DomainController extends Controller
                 return back()->withErrors(['vps_id' => 'Ce VPS n\'a pas d\'IP Tailscale renseignée.'])->withInput();
             }
         } else {
-            $targetIp  = Setting::get('cyberpanel_tailscale_ip', '');
-            $hostingId = $request->hosting_id;
+            $hostingAccount = auth()->user()->hostingAccounts()->with('cyberpanelServer')->findOrFail($request->hosting_id);
+            $targetIp  = $hostingAccount->cyberpanelServer?->get('tailscale_ip');
+            $hostingId = $hostingAccount->id;
             if (!$targetIp) {
-                return back()->withErrors(['type' => 'L\'IP Tailscale de CyberPanel n\'est pas configurée (contactez le support).'])->withInput();
+                return back()->withErrors(['type' => "L'IP Tailscale du serveur CyberPanel de cet hébergement n'est pas configurée (contactez le support)."])->withInput();
             }
         }
 

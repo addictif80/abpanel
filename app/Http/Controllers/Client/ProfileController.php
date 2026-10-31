@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Client;
 
 use App\Http\Controllers\Controller;
-use App\Services\CyberPanelService;
 use App\Services\DataExportService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -64,18 +63,9 @@ class ProfileController extends Controller
         }
 
         // Store plain password in request before hashing so the Observer can sync
-        $plainPassword = $request->password;
-
-        $user->update(['password' => Hash::make($plainPassword)]);
-
-        // Sync to CyberPanel
-        if ($user->cyberpanel_username) {
-            try {
-                app(CyberPanelService::class)->changeUserPassword($user->cyberpanel_username, $plainPassword);
-            } catch (\Exception $e) {
-                return back()->with('warning', 'Mot de passe mis à jour, mais la synchronisation CyberPanel a échoué. Contactez le support.')->with('tab', 'password');
-            }
-        }
+        // it to CyberPanel automatically (UserObserver::updated()) — calling
+        // CyberPanelService here too would just duplicate that API call.
+        $user->update(['password' => Hash::make($request->password)]);
 
         return back()->with('success', 'Mot de passe mis à jour avec succès.')->with('tab', 'password');
     }

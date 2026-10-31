@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\HostingAccount;
+use App\Models\InfraServer;
 use App\Models\Plan;
 use App\Models\User;
 use App\Services\BillingImportService;
@@ -20,18 +21,24 @@ class HostingController extends Controller
         return view('admin.hosting.index', compact('accounts'));
     }
 
-    public function importIndex()
+    public function importIndex(Request $request)
     {
+        $servers  = InfraServer::ofType('cyberpanel')->orderByDesc('is_default')->orderBy('label')->get();
+        $serverId = $request->query('server_id') ?: $servers->first()?->id;
+        $server   = $servers->firstWhere('id', (int) $serverId);
+
         $sites = [];
         $error = null;
 
-        try {
-            $sites = app(CyberPanelService::class)->listAllWebsites();
-        } catch (\Exception $e) {
-            $error = $e->getMessage();
+        if ($server) {
+            try {
+                $sites = (new CyberPanelService($server))->listAllWebsites();
+            } catch (\Exception $e) {
+                $error = $e->getMessage();
+            }
         }
 
-        $alreadyImported = HostingAccount::pluck('domain')->flip();
+        $alreadyImported = HostingAccount::where('cyberpanel_server_id', $server?->id)->pluck('domain')->flip();
 
         $sites = array_map(function ($site) use ($alreadyImported) {
             $site['imported'] = $alreadyImported->has($site['domain'] ?? '');
@@ -40,19 +47,19 @@ class HostingController extends Controller
 
         usort($sites, fn($a, $b) => $a['imported'] <=> $b['imported'] ?: strcmp($a['domain'] ?? '', $b['domain'] ?? ''));
 
-        return view('admin.hosting.import-index', compact('sites', 'error'));
+        return view('admin.hosting.import-index', compact('sites', 'error', 'servers', 'server'));
     }
 
-    public function importShow(string $domain)
+    public function importShow(InfraServer $server, string $domain)
     {
-        if (HostingAccount::where('domain', $domain)->exists()) {
+        if (HostingAccount::where('domain', $domain)->where('cyberpanel_server_id', $server->id)->exists()) {
             return redirect()->route('admin.hosting.import.index')
                 ->with('error', "Le domaine « {$domain} » est déjà importé dans le panel.");
         }
 
         $siteInfo = null;
         try {
-            $data = app(CyberPanelService::class)->getWebsiteData($domain);
+            $data = (new CyberPanelService($server))->getWebsiteData($domain);
             $siteInfo = [
                 'domain'    => $domain,
                 'owner'     => $data['websiteOwner'] ?? $data['owner'] ?? '',
@@ -68,12 +75,12 @@ class HostingController extends Controller
         $clients = User::where('is_admin', false)->where('is_active', true)->orderBy('last_name')->get();
         $plans   = Plan::where('type', 'hosting')->orderBy('name')->get();
 
-        return view('admin.hosting.import-show', compact('siteInfo', 'clients', 'plans'));
+        return view('admin.hosting.import-show', compact('siteInfo', 'clients', 'plans', 'server'));
     }
 
-    public function importStore(Request $request, string $domain)
+    public function importStore(Request $request, InfraServer $server, string $domain)
     {
-        if (HostingAccount::where('domain', $domain)->exists()) {
+        if (HostingAccount::where('domain', $domain)->where('cyberpanel_server_id', $server->id)->exists()) {
             return redirect()->route('admin.hosting.import.index')
                 ->with('error', "Le domaine « {$domain} » est déjà importé.");
         }
@@ -97,7 +104,7 @@ class HostingController extends Controller
 
         $client   = User::findOrFail($request->user_id);
         $plan     = $request->plan_id ? Plan::findOrFail($request->plan_id) : null;
-        $cyberpanel = app(CyberPanelService::class);
+        $cyberpanel = new CyberPanelService($server);
         $warnings = [];
 
         $finalUsername = $request->cyberpanel_username ?? '';
@@ -118,8 +125,9 @@ class HostingController extends Controller
 
                 // Persist credentials on the user record
                 $client->update([
-                    'cyberpanel_username' => $newUsername,
-                    'cyberpanel_password' => $newPassword,
+                    'cyberpanel_username'  => $newUsername,
+                    'cyberpanel_password'  => $newPassword,
+                    'cyberpanel_server_id' => $server->id,
                 ]);
 
                 $finalUsername = $newUsername;
@@ -141,21 +149,22 @@ class HostingController extends Controller
         // HostingAccount row fails to insert, the client must not end up
         // billed for a hosting account that was never actually registered.
         try {
-            $invoice = DB::transaction(function () use ($client, $plan, $request, $domain, $finalUsername) {
+            $invoice = DB::transaction(function () use ($client, $plan, $request, $domain, $finalUsername, $server) {
                 $invoice = $plan ? app(BillingImportService::class)->createPaidInvoice(
                     $client, $plan, $request->billing_period, $request->promo_code, $request->paid_at
                 ) : null;
 
                 HostingAccount::create([
-                    'user_id'             => $client->id,
-                    'plan_id'             => $plan?->id,
-                    'domain'              => $domain,
-                    'cyberpanel_username' => $finalUsername ?: null,
-                    'plan'                => $request->plan,
-                    'disk_mb'             => $request->disk_mb ?? 0,
-                    'is_active'           => true,
-                    'monthly_price'       => $plan ? $plan->priceFor($invoice->recurrence_period) : $request->monthly_price,
-                    'next_renewal_at'     => $invoice?->next_billing_at ?? $request->next_renewal_at,
+                    'user_id'              => $client->id,
+                    'plan_id'              => $plan?->id,
+                    'domain'               => $domain,
+                    'cyberpanel_username'  => $finalUsername ?: null,
+                    'cyberpanel_server_id' => $server->id,
+                    'plan'                 => $request->plan,
+                    'disk_mb'              => $request->disk_mb ?? 0,
+                    'is_active'            => true,
+                    'monthly_price'        => $plan ? $plan->priceFor($invoice->recurrence_period) : $request->monthly_price,
+                    'next_renewal_at'      => $invoice?->next_billing_at ?? $request->next_renewal_at,
                 ]);
 
                 return $invoice;

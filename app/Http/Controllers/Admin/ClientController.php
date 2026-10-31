@@ -8,7 +8,6 @@ use App\Models\User;
 use App\Services\DataExportService;
 use App\Services\MailService;
 use App\Services\NginxProxyManagerService;
-use App\Services\ProxmoxService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -199,7 +198,7 @@ class ClientController extends Controller
     {
         foreach ($client->virtualMachines as $vm) {
             try {
-                app(ProxmoxService::class)->deleteInstance($vm->proxmox_node, (int) $vm->proxmox_vmid, $vm->vm_type ?? 'qemu');
+                $vm->proxmoxService()->deleteInstance($vm->proxmox_node, (int) $vm->proxmox_vmid, $vm->vm_type ?? 'qemu');
             } catch (\Throwable $e) {
                 return "Échec de la résiliation de la VM « {$vm->name} » sur Proxmox : {$e->getMessage()}. Résiliez-la manuellement (page VM) avant de continuer.";
             }

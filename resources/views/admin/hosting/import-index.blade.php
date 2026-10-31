@@ -25,7 +25,23 @@
 <div class="mb-5 px-4 py-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">{{ session('success') }}</div>
 @endif
 
-@if(!$error)
+@if($servers->isEmpty())
+<div class="px-4 py-3 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg text-sm">
+    Aucun serveur CyberPanel configuré. <a href="{{ route('admin.infra-servers.create', ['type' => 'cyberpanel']) }}" class="underline">Ajoutez-en un</a>.
+</div>
+@elseif($servers->count() > 1)
+<form method="GET" class="mb-5 flex items-center gap-2">
+    <label class="text-sm font-medium text-gray-700">Serveur CyberPanel :</label>
+    <select name="server_id" onchange="this.form.submit()"
+        class="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+        @foreach($servers as $s)
+        <option value="{{ $s->id }}" {{ $server?->id === $s->id ? 'selected' : '' }}>{{ $s->label }}</option>
+        @endforeach
+    </select>
+</form>
+@endif
+
+@if(!$error && $server)
 @php
     $total    = count($sites);
     $imported = collect($sites)->where('imported', true)->count();
@@ -92,7 +108,7 @@
                     </td>
                     <td class="px-5 py-3 text-right">
                         @if(!$site['imported'])
-                        <a href="{{ route('admin.hosting.import.show', urlencode($domain)) }}"
+                        <a href="{{ route('admin.hosting.import.show', [$server->id, urlencode($domain)]) }}"
                            class="inline-flex items-center gap-1 px-3 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-700 transition">
                             Importer →
                         </a>

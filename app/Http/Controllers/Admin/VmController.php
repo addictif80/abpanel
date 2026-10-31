@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\InfraServer;
 use App\Models\OsTemplate;
 use App\Models\Plan;
 use App\Models\User;
@@ -24,11 +25,7 @@ class VmController extends Controller
     public function create()
     {
         $clients = User::where('is_admin', false)->where('is_active', true)->orderBy('last_name')->get();
-
-        $nodes = [];
-        try {
-            $nodes = collect(app(ProxmoxService::class)->getNodes())->pluck('node')->sort()->values()->all();
-        } catch (\Exception) {}
+        $servers = InfraServer::ofType('proxmox')->orderByDesc('is_default')->orderBy('label')->get();
 
         $osTemplates = OsTemplate::where('status', 'ready')->where('is_active', true)
             ->orderBy('template_type')
@@ -36,15 +33,29 @@ class VmController extends Controller
             ->get()
             ->groupBy('template_type');
 
-        return view('admin.vms.create', compact('clients', 'nodes', 'osTemplates'));
+        return view('admin.vms.create', compact('clients', 'servers', 'osTemplates'));
     }
 
-    // AJAX: disk storages for a node + vm_type
+    // AJAX: Proxmox nodes for a given server
+    public function nodes(Request $request)
+    {
+        $request->validate(['server_id' => 'required|exists:infra_servers,id']);
+        try {
+            $server = InfraServer::ofType('proxmox')->findOrFail($request->server_id);
+            $nodes  = collect((new ProxmoxService($server))->getNodes())->pluck('node')->sort()->values();
+            return response()->json($nodes);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+    }
+
+    // AJAX: disk storages for a server + node + vm_type
     public function diskStorages(Request $request)
     {
-        $request->validate(['node' => 'required|string', 'vm_type' => 'required|in:qemu,lxc']);
+        $request->validate(['server_id' => 'required|exists:infra_servers,id', 'node' => 'required|string', 'vm_type' => 'required|in:qemu,lxc']);
         try {
-            $storages = app(ProxmoxService::class)->getDiskStorages($request->node, $request->vm_type);
+            $server   = InfraServer::ofType('proxmox')->findOrFail($request->server_id);
+            $storages = (new ProxmoxService($server))->getDiskStorages($request->node, $request->vm_type);
             return response()->json(
                 collect($storages)->map(fn($s) => ['id' => $s['storage'], 'name' => $s['storage'] . ' (' . ($s['type'] ?? '?') . ')'])->values()
             );
@@ -57,6 +68,7 @@ class VmController extends Controller
     {
         $request->validate([
             'user_id'          => 'required|exists:users,id',
+            'proxmox_server_id' => 'required|exists:infra_servers,id',
             'vm_type'          => 'required|in:qemu,lxc',
             'name'             => 'required|string|max:50',
             'proxmox_node'     => 'required|string',
@@ -70,7 +82,8 @@ class VmController extends Controller
             'swap_mb'          => 'nullable|integer|min:0',
         ]);
 
-        $proxmox  = app(ProxmoxService::class);
+        $server   = InfraServer::ofType('proxmox')->findOrFail($request->proxmox_server_id);
+        $proxmox  = new ProxmoxService($server);
         $vmid     = $proxmox->getNextVMID();
         $isLxc    = $request->vm_type === 'lxc';
 
@@ -99,6 +112,7 @@ class VmController extends Controller
 
         $vm = VirtualMachine::create([
             'user_id'       => $request->user_id,
+            'proxmox_server_id' => $server->id,
             'name'          => $request->name,
             'proxmox_vmid'  => $vmid,
             'proxmox_node'  => $request->proxmox_node,
@@ -117,7 +131,7 @@ class VmController extends Controller
 
         $typeLabel = $isLxc ? 'Conteneur' : 'VM';
         return redirect()->route('admin.vms.index')
-            ->with('success', "{$typeLabel} {$vm->name} créé(e) (VMID: {$vmid}).");
+            ->with('success', "{$typeLabel} {$vm->name} créé(e) (VMID: {$vmid}) sur « {$server->label} ».");
     }
 
     private function createQemuOnProxmox(ProxmoxService $proxmox, Request $request, int $vmid): void
@@ -196,7 +210,7 @@ class VmController extends Controller
     public function destroy(VirtualMachine $vm)
     {
         try {
-            app(ProxmoxService::class)->deleteInstance($vm->proxmox_node, (int) $vm->proxmox_vmid, $vm->vm_type ?? 'qemu');
+            $vm->proxmoxService()->deleteInstance($vm->proxmox_node, (int) $vm->proxmox_vmid, $vm->vm_type ?? 'qemu');
         } catch (\Exception $e) {
             return back()->withErrors(['delete' => 'Erreur Proxmox : ' . $e->getMessage()]);
         }
@@ -207,18 +221,26 @@ class VmController extends Controller
 
     // ── Import existing Proxmox VMs ──────────────────────────────────────────
 
-    public function importIndex()
+    public function importIndex(Request $request)
     {
+        $servers = InfraServer::ofType('proxmox')->orderByDesc('is_default')->orderBy('label')->get();
+
+        $serverId = $request->query('server_id') ?: $servers->first()?->id;
+        $server   = $serverId ? $servers->firstWhere('id', (int) $serverId) : null;
+
         $proxmoxVms = [];
         $error = null;
 
-        try {
-            $proxmoxVms = app(ProxmoxService::class)->getAllVMs();
-        } catch (\Exception $e) {
-            $error = $e->getMessage();
+        if ($server) {
+            try {
+                $proxmoxVms = (new ProxmoxService($server))->getAllVMs();
+            } catch (\Exception $e) {
+                $error = $e->getMessage();
+            }
         }
 
-        $alreadyImported = VirtualMachine::pluck('proxmox_vmid')->map(fn($id) => (int) $id)->flip();
+        $alreadyImported = VirtualMachine::where('proxmox_server_id', $server?->id)
+            ->pluck('proxmox_vmid')->map(fn($id) => (int) $id)->flip();
 
         $proxmoxVms = array_map(function ($vm) use ($alreadyImported) {
             $vm['imported'] = $alreadyImported->has((int) $vm['vmid']);
@@ -227,17 +249,17 @@ class VmController extends Controller
 
         usort($proxmoxVms, fn($a, $b) => $a['imported'] <=> $b['imported'] ?: strcmp($a['node'], $b['node']) ?: $a['vmid'] <=> $b['vmid']);
 
-        return view('admin.vms.import-index', compact('proxmoxVms', 'error'));
+        return view('admin.vms.import-index', compact('proxmoxVms', 'error', 'servers', 'server'));
     }
 
-    public function importShow(string $node, int $vmid)
+    public function importShow(InfraServer $server, string $node, int $vmid)
     {
-        if (VirtualMachine::where('proxmox_vmid', $vmid)->exists()) {
+        if (VirtualMachine::where('proxmox_server_id', $server->id)->where('proxmox_vmid', $vmid)->exists()) {
             return redirect()->route('admin.vms.import.index')
                 ->with('error', "La VM/CT {$vmid} est déjà importée dans le panel.");
         }
 
-        $proxmox = app(ProxmoxService::class);
+        $proxmox = new ProxmoxService($server);
 
         // Try QEMU first, then LXC
         $vmType = 'qemu';
@@ -289,12 +311,12 @@ class VmController extends Controller
         $clients = User::where('is_admin', false)->where('is_active', true)->orderBy('last_name')->get();
         $plans   = Plan::where('type', 'vm')->orderBy('name')->get();
 
-        return view('admin.vms.import-show', compact('vmInfo', 'clients', 'plans'));
+        return view('admin.vms.import-show', compact('vmInfo', 'clients', 'plans', 'server'));
     }
 
-    public function importStore(Request $request, string $node, int $vmid)
+    public function importStore(Request $request, InfraServer $server, string $node, int $vmid)
     {
-        if (VirtualMachine::where('proxmox_vmid', $vmid)->exists()) {
+        if (VirtualMachine::where('proxmox_server_id', $server->id)->where('proxmox_vmid', $vmid)->exists()) {
             return redirect()->route('admin.vms.import.index')
                 ->with('error', "La VM/CT {$vmid} est déjà importée.");
         }
@@ -332,7 +354,7 @@ class VmController extends Controller
         // row fails to insert, the client must not end up billed for a VM that
         // was never actually registered.
         try {
-            [$vm, $invoice] = DB::transaction(function () use ($client, $plan, $request, $vmid, $node, $subdomain) {
+            [$vm, $invoice] = DB::transaction(function () use ($client, $plan, $request, $vmid, $node, $server, $subdomain) {
                 $invoice = $plan ? app(BillingImportService::class)->createPaidInvoice(
                     $client, $plan, $request->billing_period, $request->promo_code, $request->paid_at
                 ) : null;
@@ -340,6 +362,7 @@ class VmController extends Controller
                 $vm = VirtualMachine::create([
                     'user_id'       => $client->id,
                     'plan_id'       => $plan?->id,
+                    'proxmox_server_id' => $server->id,
                     'name'          => $request->name,
                     'proxmox_vmid'  => $vmid,
                     'proxmox_node'  => $node,

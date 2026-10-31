@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Models\Setting;
+use App\Models\InfraServer;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
@@ -24,12 +24,13 @@ class SynologyService
     private string $sharedFolder;
     private ?string $sid = null;
 
-    public function __construct()
+    public function __construct(?InfraServer $server = null)
     {
-        $this->host         = rtrim(Setting::get('synology_host', '') ?? '', '/');
-        $this->user         = Setting::get('synology_user', '') ?? '';
-        $this->password     = Setting::get('synology_password', '') ?? '';
-        $this->sharedFolder = Setting::get('synology_cloud_shared_folder', '') ?? '';
+        $server ??= InfraServer::ofType('synology')->default()->first();
+        $this->host         = rtrim($server?->get('host', '') ?? '', '/');
+        $this->user         = $server?->get('user', '') ?? '';
+        $this->password     = $server?->get('password', '') ?? '';
+        $this->sharedFolder = $server?->get('shared_folder', '') ?? '';
     }
 
     private function authenticate(): void

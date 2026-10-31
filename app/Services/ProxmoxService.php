@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Models\Setting;
+use App\Models\InfraServer;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -15,12 +15,13 @@ class ProxmoxService
     private ?string $ticket = null;
     private ?string $csrfToken = null;
 
-    public function __construct()
+    public function __construct(?InfraServer $server = null)
     {
-        $this->host = rtrim(Setting::get('proxmox_host', ''), '/');
-        $this->user = Setting::get('proxmox_user', 'root');
-        $this->password = Setting::get('proxmox_password', '');
-        $this->realm = Setting::get('proxmox_realm', 'pam');
+        $server ??= InfraServer::ofType('proxmox')->default()->first();
+        $this->host = rtrim($server?->get('host', '') ?? '', '/');
+        $this->user = $server?->get('user', 'root') ?? 'root';
+        $this->password = $server?->get('password', '') ?? '';
+        $this->realm = $server?->get('realm', 'pam') ?? 'pam';
     }
 
     private function authenticate(): void

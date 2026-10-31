@@ -3,7 +3,6 @@
 namespace App\Observers;
 
 use App\Models\User;
-use App\Services\CyberPanelService;
 use Illuminate\Support\Facades\Log;
 
 class UserObserver
@@ -19,7 +18,7 @@ class UserObserver
         }
 
         try {
-            app(CyberPanelService::class)->changeUserPassword(
+            $user->cyberpanelService()->changeUserPassword(
                 $user->cyberpanel_username,
                 request()->input('password') // plain password before hashing
             );

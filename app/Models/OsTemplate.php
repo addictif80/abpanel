@@ -3,12 +3,14 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use App\Services\ProxmoxService;
 
 class OsTemplate extends Model
 {
     protected $fillable = [
         'name', 'description', 'url', 'filename', 'template_type',
-        'proxmox_node', 'proxmox_storage', 'proxmox_volume',
+        'proxmox_server_id', 'proxmox_node', 'proxmox_storage', 'proxmox_volume',
         'proxmox_task_id', 'status', 'error_message',
         'size_bytes', 'is_active',
     ];
@@ -16,6 +18,16 @@ class OsTemplate extends Model
     protected function casts(): array
     {
         return ['is_active' => 'boolean'];
+    }
+
+    public function proxmoxServer(): BelongsTo
+    {
+        return $this->belongsTo(InfraServer::class, 'proxmox_server_id');
+    }
+
+    public function proxmoxService(): ProxmoxService
+    {
+        return new ProxmoxService($this->proxmoxServer);
     }
 
     public function isReady(): bool

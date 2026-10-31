@@ -4,7 +4,6 @@ namespace App\Jobs;
 
 use App\Models\ClientDomain;
 use App\Models\HostingAccount;
-use App\Models\Setting;
 use App\Services\NginxProxyManagerService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -37,9 +36,14 @@ class ProvisionHostingProxyJob implements ShouldQueue
             return;
         }
 
-        $targetIp = Setting::get('cyberpanel_tailscale_ip', '');
+        $hostingAccount = HostingAccount::with('cyberpanelServer')
+            ->where('user_id', $this->userId)
+            ->where('domain', $this->domain)
+            ->first();
+
+        $targetIp = $hostingAccount?->cyberpanelServer?->get('tailscale_ip');
         if (!$targetIp) {
-            Log::warning("ProvisionHostingProxyJob: cyberpanel_tailscale_ip non configurée, abandon pour {$this->domain}");
+            Log::warning("ProvisionHostingProxyJob: IP Tailscale CyberPanel non configurée, abandon pour {$this->domain}");
             return;
         }
 
@@ -48,9 +52,7 @@ class ProvisionHostingProxyJob implements ShouldQueue
         try {
             ClientDomain::create([
                 'user_id'            => $this->userId,
-                'hosting_account_id' => HostingAccount::where('user_id', $this->userId)
-                    ->where('domain', $this->domain)
-                    ->value('id'),
+                'hosting_account_id' => $hostingAccount->id,
                 'domain'             => $this->domain,
                 'type'               => 'hosting',
                 'target_ip'          => $targetIp,
