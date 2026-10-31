@@ -138,7 +138,7 @@ class InfraServerController extends Controller
                 'label'        => 'required|string|max:100',
                 'host'         => 'required|url',
                 'user'         => 'required|string|max:100',
-                'password'     => $passwordRule,
+                'api_token'    => $passwordRule,
                 'tailscale_ip' => 'nullable|ip',
                 'is_default'   => 'nullable|boolean',
             ],
@@ -170,7 +170,7 @@ class InfraServerController extends Controller
             'cyberpanel' => [
                 'host'         => $request->host,
                 'user'         => $request->user,
-                'password'     => $keep('password'),
+                'api_token'    => $keep('api_token'),
                 'tailscale_ip' => $request->tailscale_ip ?? '',
             ],
             'synology' => [

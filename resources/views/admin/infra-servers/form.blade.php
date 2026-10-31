@@ -11,7 +11,7 @@ $fieldsByType = [
     'cyberpanel' => [
         ['name' => 'host', 'label' => 'URL (ex: https://cyberpanel.exemple.fr:8090)', 'type' => 'url', 'required' => true],
         ['name' => 'user', 'label' => 'Utilisateur admin', 'type' => 'text', 'required' => true, 'default' => 'admin'],
-        ['name' => 'password', 'label' => 'Mot de passe', 'type' => 'password', 'required' => !isset($server)],
+        ['name' => 'api_token', 'label' => 'Token API (Users → API Access dans CyberPanel)', 'type' => 'password', 'required' => !isset($server)],
         ['name' => 'tailscale_ip', 'label' => 'IP Tailscale (pour les domaines)', 'type' => 'text', 'required' => false],
     ],
     'synology' => [
@@ -64,7 +64,7 @@ $fields = $fieldsByType[$type];
             <input type="{{ $f['type'] }}" name="{{ $f['name'] }}"
                 value="{{ old($f['name'], ($server ?? null)?->get($f['name'], $f['default'] ?? '') ?? $f['default'] ?? '') }}"
                 {{ $f['required'] ? 'required' : '' }}
-                @if($f['type'] === 'password' && isset($server)) placeholder="Laisser vide pour conserver le mot de passe actuel" @endif
+                @if($f['type'] === 'password' && isset($server)) placeholder="{{ $f['name'] === 'api_token' ? 'Laisser vide pour conserver le token actuel' : 'Laisser vide pour conserver le mot de passe actuel' }}" @endif
                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
         </div>
         @endforeach
