@@ -93,13 +93,19 @@
                 </div>
             </div>
 
-            @if(!$siteInfo['owner'])
-            {{-- No CyberPanel owner: offer to create a user + transfer ownership --}}
+            {{-- Always offered: most imported sites belong to the generic "admin" reseller
+                 by default and need reassigning to a per-client account, so this isn't
+                 limited to sites CyberPanel reports as ownerless. --}}
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4" x-data="{ create: {{ old('create_cyberpanel_user') ? 'true' : 'false' }} }">
                 <h2 class="font-semibold text-gray-800">Compte CyberPanel client</h2>
                 <p class="text-sm text-gray-500 -mt-2">
+                    @if($siteInfo['owner'])
+                    Ce site appartient actuellement à <strong class="font-mono">{{ $siteInfo['owner'] }}</strong> sur CyberPanel.
+                    Vous pouvez créer un compte dédié pour ce client et lui transférer la propriété du site en une seule opération.
+                    @else
                     Ce site n'a pas d'owner sur CyberPanel. Vous pouvez créer un compte utilisateur CyberPanel pour le client
                     et transférer la propriété du site en une seule opération.
+                    @endif
                 </p>
 
                 <label class="flex items-center gap-2 cursor-pointer">
@@ -135,7 +141,6 @@
                     </label>
                 </div>
             </div>
-            @endif
 
             <div class="flex items-center gap-3">
                 <button type="submit"
