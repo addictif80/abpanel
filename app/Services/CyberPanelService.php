@@ -20,7 +20,10 @@ class CyberPanelService
         // CyberPanel's cloudAPI used to authenticate with sha256(username:password);
         // current builds (Users > API Access) issue an opaque "cp_api_v1_..." bearer
         // token instead and reject the old hash scheme with "Invalid login information".
-        $this->apiToken = $server?->get('api_token', '') ?? '';
+        // Strip a leading "Basic " in case it was copy-pasted from CyberPanel's own
+        // display of the full Authorization header value — we add that prefix ourselves.
+        $rawToken = trim($server?->get('api_token', '') ?? '');
+        $this->apiToken = preg_replace('/^Basic\s+/i', '', $rawToken);
     }
 
     private function token(): string

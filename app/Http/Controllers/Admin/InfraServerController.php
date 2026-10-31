@@ -170,7 +170,9 @@ class InfraServerController extends Controller
             'cyberpanel' => [
                 'host'         => $request->host,
                 'user'         => $request->user,
-                'api_token'    => $keep('api_token'),
+                // Strip an accidentally pasted "Basic " prefix (CyberPanel displays the
+                // full Authorization header value, not just the bare token).
+                'api_token'    => preg_replace('/^Basic\s+/i', '', trim($keep('api_token'))),
                 'tailscale_ip' => $request->tailscale_ip ?? '',
             ],
             'synology' => [
