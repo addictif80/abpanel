@@ -59,12 +59,16 @@ class HostingController extends Controller
 
         $siteInfo = null;
         try {
-            $data = (new CyberPanelService($server))->getWebsiteData($domain);
+            $data = (new CyberPanelService($server))->findWebsite($domain);
+            if (!$data) {
+                return redirect()->route('admin.hosting.import.index')
+                    ->with('error', "« {$domain} » n'a pas été retrouvé sur ce serveur CyberPanel.");
+            }
             $siteInfo = [
                 'domain'    => $domain,
-                'owner'     => $data['websiteOwner'] ?? $data['owner'] ?? '',
+                'owner'     => $data['admin'] ?? '',
                 'package'   => $data['package'] ?? '',
-                'disk_mb'   => isset($data['diskUsage']) ? (int) round($data['diskUsage'] * 1024) : 0,
+                'disk_mb'   => $this->parseDiskUsed($data['diskUsed'] ?? ''),
                 'email'     => $data['adminEmail'] ?? '',
             ];
         } catch (\Exception $e) {
@@ -184,5 +188,22 @@ class HostingController extends Controller
         }
 
         return redirect()->route('admin.hosting.index')->with('success', $msg);
+    }
+
+    /** Parses CyberPanel's "diskUsed" string (e.g. "1MB", "2.5GB", "512KB") into whole MB. */
+    private function parseDiskUsed(string $diskUsed): int
+    {
+        if (!preg_match('/([\d.]+)\s*(KB|MB|GB)?/i', trim($diskUsed), $m)) {
+            return 0;
+        }
+
+        $value = (float) $m[1];
+        $unit  = strtoupper($m[2] ?? 'MB');
+
+        return (int) round(match ($unit) {
+            'KB' => $value / 1024,
+            'GB' => $value * 1024,
+            default => $value,
+        });
     }
 }

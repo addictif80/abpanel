@@ -135,11 +135,22 @@ class CyberPanelService
         return $all;
     }
 
-    public function getWebsiteData(string $domain): array
+    /**
+     * fetchWebsiteDataJSON does NOT return a website's actual data (owner,
+     * email, disk usage) despite its name — it returns the admin accounts
+     * and packages available for the "create website" form. The only
+     * controller that actually exposes a site's current owner/email/disk
+     * usage is fetchWebsites (the listing), so we find the matching row
+     * there instead.
+     */
+    public function findWebsite(string $domain): ?array
     {
-        return $this->request('fetchWebsiteDataJSON', [
-            'domainName' => $domain,
-        ]);
+        foreach ($this->listAllWebsites() as $site) {
+            if (($site['domain'] ?? null) === $domain) {
+                return $site;
+            }
+        }
+        return null;
     }
 
     public function createDatabase(string $domain, string $dbName, string $dbUser, string $dbPassword): array
