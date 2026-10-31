@@ -10,19 +10,22 @@ class CyberPanelService
 {
     private string $host;
     private string $adminUser;
-    private string $adminPassword;
+    private string $apiToken;
 
     public function __construct(?InfraServer $server = null)
     {
         $server ??= InfraServer::ofType('cyberpanel')->default()->first();
         $this->host = rtrim($server?->get('host', '') ?? '', '/');
         $this->adminUser = $server?->get('user', 'admin') ?? 'admin';
-        $this->adminPassword = $server?->get('password', '') ?? '';
+        // CyberPanel's cloudAPI used to authenticate with sha256(username:password);
+        // current builds (Users > API Access) issue an opaque "cp_api_v1_..." bearer
+        // token instead and reject the old hash scheme with "Invalid login information".
+        $this->apiToken = $server?->get('api_token', '') ?? '';
     }
 
     private function token(): string
     {
-        return 'Basic ' . hash('sha256', $this->adminUser . ':' . $this->adminPassword);
+        return 'Basic ' . $this->apiToken;
     }
 
     private function request(string $controller, array $data = []): array
