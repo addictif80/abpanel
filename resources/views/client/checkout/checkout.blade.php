@@ -145,11 +145,22 @@
     const PLAN_ID    = {{ $plan->id }};
     const INTENT_URL = '{{ route('client.checkout.intent', $plan) }}';
     const SUCCESS_URL = '{{ route('client.checkout.success') }}';
+    const CONFIRM_FREE_URL_TEMPLATE = '{{ route('client.checkout.confirm-free', ['invoice' => '__ID__']) }}';
     const CSRF = '{{ csrf_token() }}';
+
+    async function confirmFreeOrder(invoiceId) {
+        const res = await fetch(CONFIRM_FREE_URL_TEMPLATE.replace('__ID__', invoiceId), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error('confirm-free failed');
+    }
 
     let PLAN_PRICE = PLAN_MONTHLY_PRICE;
     let billingPeriod = 'monthly';
     let currentElements = null;
+    let freeOrderInvoiceId = null;
     let currentPaymentEl = null;
     let appliedPromoCode = null;
 
@@ -206,6 +217,16 @@
 
             if (data.error) { showError(data.error); btn.disabled = true; return; }
 
+            if (data.free_order) {
+                freeOrderInvoiceId = data.invoice_id;
+                document.getElementById('payment-element').innerHTML =
+                    '<p class="text-sm text-green-700 bg-green-50 border border-green-100 rounded-lg p-3">Commande gratuite — aucun paiement requis.</p>';
+                btn.disabled = false;
+                updateDisplayedTotal(promoCode ? (window._promoDiscount || 0) : 0);
+                return;
+            }
+            freeOrderInvoiceId = null;
+
             currentElements = stripe.elements({ clientSecret: data.client_secret });
             currentPaymentEl = currentElements.create('payment');
             currentPaymentEl.mount('#payment-element');
@@ -234,6 +255,21 @@
     loadIntent();
 
     btn.addEventListener('click', async () => {
+        if (freeOrderInvoiceId) {
+            hideError();
+            btn.disabled = true;
+            btn.textContent = 'Traitement…';
+            try {
+                await confirmFreeOrder(freeOrderInvoiceId);
+                window.location.href = SUCCESS_URL;
+            } catch (e) {
+                showError('Une erreur est survenue. Rechargez la page et réessayez.');
+                btn.disabled = false;
+                updateDisplayedTotal(appliedPromoCode ? (window._promoDiscount || 0) : 0);
+            }
+            return;
+        }
+
         if (!currentElements) return;
         hideError();
         btn.disabled = true;
@@ -272,6 +308,13 @@
             });
             const data = await res.json();
             if (data.error) { showError(data.error); btn.disabled = false; updateDisplayedTotal(window._promoDiscount || 0); return; }
+
+            if (data.free_order) {
+                btn.textContent = 'Traitement…';
+                await confirmFreeOrder(data.invoice_id);
+                window.location.href = SUCCESS_URL;
+                return;
+            }
 
             currentElements = stripe.elements({ clientSecret: data.client_secret });
             currentPaymentEl = currentElements.create('payment');

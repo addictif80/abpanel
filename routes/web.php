@@ -98,6 +98,7 @@ Route::middleware('installed')->group(function () {
             Route::get('/plans', [Client\CheckoutController::class, 'plans'])->name('plans');
             Route::get('/plans/{plan}', [Client\CheckoutController::class, 'checkout'])->name('checkout');
             Route::post('/plans/{plan}/intent', [Client\CheckoutController::class, 'createIntent'])->name('intent');
+            Route::post('/free/{invoice}/confirm', [Client\CheckoutController::class, 'confirmFree'])->name('confirm-free');
             Route::get('/success', [Client\CheckoutController::class, 'success'])->name('success');
             Route::post('/validate-promo', [Client\CheckoutController::class, 'validatePromo'])->middleware('throttle:10,1')->name('validate-promo');
         });
