@@ -33,6 +33,7 @@
                 <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Statut</th>
                 <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Prix/mois</th>
                 <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Renouvellement</th>
+                <th class="px-5 py-3"></th>
             </tr>
         </thead>
         <tbody class="divide-y divide-gray-50">
@@ -65,9 +66,29 @@
                 <td class="px-5 py-3 text-gray-400 text-xs">
                     {{ $account->next_renewal_at?->format('d/m/Y') ?? '—' }}
                 </td>
+                <td class="px-5 py-3 text-right" x-data="{ confirming: false }">
+                    <button type="button" @click="confirming = true" x-show="!confirming"
+                        class="text-xs text-red-500 hover:underline">Supprimer</button>
+                    <div x-show="confirming" x-cloak
+                        class="text-left bg-red-50 border border-red-100 rounded-lg p-2 w-56">
+                        <form method="POST" action="{{ route('admin.hosting.destroy', $account) }}">
+                            @csrf @method('DELETE')
+                            <label class="flex items-start gap-1.5 text-xs text-gray-700 cursor-pointer">
+                                <input type="checkbox" name="delete_on_cyberpanel" value="1"
+                                    class="mt-0.5 rounded border-gray-300 text-red-600 focus:ring-red-500">
+                                <span>Supprimer aussi le site sur CyberPanel</span>
+                            </label>
+                            <p class="text-xs text-gray-400 mt-1">Par défaut, seul l'import ABPanel est retiré — le site reste intact sur CyberPanel.</p>
+                            <div class="flex items-center gap-3 mt-2">
+                                <button type="submit" class="text-xs font-semibold text-red-600 hover:underline">Confirmer</button>
+                                <button type="button" @click="confirming = false" class="text-xs text-gray-400 hover:underline">Annuler</button>
+                            </div>
+                        </form>
+                    </div>
+                </td>
             </tr>
             @empty
-            <tr><td colspan="7" class="px-5 py-10 text-center text-gray-400">Aucun site</td></tr>
+            <tr><td colspan="8" class="px-5 py-10 text-center text-gray-400">Aucun site</td></tr>
             @endforelse
         </tbody>
     </table>

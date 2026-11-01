@@ -21,6 +21,30 @@ class HostingController extends Controller
         return view('admin.hosting.index', compact('accounts'));
     }
 
+    /**
+     * Admin-side removal — distinct from the client's own cancellation flow
+     * (Client\HostingController::cancelConfirm). Defaults to removing only
+     * the ABPanel record, since this exists to undo an accidental import
+     * (wrong domain, wrong client) rather than to terminate a real service:
+     * the site almost always still belongs to an actual client on
+     * CyberPanel, so it must not be destroyed just because it was imported
+     * into the wrong place here. Deleting the real site is opt-in.
+     */
+    public function destroy(Request $request, HostingAccount $hosting)
+    {
+        if ($request->boolean('delete_on_cyberpanel')) {
+            try {
+                $hosting->cyberpanelService()->deleteWebsite($hosting->domain);
+            } catch (\Throwable $e) {
+                return back()->with('error', "Échec de la suppression sur CyberPanel : {$e->getMessage()}. L'import n'a pas été retiré d'ABPanel.");
+            }
+        }
+
+        $hosting->delete();
+
+        return back()->with('success', "« {$hosting->domain} » retiré d'ABPanel" . ($request->boolean('delete_on_cyberpanel') ? ' et supprimé sur CyberPanel.' : '.'));
+    }
+
     public function importIndex(Request $request)
     {
         $servers  = InfraServer::ofType('cyberpanel')->orderByDesc('is_default')->orderBy('label')->get();
