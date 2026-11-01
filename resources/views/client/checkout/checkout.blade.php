@@ -157,14 +157,22 @@
         return 'Payer ' + amount.toFixed(2).replace('.', ',') + '€';
     }
 
+    // Single source of truth for both the recap box and the Pay button, so a
+    // promo code (or a billing period change) can never update one without
+    // the other — that mismatch is what made the discount look ignored.
+    function updateDisplayedTotal(discount = 0) {
+        const total = Math.max(0, PLAN_PRICE - discount);
+        document.getElementById('recap-total').textContent = total.toFixed(2).replace('.', ',') + '€';
+        btn.textContent = fmtPrice(total);
+    }
+
     // ── Bascule Mensuel / Annuel (si le plan propose les deux) ────────────
     window.setBillingPeriod = function (period) {
         billingPeriod = period;
         PLAN_PRICE = (period === 'yearly' && PLAN_YEARLY_PRICE !== null) ? PLAN_YEARLY_PRICE : PLAN_MONTHLY_PRICE;
 
-        document.getElementById('recap-total').textContent = PLAN_PRICE.toFixed(2).replace('.', ',') + '€';
         document.getElementById('recap-period').textContent = period === 'yearly' ? 'Facturation annuelle' : 'Facturation mensuelle';
-        btn.textContent = fmtPrice(PLAN_PRICE);
+        updateDisplayedTotal();
 
         // Réinitialise un éventuel code promo appliqué (calculé pour l'ancien
         // prix) et, pour les VPS/services, recrée l'intent avec le bon montant.
@@ -203,9 +211,7 @@
             currentPaymentEl.mount('#payment-element');
             currentPaymentEl.on('ready', () => {
                 btn.disabled = false;
-                btn.textContent = promoCode
-                    ? fmtPrice(Math.max(0, PLAN_PRICE - (window._promoDiscount || 0)))
-                    : fmtPrice(PLAN_PRICE);
+                updateDisplayedTotal(promoCode ? (window._promoDiscount || 0) : 0);
             });
         } catch (e) {
             showError('Erreur d\'initialisation du paiement. Rechargez la page.');
@@ -239,9 +245,7 @@
         if (error) {
             showError(error.message);
             btn.disabled = false;
-            btn.textContent = appliedPromoCode
-                ? fmtPrice(Math.max(0, PLAN_PRICE - (window._promoDiscount || 0)))
-                : fmtPrice(PLAN_PRICE);
+            updateDisplayedTotal(appliedPromoCode ? (window._promoDiscount || 0) : 0);
         }
     });
 
@@ -267,7 +271,7 @@
                 body: JSON.stringify(body),
             });
             const data = await res.json();
-            if (data.error) { showError(data.error); btn.disabled = false; btn.textContent = fmtPrice(PLAN_PRICE); return; }
+            if (data.error) { showError(data.error); btn.disabled = false; updateDisplayedTotal(window._promoDiscount || 0); return; }
 
             currentElements = stripe.elements({ clientSecret: data.client_secret });
             currentPaymentEl = currentElements.create('payment');
@@ -282,22 +286,24 @@
             if (error) {
                 showError(error.message);
                 btn.disabled = false;
-                btn.textContent = fmtPrice(PLAN_PRICE);
+                updateDisplayedTotal(window._promoDiscount || 0);
             }
         } catch (e) {
             showError('Une erreur est survenue. Veuillez réessayer.');
             btn.disabled = false;
-            btn.textContent = fmtPrice(PLAN_PRICE);
+            updateDisplayedTotal(window._promoDiscount || 0);
         }
     });
 
     window._reloadStripeIntent = (promoCode, discount) => {
         window._promoDiscount = discount || 0;
         appliedPromoCode = promoCode;
+        updateDisplayedTotal(discount || 0);
     };
     window._reloadStripeIntentNoPromo = () => {
         window._promoDiscount = 0;
         appliedPromoCode = null;
+        updateDisplayedTotal(0);
     };
     @endif
 
@@ -322,6 +328,7 @@
                     if (data.valid) {
                         const newTotal = Math.max(0, PLAN_PRICE - data.discount);
                         this.applied = { label: data.label, discount: data.discount, newTotal: newTotal.toFixed(2) };
+                        updateDisplayedTotal(data.discount);
                         window._reloadStripeIntent(this.code.toUpperCase(), data.discount);
                     } else {
                         this.error = data.error;
@@ -335,6 +342,7 @@
                 this.applied = null;
                 this.code = '';
                 this.error = '';
+                updateDisplayedTotal(0);
                 window._reloadStripeIntentNoPromo();
             },
         };
