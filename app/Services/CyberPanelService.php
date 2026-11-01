@@ -176,7 +176,10 @@ class CyberPanelService
     ): array {
         return $this->request('submitUserCreation', [
             'userName'       => $username,
-            'userPassword'   => $password,
+            // CyberPanel's submitUserCreation reads data['password'] server-side —
+            // confirmed against a real server: 'userPassword' threw a Python
+            // KeyError: 'password' instead of actually creating the account.
+            'password'       => $password,
             'confirmPassword'=> $password,
             'firstName'      => $fullName ?: $username,
             'lastName'       => '',
