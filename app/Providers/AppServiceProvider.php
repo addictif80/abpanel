@@ -21,6 +21,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        \App\Models\Plan::observe(\App\Observers\PlanObserver::class);
         $this->applyMailSettings();
     }
 

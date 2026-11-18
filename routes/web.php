@@ -30,6 +30,8 @@ Route::middleware('not.installed')->prefix('install')->name('install.')->group(f
 
 // Public routes (require app to be installed)
 Route::middleware('installed')->group(function () {
+    // Public plans (read-only) consumed by abhd.fr
+    Route::get('/api/public/plans', [\App\Http\Controllers\PublicPlanController::class, 'index'])->middleware('throttle:60,1');
     // Auth
     Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login')->middleware('guest');
     Route::post('/login', [LoginController::class, 'login'])->middleware(['guest', 'throttle:5,1']);
