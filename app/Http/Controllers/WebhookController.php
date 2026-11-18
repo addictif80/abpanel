@@ -4,9 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Invoice;
 use App\Models\User;
-use App\Services\MailService;
-use App\Services\NotificationService;
-use App\Services\ProvisioningService;
+use App\Services\InvoiceFulfillmentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -73,41 +71,7 @@ class WebhookController extends Controller
 
         if (!$invoice) return;
 
-        if ($invoice->promo_code_id) {
-            $invoice->promoCode?->incrementUsage();
-        }
-
-        try {
-            app(NotificationService::class)->paymentConfirmed($invoice);
-            app(NotificationService::class)->paymentReceived($invoice);
-        } catch (\Exception) {}
-
-        // Provision VM/container if the plan requires it. The invoice stays
-        // "paid" either way (the client did pay) but a failure here must stay
-        // visible — otherwise the client paid for a service that never showed up.
-        try {
-            app(ProvisioningService::class)->provisionFromInvoice($invoice);
-        } catch (\Exception $e) {
-            $reason = $e->getMessage();
-            Log::error("ProvisioningService failed for invoice {$invoice->id}: {$reason}");
-            $invoice->update(['metadata' => array_merge($invoice->metadata ?? [], [
-                'provisioning_failed' => true,
-                'provisioning_error'  => $reason,
-            ])]);
-            try {
-                app(NotificationService::class)->provisioningFailed($invoice, $reason);
-            } catch (\Exception) {}
-        }
-
-        try {
-            app(MailService::class)->sendFromTemplate('invoice_paid', $invoice->user->email, [
-                'first_name'     => $invoice->user->first_name,
-                'invoice_number' => $invoice->number,
-                'amount'         => number_format($invoice->total, 2) . '€',
-                'date'           => now()->format('d/m/Y'),
-                'invoice_url'    => route('client.billing.invoice', $invoice),
-            ]);
-        } catch (\Exception) {}
+        app(InvoiceFulfillmentService::class)->fulfill($invoice);
     }
 
     private function handlePaymentFailed(object $paymentIntent): void
