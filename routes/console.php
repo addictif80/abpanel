@@ -22,3 +22,7 @@ Schedule::command('urssaf:report')->dailyAt('09:00')->withoutOverlapping();
 // GDPR storage-limitation: mail_logs holds full email bodies indefinitely
 // otherwise. See mail_logs_retention_months in Settings (default 12 months).
 Schedule::command('mail-logs:purge')->dailyAt('03:00')->withoutOverlapping();
+
+// Cloud images are downloaded on the fly for VM deployments; this removes the
+// ones kept past their retention delay (0 = removed right after use anyway).
+Schedule::command('os-images:purge')->everyTenMinutes()->withoutOverlapping();

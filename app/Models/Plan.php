@@ -9,7 +9,7 @@ use Illuminate\Support\Str;
 class Plan extends Model
 {
     protected $fillable = [
-        'name', 'slug', 'type', 'vm_type', 'proxmox_server_id', 'description', 'price', 'yearly_price', 'currency',
+        'name', 'slug', 'type', 'vm_type', 'proxmox_server_id', 'os_template_id', 'description', 'price', 'yearly_price', 'currency',
         'billing_period', 'stripe_price_id', 'stripe_product_id', 'stripe_yearly_price_id', 'features',
         'cores', 'memory_mb', 'disk_gb', 'cyberpanel_package', 'cyberpanel_server_id', 'ldap_group', 'storage_quota_gb', 'synology_server_id', 'requires_ldap_group', 'is_active', 'sort_order',
         'limit_per_client', 'limit_per_vm', 'limit_per_hosting',

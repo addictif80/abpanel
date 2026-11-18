@@ -87,6 +87,15 @@ class VmController extends Controller
         $vmid     = $proxmox->getNextVMID();
         $isLxc    = $request->vm_type === 'lxc';
 
+        // Cloud image: deployed asynchronously (image downloaded on the fly, VM created from it)
+        $cloud = (!$isLxc && $request->os_template_id)
+            ? OsTemplate::where('template_type', 'qemu')->where('is_active', true)
+                ->where('proxmox_server_id', $server->id)->find($request->os_template_id)
+            : null;
+        if ($cloud) {
+            return $this->storeCloudVm($request, $server, $cloud);
+        }
+
         try {
             if ($isLxc) {
                 $this->createLxcOnProxmox($proxmox, $request, $vmid);
@@ -132,6 +141,33 @@ class VmController extends Controller
         $typeLabel = $isLxc ? 'Conteneur' : 'VM';
         return redirect()->route('admin.vms.index')
             ->with('success', "{$typeLabel} {$vm->name} créé(e) (VMID: {$vmid}) sur « {$server->label} ».");
+    }
+
+    private function storeCloudVm(Request $request, InfraServer $server, OsTemplate $cloud)
+    {
+        $vm = VirtualMachine::create([
+            'user_id'             => $request->user_id,
+            'proxmox_server_id'   => $server->id,
+            'name'                => $request->name,
+            'proxmox_vmid'        => 0,
+            'proxmox_node'        => $request->proxmox_node,
+            'vm_type'             => 'qemu',
+            'status'              => 'stopped',
+            'provisioning_status' => 'provisioning',
+            'cores'               => $request->cores,
+            'memory_mb'           => $request->memory_mb,
+            'disk_gb'             => $request->disk_gb,
+            'disk_storage'        => $request->disk_storage,
+            'os_template'         => $cloud->name,
+            'tailscale_ip'        => $request->tailscale_ip,
+            'monthly_price'       => $request->monthly_price,
+            'root_password'       => \Illuminate\Support\Str::random(10) . '!' . \Illuminate\Support\Str::random(10),
+        ]);
+
+        \App\Jobs\DeployVmJob::start($vm, $cloud);
+
+        return redirect()->route('admin.vms.index')
+            ->with('success', "VM {$vm->name} en cours de déploiement depuis « {$cloud->name} » sur « {$server->label} » (image téléchargée à la volée, quelques minutes).");
     }
 
     private function createQemuOnProxmox(ProxmoxService $proxmox, Request $request, int $vmid): void

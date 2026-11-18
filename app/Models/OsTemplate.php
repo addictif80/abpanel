@@ -13,6 +13,7 @@ class OsTemplate extends Model
         'proxmox_server_id', 'proxmox_node', 'proxmox_storage', 'proxmox_volume',
         'proxmox_task_id', 'status', 'error_message',
         'size_bytes', 'is_active',
+        'checksum', 'checksum_algorithm', 'ci_user', 'retention_minutes',
     ];
 
     protected function casts(): array
@@ -28,6 +29,17 @@ class OsTemplate extends Model
     public function proxmoxService(): ProxmoxService
     {
         return new ProxmoxService($this->proxmoxServer);
+    }
+
+    /** Cloud image (qcow2) downloaded on the fly at deployment time, not kept on the node. */
+    public function isCloudImage(): bool
+    {
+        return $this->template_type === 'qemu';
+    }
+
+    public function images(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(OsTemplateImage::class);
     }
 
     public function isReady(): bool

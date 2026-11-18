@@ -37,6 +37,12 @@ class VirtualMachine extends Model
         return $this->belongsTo(User::class);
     }
 
+    /** The purchased Plan (the `plan` attribute is a legacy string column). */
+    public function planModel(): ?Plan
+    {
+        return $this->plan_id ? Plan::find($this->plan_id) : null;
+    }
+
     public function proxmoxServer(): BelongsTo
     {
         return $this->belongsTo(InfraServer::class, 'proxmox_server_id');

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Jobs\DeployVmJob;
 use App\Jobs\ProvisionHostingProxyJob;
 use App\Jobs\ProvisionLdapAccountJob;
 use App\Jobs\SyncSynologyQuotaJob;
@@ -141,6 +142,15 @@ class ProvisioningService
             'monthly_price'        => $plan->price,
         ]);
 
+        // QEMU plans with a cloud image: deploy asynchronously (image downloaded on the
+        // fly, VM created from it, image removed). See DeployVmJob.
+        $cloud = $isLxc ? null : $this->resolveCloudTemplate($plan, $invoice);
+        if ($cloud) {
+            $vm->update(['root_password' => $this->generatePassword()]);
+            DeployVmJob::start($vm, $cloud, false, true);
+            return $vm->fresh();
+        }
+
         try {
             $password = $this->generatePassword();
             $vmid     = $proxmox->getNextVMID();
@@ -260,6 +270,26 @@ class ProvisioningService
             ->sum(fn($invoice) => $invoice->plan->storage_quota_gb);
     }
 
+    /**
+     * Cloud image to deploy for this order: the one chosen at checkout
+     * (invoice metadata os_template_id) when valid, else the plan's default.
+     */
+    private function resolveCloudTemplate(Plan $plan, ?Invoice $invoice): ?\App\Models\OsTemplate
+    {
+        $ids = array_filter([$invoice?->metadata['os_template_id'] ?? null, $plan->os_template_id]);
+
+        foreach ($ids as $id) {
+            $tpl = \App\Models\OsTemplate::where('template_type', 'qemu')
+                ->where('is_active', true)
+                ->where('proxmox_server_id', $plan->proxmox_server_id)
+                ->find($id);
+            if ($tpl) {
+                return $tpl;
+            }
+        }
+        return null;
+    }
+
     private function createQemuInstance(ProxmoxService $proxmox, string $node, int $vmid, VirtualMachine $vm, Plan $plan, string $storage): void
     {
         $proxmox->createVM($node, [
@@ -302,7 +332,7 @@ class ProvisioningService
         ]);
     }
 
-    private function sendProvisioningEmail(User $user, VirtualMachine $vm, Plan $plan, string $password): void
+    public function sendProvisioningEmail(User $user, VirtualMachine $vm, Plan $plan, string $password): void
     {
         $typeLabel = ($plan->vm_type ?? 'qemu') === 'lxc' ? 'Conteneur LXC' : 'Machine virtuelle KVM';
 

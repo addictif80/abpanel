@@ -45,6 +45,19 @@ class ProxmoxService
 
     private function request(string $method, string $path, array $data = []): array
     {
+        $data = $this->send($method, $path, $data);
+        return is_array($data) ? $data : [];
+    }
+
+    /** Same as request() but for endpoints that answer with a task UPID string. */
+    private function requestUpid(string $method, string $path, array $data = []): string
+    {
+        $data = $this->send($method, $path, $data);
+        return is_string($data) ? $data : '';
+    }
+
+    private function send(string $method, string $path, array $data = []): mixed
+    {
         if (!$this->ticket) {
             $this->authenticate();
         }
@@ -67,8 +80,7 @@ class ProxmoxService
             throw new \RuntimeException($detail ?: "HTTP {$response->status()}");
         }
 
-        $data = $response->json('data');
-        return is_array($data) ? $data : [];
+        return $response->json('data');
     }
 
     // ── Nodes ─────────────────────────────────────────────────────────────────
@@ -152,6 +164,33 @@ class ProxmoxService
     public function createVM(string $node, array $config): array
     {
         return $this->request('post', "/nodes/{$node}/qemu", $config);
+    }
+
+    /** Async variants returning the task UPID (use with getTaskStatus / waitForTask). */
+    public function createVMTask(string $node, array $config): string
+    {
+        return $this->requestUpid('post', "/nodes/{$node}/qemu", $config);
+    }
+
+    public function deleteVMTask(string $node, int $vmid): string
+    {
+        return $this->requestUpid('delete', "/nodes/{$node}/qemu/{$vmid}", ['purge' => 1, 'destroy-unreferenced-disks' => 1]);
+    }
+
+    /** Set the disk to an absolute size (e.g. "20G"). Grow only. */
+    public function resizeDisk(string $node, int $vmid, string $disk, string $size): void
+    {
+        $this->request('put', "/nodes/{$node}/qemu/{$vmid}/resize", ['disk' => $disk, 'size' => $size]);
+    }
+
+    public function vmExists(string $node, int $vmid): bool
+    {
+        try {
+            $this->request('get', "/nodes/{$node}/qemu/{$vmid}/status/current");
+            return true;
+        } catch (\Throwable) {
+            return false;
+        }
     }
 
     public function deleteVM(string $node, int $vmid): array
@@ -295,7 +334,7 @@ class ProxmoxService
         return $this->getStorages($node, $content);
     }
 
-    public function downloadTemplate(string $node, string $storage, string $url, string $filename, string $content = 'iso'): string
+    public function downloadTemplate(string $node, string $storage, string $url, string $filename, string $content = 'iso', ?string $checksum = null, ?string $checksumAlgorithm = null): string
     {
         if (!$this->ticket) {
             $this->authenticate();
@@ -305,11 +344,13 @@ class ProxmoxService
             ->withCookies(['PVEAuthCookie' => $this->ticket], parse_url($this->host, PHP_URL_HOST))
             ->withHeaders(['CSRFPreventionToken' => $this->csrfToken])
             ->asForm()
-            ->post("{$this->host}/api2/json/nodes/{$node}/storage/{$storage}/download-url", [
-                'url'      => $url,
-                'filename' => $filename,
-                'content'  => $content,
-            ]);
+            ->post("{$this->host}/api2/json/nodes/{$node}/storage/{$storage}/download-url", array_filter([
+                'url'                    => $url,
+                'filename'               => $filename,
+                'content'                => $content,
+                'checksum'               => $checksum,
+                'checksum-algorithm'     => $checksum ? $checksumAlgorithm : null,
+            ], fn($v) => $v !== null && $v !== ''));
 
         if ($response->failed()) {
             Log::error("Proxmox downloadTemplate error: " . $response->body());

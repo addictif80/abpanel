@@ -78,6 +78,18 @@
                 @endif
                 <p class="text-xs text-gray-400 mt-1">Serveur sur lequel les VPS souscrivant ce plan sont provisionnés automatiquement.</p>
             </div>
+
+            <div class="mt-3">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Image cloud par défaut (KVM)</label>
+                <select name="os_template_id"
+                    class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    <option value="">— Aucune (VM vide) —</option>
+                    @foreach($cloudImages as $img)
+                    <option value="{{ $img->id }}" {{ (string) old('os_template_id', $plan->os_template_id) === (string) $img->id ? 'selected' : '' }}>{{ $img->name }} ({{ $img->proxmoxServer?->label }})</option>
+                    @endforeach
+                </select>
+                <p class="text-xs text-gray-400 mt-1">OS déployé automatiquement à la commande : l'image est téléchargée à la volée puis supprimée du nœud.</p>
+            </div>
         </div>
 
         <div>

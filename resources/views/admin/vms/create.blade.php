@@ -116,7 +116,7 @@
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-3">
         <div class="flex items-center justify-between">
             <h2 class="font-semibold text-gray-800">
-                <span x-text="vmType === 'lxc' ? 'Template conteneur' : 'ISO d\'installation'"></span>
+                <span x-text="vmType === 'lxc' ? 'Template conteneur' : 'Image cloud / ISO d\'installation'"></span>
             </h2>
             <a href="{{ route('admin.os-templates.index') }}" target="_blank" class="text-xs text-indigo-600 hover:underline">Gérer les templates →</a>
         </div>
@@ -127,7 +127,7 @@
                     :required="vmType === 'lxc'"
                     class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                     <option value="">
-                        <span x-text="vmType === 'lxc' ? '— Template requis —' : '— Aucun ISO (installation manuelle) —'"></span>
+                        <span x-text="vmType === 'lxc' ? '— Template requis —' : '— Aucun (VM vide, installation manuelle) —'"></span>
                     </option>
                     <template x-for="tpl in availableTemplates" :key="tpl.id">
                         <option :value="tpl.id" x-text="tpl.name"></option>
@@ -241,8 +241,10 @@ function vmCreateForm(osTemplates) {
         loadingNodes: false,
 
         get availableTemplates() {
-            const key = this.vmType === 'lxc' ? 'ct' : 'iso';
-            const list = this.osTemplates[key] ?? [];
+            const list = this.vmType === 'lxc'
+                ? (this.osTemplates.ct ?? [])
+                : (this.osTemplates.qemu ?? []).map(t => ({...t, name: t.name + ' — image cloud (déploiement auto)'}))
+                    .concat(this.osTemplates.iso ?? []);
             if (!this.selectedServer) return [];
             return list.filter(tpl => String(tpl.proxmox_server_id) === String(this.selectedServer));
         },

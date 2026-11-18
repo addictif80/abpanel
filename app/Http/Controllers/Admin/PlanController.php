@@ -25,7 +25,8 @@ class PlanController extends Controller
         $proxmoxServers    = InfraServer::ofType('proxmox')->orderByDesc('is_default')->orderBy('label')->get();
         $cyberpanelServers = InfraServer::ofType('cyberpanel')->orderByDesc('is_default')->orderBy('label')->get();
         $synologyServers   = InfraServer::ofType('synology')->orderByDesc('is_default')->orderBy('label')->get();
-        return view('admin.plans.create', compact('allPlans', 'proxmoxServers', 'cyberpanelServers', 'synologyServers'));
+        $cloudImages = \App\Models\OsTemplate::with('proxmoxServer')->where('template_type', 'qemu')->where('is_active', true)->orderBy('name')->get();
+        return view('admin.plans.create', compact('allPlans', 'proxmoxServers', 'cyberpanelServers', 'synologyServers', 'cloudImages'));
     }
 
     public function store(Request $request)
@@ -52,6 +53,7 @@ class PlanController extends Controller
             'limit_per_domain'    => 'nullable|integer|min:1',
             'limit_per_subdomain' => 'nullable|integer|min:1',
             'proxmox_server_id'    => 'nullable|exists:infra_servers,id',
+            'os_template_id'       => 'nullable|exists:os_templates,id',
             'cyberpanel_server_id' => 'nullable|exists:infra_servers,id',
             'synology_server_id'   => 'nullable|exists:infra_servers,id',
         ]);
@@ -85,6 +87,7 @@ class PlanController extends Controller
             'requires_hosting'    => $request->boolean('requires_hosting'),
             'plan_allowances'     => $planAllowances ?: null,
             'proxmox_server_id'    => $request->type === 'vm' ? $request->proxmox_server_id ?: null : null,
+            'os_template_id'       => $request->type === 'vm' && $request->vm_type !== 'lxc' ? $request->os_template_id ?: null : null,
             'cyberpanel_server_id' => $request->type === 'hosting' ? $request->cyberpanel_server_id ?: null : null,
             'synology_server_id'   => $request->synology_server_id ?: null,
         ]);
@@ -104,7 +107,8 @@ class PlanController extends Controller
         $proxmoxServers    = InfraServer::ofType('proxmox')->orderByDesc('is_default')->orderBy('label')->get();
         $cyberpanelServers = InfraServer::ofType('cyberpanel')->orderByDesc('is_default')->orderBy('label')->get();
         $synologyServers   = InfraServer::ofType('synology')->orderByDesc('is_default')->orderBy('label')->get();
-        return view('admin.plans.edit', compact('plan', 'allPlans', 'proxmoxServers', 'cyberpanelServers', 'synologyServers'));
+        $cloudImages = \App\Models\OsTemplate::with('proxmoxServer')->where('template_type', 'qemu')->where('is_active', true)->orderBy('name')->get();
+        return view('admin.plans.edit', compact('plan', 'allPlans', 'proxmoxServers', 'cyberpanelServers', 'synologyServers', 'cloudImages'));
     }
 
     public function update(Request $request, Plan $plan)
@@ -132,6 +136,7 @@ class PlanController extends Controller
             'limit_per_domain'    => 'nullable|integer|min:1',
             'limit_per_subdomain' => 'nullable|integer|min:1',
             'proxmox_server_id'    => 'nullable|exists:infra_servers,id',
+            'os_template_id'       => 'nullable|exists:os_templates,id',
             'cyberpanel_server_id' => 'nullable|exists:infra_servers,id',
             'synology_server_id'   => 'nullable|exists:infra_servers,id',
         ]);
@@ -166,6 +171,7 @@ class PlanController extends Controller
             'requires_hosting'    => $request->boolean('requires_hosting'),
             'plan_allowances'     => $planAllowances ?: null,
             'proxmox_server_id'    => $request->type === 'vm' ? $request->proxmox_server_id ?: null : null,
+            'os_template_id'       => $request->type === 'vm' && $request->vm_type !== 'lxc' ? $request->os_template_id ?: null : null,
             'cyberpanel_server_id' => $request->type === 'hosting' ? $request->cyberpanel_server_id ?: null : null,
             'synology_server_id'   => $request->synology_server_id ?: null,
         ]);
