@@ -235,10 +235,10 @@ class VmController extends Controller
     {
         $this->authorizeVm($vm);
 
-        $templateType = ($vm->vm_type ?? 'qemu') === 'lxc' ? 'ct' : 'iso';
+        $templateTypes = ($vm->vm_type ?? 'qemu') === 'lxc' ? ['ct'] : ['qemu', 'iso'];
         $templates = \App\Models\OsTemplate::where('status', 'ready')
             ->where('is_active', true)
-            ->where('template_type', $templateType)
+            ->whereIn('template_type', $templateTypes)
             ->where('proxmox_server_id', $vm->proxmox_server_id)
             ->get();
 
@@ -256,6 +256,21 @@ class VmController extends Controller
         $template = \App\Models\OsTemplate::findOrFail($request->os_template_id);
         $proxmox  = $vm->proxmoxService();
         $vmType   = $vm->vm_type ?? 'qemu';
+
+        // Cloud image: recreate the VM from a freshly downloaded image (async job).
+        if ($vmType === 'qemu' && $template->isCloudImage()) {
+            if ($template->proxmox_server_id !== $vm->proxmox_server_id) {
+                return back()->with('error', 'Ce template n\'est pas disponible sur le serveur de cette VM.');
+            }
+            $vm->update([
+                'status'        => 'stopped',
+                'root_password' => \Illuminate\Support\Str::random(10) . '!' . \Illuminate\Support\Str::random(10),
+            ]);
+            \App\Jobs\DeployVmJob::start($vm, $template, reinstall: true);
+
+            return redirect()->route('client.vms.show', $vm)
+                ->with('success', 'Réinstallation lancée : la VM est recréée depuis l\'image, cela prend quelques minutes.');
+        }
 
         try {
             // Force-stop the VM and wait up to 30 s

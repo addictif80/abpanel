@@ -6,7 +6,7 @@
 <div class="flex items-center justify-between mb-6">
     <div>
         <h1 class="text-2xl font-bold text-gray-900">Templates OS</h1>
-        <p class="text-gray-500 text-sm mt-0.5">ISOs disponibles pour l'installation et la réinstallation des VPS.</p>
+        <p class="text-gray-500 text-sm mt-0.5">ISOs, templates LXC et images cloud KVM (téléchargées à la volée) pour l'installation et la réinstallation des VPS.</p>
     </div>
 </div>
 
@@ -25,7 +25,7 @@
          x-init="init()">
 
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4 sticky top-6">
-            <h2 class="font-semibold text-gray-800">Ajouter un ISO</h2>
+            <h2 class="font-semibold text-gray-800">Ajouter un template</h2>
 
             @if($errors->any())
             <div class="px-4 py-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
@@ -38,7 +38,14 @@
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Type de template <span class="text-red-500">*</span></label>
-                    <div class="grid grid-cols-2 gap-2">
+                    <div class="grid grid-cols-3 gap-2">
+                        <label class="cursor-pointer">
+                            <input type="radio" name="template_type" value="qemu" x-model="templateType" @change="loadStorages()" class="sr-only peer">
+                            <div class="rounded-lg border-2 p-2.5 text-center transition peer-checked:border-indigo-500 peer-checked:bg-indigo-50 border-gray-200 text-sm">
+                                <div class="font-semibold text-gray-800">Image cloud</div>
+                                <div class="text-xs text-gray-500">KVM, à la volée</div>
+                            </div>
+                        </label>
                         <label class="cursor-pointer">
                             <input type="radio" name="template_type" value="iso" x-model="templateType" @change="loadStorages()" class="sr-only peer">
                             <div class="rounded-lg border-2 p-2.5 text-center transition peer-checked:border-indigo-500 peer-checked:bg-indigo-50 border-gray-200 text-sm">
@@ -80,11 +87,42 @@
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Nom du fichier <span class="text-red-500">*</span></label>
                     <input type="text" name="filename" value="{{ old('filename') }}" required
-                        :placeholder="templateType === 'ct' ? 'debian-12-standard_12.0-1_amd64.tar.zst' : 'debian-12-amd64.iso'"
+                        :placeholder="templateType === 'ct' ? 'debian-12-standard_12.0-1_amd64.tar.zst' : (templateType === 'qemu' ? 'debian-12-genericcloud-amd64.qcow2' : 'debian-12-amd64.iso')"
                         x-model="filename"
                         class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none font-mono">
-                    <p class="text-xs text-gray-400 mt-0.5" x-text="templateType === 'ct' ? 'Extensions : .tar.gz, .tar.xz, .tar.zst' : 'Doit se terminer par .iso'"></p>
+                    <p class="text-xs text-gray-400 mt-0.5" x-text="templateType === 'ct' ? 'Extensions : .tar.gz, .tar.xz, .tar.zst' : (templateType === 'qemu' ? 'Doit se terminer par .qcow2, .raw ou .vmdk (une image .img qcow2 peut être renommée en .qcow2)' : 'Doit se terminer par .iso')"></p>
                 </div>
+
+                <template x-if="templateType === 'qemu'">
+                    <div class="space-y-3 rounded-lg bg-indigo-50/50 border border-indigo-100 p-3">
+                        <p class="text-xs text-gray-600">L'image (<code>.qcow2</code>) n'est <strong>pas</strong> téléchargée maintenant : Proxmox la récupère à chaque déploiement, crée la VM avec (cloud-init), puis l'image est supprimée du nœud. Le stockage choisi doit avoir le contenu « Import » activé.</p>
+                        <div class="grid grid-cols-3 gap-2">
+                            <div class="col-span-2">
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Checksum (recommandé)</label>
+                                <input type="text" name="checksum" value="{{ old('checksum') }}" class="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-xs font-mono">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Algo</label>
+                                <select name="checksum_algorithm" class="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-xs">
+                                    @foreach(['sha512','sha256','sha1','md5'] as $algo)
+                                    <option value="{{ $algo }}" {{ old('checksum_algorithm', 'sha512') === $algo ? 'selected' : '' }}>{{ $algo }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Utilisateur cloud-init</label>
+                                <input type="text" name="ci_user" value="{{ old('ci_user') }}" placeholder="root (ou debian, ubuntu…)" class="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-xs">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Rétention de l'image (min)</label>
+                                <input type="number" min="0" name="retention_minutes" value="{{ old('retention_minutes', 0) }}" class="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-xs">
+                            </div>
+                        </div>
+                        <p class="text-xs text-gray-500">Rétention : 0 = image supprimée dès la fin du déploiement. Sinon elle reste N minutes sur le nœud (évite de re-télécharger si plusieurs commandes se suivent).</p>
+                    </div>
+                </template>
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Serveur Proxmox <span class="text-red-500">*</span></label>
@@ -118,7 +156,7 @@
                     <div x-show="loadingStorages" class="text-xs text-gray-400 py-2">Chargement…</div>
                     <select name="proxmox_storage" required x-show="!loadingStorages && storages.length > 0"
                         class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                        <option value="">— Choisir un stockage ISO —</option>
+                        <option value="">— Choisir un stockage —</option>
                         <template x-for="s in storages" :key="s.id">
                             <option :value="s.id" x-text="s.name"
                                 :selected="'{{ old('proxmox_storage') }}' === s.id"></option>
@@ -126,14 +164,14 @@
                     </select>
                     <p x-show="!loadingStorages && selectedNode && storages.length === 0"
                        class="text-xs text-amber-600 mt-1">
-                        Aucun stockage ISO trouvé sur ce nœud.
+                        Aucun stockage compatible trouvé sur ce nœud (pour une image cloud : activer le contenu « Import » sur le stockage).
                     </p>
                     <p x-show="storageError" class="text-xs text-red-500 mt-1" x-text="storageError"></p>
                 </div>
 
                 <button type="submit"
                     class="w-full py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition">
-                    Lancer le téléchargement
+                    <span x-text="templateType === 'qemu' ? 'Ajouter au catalogue' : 'Lancer le téléchargement'"></span>
                 </button>
             </form>
         </div>
@@ -176,6 +214,9 @@
                             @endif
 
                             {{-- Active toggle --}}
+                            @if($tpl->isCloudImage())
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-50 text-purple-600">Image cloud · à la volée{{ $tpl->retention_minutes ? ' · rétention ' . $tpl->retention_minutes . ' min' : '' }}</span>
+                            @endif
                             @if($tpl->status === 'ready')
                             <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ $tpl->is_active ? 'bg-indigo-50 text-indigo-600' : 'bg-gray-100 text-gray-400' }}">
                                 {{ $tpl->is_active ? 'Visible' : 'Masqué' }}
@@ -275,7 +316,7 @@ function osForm(initialType) {
                 const last = parts[parts.length - 1];
                 const valid = this.templateType === 'ct'
                     ? /\.(tar\.gz|tar\.xz|tar\.zst)$/i.test(last)
-                    : last.toLowerCase().endsWith('.iso');
+                    : (this.templateType === 'qemu' ? /\.(qcow2|raw|vmdk)$/i.test(last) : last.toLowerCase().endsWith('.iso'));
                 if (valid) this.filename = last;
             } catch {}
         },

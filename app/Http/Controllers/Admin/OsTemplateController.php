@@ -36,9 +36,13 @@ class OsTemplateController extends Controller
         $request->validate([
             'server_id'     => 'required|exists:infra_servers,id',
             'node'          => 'required|string',
-            'template_type' => 'nullable|in:iso,ct',
+            'template_type' => 'nullable|in:iso,ct,qemu',
         ]);
-        $contentFilter = $request->input('template_type') === 'ct' ? 'vztmpl' : 'iso';
+        $contentFilter = match ($request->input('template_type')) {
+            'ct'    => 'vztmpl',
+            'qemu'  => 'import',
+            default => 'iso',
+        };
         try {
             $server   = InfraServer::ofType('proxmox')->findOrFail($request->server_id);
             $storages = (new ProxmoxService($server))->getStorages($request->node, $contentFilter);
@@ -53,13 +57,23 @@ class OsTemplateController extends Controller
 
     public function store(Request $request)
     {
-        $isCt = $request->input('template_type') === 'ct';
-        $filenameRegex = $isCt ? '/^[\w\-\.]+\.(tar\.gz|tar\.xz|tar\.zst)$/i' : '/^[\w\-\.]+\.iso$/i';
+        $type = $request->input('template_type');
+        $isCt = $type === 'ct';
+        $isCloud = $type === 'qemu';
+        $filenameRegex = match (true) {
+            $isCt    => '/^[\w\-\.]+\.(tar\.gz|tar\.xz|tar\.zst)$/i',
+            $isCloud => '/^[\w\-\.]+\.(qcow2|raw|vmdk)$/i',
+            default  => '/^[\w\-\.]+\.iso$/i',
+        };
 
         $request->validate([
             'name'              => 'required|string|max:100',
             'description'       => 'nullable|string',
-            'template_type'     => 'required|in:iso,ct',
+            'template_type'     => 'required|in:iso,ct,qemu',
+            'checksum'          => 'nullable|string|max:200',
+            'checksum_algorithm' => 'nullable|required_with:checksum|in:md5,sha1,sha224,sha256,sha384,sha512',
+            'ci_user'           => 'nullable|string|max:50|regex:/^[a-z_][a-z0-9_\-]*$/',
+            'retention_minutes' => 'nullable|integer|min:0|max:10080',
             'url'               => ['required', 'url', 'starts_with:http://,https://'],
             'filename'          => ['required', 'string', 'max:150', 'regex:' . $filenameRegex],
             'proxmox_server_id' => 'required|exists:infra_servers,id',
@@ -75,6 +89,28 @@ class OsTemplateController extends Controller
             : in_array(strtolower($host), ['localhost'], true))
         ) {
             return back()->withErrors(['url' => "L'URL ne peut pas pointer vers une adresse locale ou privée."])->withInput();
+        }
+
+        if ($isCloud) {
+            // Catalogue entry only: the image is downloaded on the fly at deployment time.
+            $template = OsTemplate::create([
+                'name'               => $request->name,
+                'description'        => $request->description,
+                'template_type'      => 'qemu',
+                'url'                => $request->url,
+                'filename'           => $request->filename,
+                'checksum'           => $request->checksum ?: null,
+                'checksum_algorithm' => $request->checksum ? $request->checksum_algorithm : null,
+                'ci_user'            => $request->ci_user ?: null,
+                'retention_minutes'  => (int) $request->retention_minutes,
+                'proxmox_server_id'  => $server->id,
+                'proxmox_node'       => $request->proxmox_node,
+                'proxmox_storage'    => $request->proxmox_storage,
+                'status'             => 'ready',
+            ]);
+
+            return redirect()->route('admin.os-templates.index')
+                ->with('success', "Image cloud « {$template->name} » ajoutée. Elle sera téléchargée à la volée lors des déploiements.");
         }
 
         $template = OsTemplate::create([
@@ -174,6 +210,12 @@ class OsTemplateController extends Controller
 
     public function destroy(OsTemplate $osTemplate)
     {
+        foreach ($osTemplate->images as $img) {
+            if ($img->volume) {
+                \App\Jobs\DeployVmJob::deleteImage($img, $osTemplate);
+            }
+        }
+
         if ($osTemplate->proxmox_volume) {
             try {
                 $osTemplate->proxmoxService()->deleteStorageContent(
