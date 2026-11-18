@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+
+    'abhd_site' => [
+        'webhook_url'    => env('ABHD_SITE_WEBHOOK_URL'),
+        'webhook_secret' => env('ABHD_SITE_WEBHOOK_SECRET'),
+    ],
+
 ];
